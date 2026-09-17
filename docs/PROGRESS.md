@@ -1,6 +1,6 @@
 # CROWN-X progress
 
-Next session starts here: M1 is in progress. S0 is half done (Region verified, ADRs 012-014 recorded; model measurement blocked by AWS account verification, B4). S2 (API core) and S3 (ingestion and retrieval) are done at unit level against fakes. Next: S4 web and the S1 SAM template, while B4, B5 and B7 close; then S0's measurement, the S1 deploy (invoke `{"action": "ensure_index"}` after it), and the integration cross-workspace test against the deployed stack.
+Next session starts here: M1 is in progress. S0 is half done (Region verified, ADRs 012-014 recorded; model measurement blocked by AWS account verification, B4). S2 (API core) and S3 (ingestion and retrieval) are done at unit level against fakes; the S1 SAM template is written and passes cfn-lint, but isn't deployed. Next: S4 web and S5 CI, while B4, B5 and B7 close; then S0's measurement and the S1 deploy runbook below, then the integration cross-workspace test against the deployed stack.
 
 The repo overrules this file; memory overrules neither. Update it before every session ends.
 
@@ -16,7 +16,7 @@ on", are still being finalised. Re-check the schedule page and record it here.
 | ID | Milestone | Status | Verified at | Commit | Notes |
 |---|---|---|---|---|---|
 | M0 | Preparation | done except SAM and Docker | none | `75458e2`, `ae14492` | Harness committed and pushed; non-root CLI identity; Region and model catalogue observed; M1 plan approved. Open: SAM CLI (B5), Docker (B7) |
-| M1 | Walking skeleton, deployed | in progress: S0 partly done; S2 and S3 done (unit) | unit (S2, S3) | see git log | Region ADR accepted; models ADR proposed (measurement blocked by B4). S2: `services/api` on Python 3.12 with uv; workspaces, pre-signed upload, checksum-locked `complete`, documents, `/health`, one error envelope with `request_id`. S3: heading/paragraph chunking with exact offsets, Titan embedder, OpenSearch index mapping and bulk writes by `{doc}:{ordinal}`, idempotent ingestion worker with `ensure_index`, `/query` with BM25 and k-NN both filtered by workspace and fused by RRF (k = 60), 503 `retrieval_unavailable`. 65 API tests pass against fakes, including the `domain/` import boundary and a fake index that honours the filter as written. Integration and live checks wait for the deploy (B4, B5) |
+| M1 | Walking skeleton, deployed | in progress: S0 partly done; S2 and S3 done (unit); S1 template written, not deployed | unit (S1 template, S2, S3) | see git log | Region ADR accepted; models ADR proposed (measurement blocked by B4). S2: `services/api` on Python 3.12 with uv; workspaces, pre-signed upload, checksum-locked `complete`, documents, `/health`, one error envelope with `request_id`. S3: heading/paragraph chunking with exact offsets, Titan embedder, OpenSearch index mapping and bulk writes by `{doc}:{ordinal}`, idempotent ingestion worker with `ensure_index`, `/query` with BM25 and k-NN both filtered by workspace and fused by RRF (k = 60), 503 `retrieval_unavailable`. 65 API tests pass against fakes, including the `domain/` import boundary and a fake index that honours the filter as written. Integration and live checks wait for the deploy (B4, B5) |
 | M2 | Grounded answers + eval baseline | not started | none | none | |
 | M3 | Contradictions + conflict inspector | not started | none | none | |
 | M4 | Timeline, polish, reliability | not started | none | none | |
@@ -141,6 +141,14 @@ The plan, in slices that each end green, committed by path and pushed:
 
 Order while B4, B5 and B7 are open: S2, then S3's domain logic and query construction with fakes, then
 S4; S0's measurement and S1 as soon as they close.
+
+**S1 deploy runbook** (not run yet; `infra/template.yaml`, `infra/samconfig.toml`, stack `crownx`):
+1. `sam build` from `infra/`, with Python 3.12 first on PATH (activate `services/api/.venv`), or
+   `sam build --use-container` once Docker runs. Dependencies come from `services/api/src/requirements.txt`.
+2. `sam deploy` from `infra/` (asks; shows the change set). The OpenSearch domain takes a while.
+3. `aws lambda invoke --function-name crownx-ingest --cli-binary-format raw-in-base64-out --payload '{"action":"ensure_index"}' out.json`.
+4. `GET {ApiUrl}/health` should return `status: ok` with table, bucket and index `ok`.
+5. In S6, redeploy with `--parameter-overrides AllowedOrigins=http://localhost:3000,https://<amplify-domain>`.
 
 Kill criterion: if the deployed path isn't working by Thursday evening, run
 `prompts/08-TRIAGE-BEHIND-SCHEDULE.md` (Build It fallback).

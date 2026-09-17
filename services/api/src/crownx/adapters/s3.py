@@ -5,9 +5,14 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from crownx.adapters.ports import ObjectInfo
+
+# Regional, virtual-hosted URLs. A bucket outside us-east-1 answers the global endpoint with a 307
+# redirect for a while after creation, and a browser's cross-origin upload POST can't follow it.
+S3_CLIENT_CONFIG = Config(signature_version="s3v4", s3={"addressing_style": "virtual"})
 
 _MISSING = {"404", "NoSuchKey", "NotFound"}
 

@@ -1,0 +1,17 @@
+# sam build / sam deploy defaults for the one CROWN-X stack (ADR-012). Run from infra/.
+# Deploys always ask first (permissions `ask` plus guard_bash); confirm_changeset shows the diff.
+version = 0.1
+
+[default.global.parameters]
+stack_name = "crownx"
+region = "ap-south-1"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+fail_on_empty_changeset = false

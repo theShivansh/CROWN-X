@@ -7,21 +7,24 @@ import json
 
 import boto3
 
-from crownx.adapters.s3 import S3ObjectStore
+from crownx.adapters.s3 import S3_CLIENT_CONFIG, S3ObjectStore
 
 
-def test_presigned_post_policy_enforces_size_and_content_type():
+def test_presigned_post_policy_enforces_size_and_content_type_on_the_regional_endpoint():
     client = boto3.client(
         "s3",
         region_name="ap-south-1",
         aws_access_key_id="testing",
         aws_secret_access_key="testing",
+        config=S3_CLIENT_CONFIG,
     )
     post = S3ObjectStore(client, "crownx-docs-test").presigned_post(
         "ws/ws_a/doc_b/brief.md", "text/markdown", max_bytes=5_000_000, expires_in=300
     )
 
-    assert post["url"].startswith("https://")
+    # Not the global s3.amazonaws.com host, which redirects for new buckets and breaks CORS POSTs.
+    assert post["url"] == "https://crownx-docs-test.s3.ap-south-1.amazonaws.com/"
+    assert post["fields"]["x-amz-algorithm"] == "AWS4-HMAC-SHA256"
     assert post["fields"]["key"] == "ws/ws_a/doc_b/brief.md"
     assert post["fields"]["Content-Type"] == "text/markdown"
     policy = json.loads(base64.b64decode(post["fields"]["policy"]))

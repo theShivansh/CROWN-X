@@ -150,7 +150,7 @@ def _live_service() -> CrownService:
     from crownx.adapters.dynamo import DynamoMetadataStore
     from crownx.adapters.ingest_queue import LambdaIngestQueue
     from crownx.adapters.opensearch import OpenSearchIndex, build_client
-    from crownx.adapters.s3 import S3ObjectStore
+    from crownx.adapters.s3 import S3_CLIENT_CONFIG, S3ObjectStore
     from crownx.app.service import Limits
     from crownx.config import get_settings
 
@@ -158,7 +158,9 @@ def _live_service() -> CrownService:
     session = boto3.Session(region_name=settings.aws_region)
     return CrownService(
         store=DynamoMetadataStore(session.resource("dynamodb").Table(settings.table_name)),
-        objects=S3ObjectStore(session.client("s3"), settings.documents_bucket),
+        objects=S3ObjectStore(
+            session.client("s3", config=S3_CLIENT_CONFIG), settings.documents_bucket
+        ),
         ingest=LambdaIngestQueue(session.client("lambda"), settings.ingest_function_name),
         index=OpenSearchIndex(
             build_client(

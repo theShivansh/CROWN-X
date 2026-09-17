@@ -24,7 +24,8 @@ Fill these in during M1 and keep them exact, so they are run rather than guessed
 - install: api `cd services/api && uv sync` | web `TBD`
 - dev web: `TBD` | dev api: `TBD`
 - test: api `cd services/api && uv run pytest -q` | harness `python -m pytest tests -q` | web `TBD`
-- lint: api `cd services/api && uv run ruff check src tests` | typecheck: `TBD` | build: `TBD`
+- lint: api `cd services/api && uv run ruff check src tests` | infra `uvx cfn-lint infra/template.yaml`
+- typecheck: `TBD` | build: `TBD` | Lambda deps: `cd services/api && uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt`
 - eval: `TBD`
 - deploy (always ask first): `sam deploy` and the Amplify publish step recorded in `/aws-ship`
 

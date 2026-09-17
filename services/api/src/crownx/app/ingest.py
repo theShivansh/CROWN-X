@@ -38,14 +38,16 @@ def _live_worker() -> IngestionWorker:
     from crownx.adapters.bedrock import TitanEmbedder
     from crownx.adapters.dynamo import DynamoMetadataStore
     from crownx.adapters.opensearch import OpenSearchIndex, build_client
-    from crownx.adapters.s3 import S3ObjectStore
+    from crownx.adapters.s3 import S3_CLIENT_CONFIG, S3ObjectStore
     from crownx.config import get_settings
 
     settings = get_settings()
     session = boto3.Session(region_name=settings.aws_region)
     return IngestionWorker(
         store=DynamoMetadataStore(session.resource("dynamodb").Table(settings.table_name)),
-        objects=S3ObjectStore(session.client("s3"), settings.documents_bucket),
+        objects=S3ObjectStore(
+            session.client("s3", config=S3_CLIENT_CONFIG), settings.documents_bucket
+        ),
         embedder=TitanEmbedder(
             session.client("bedrock-runtime"), settings.bedrock_embedding_model_id
         ),
