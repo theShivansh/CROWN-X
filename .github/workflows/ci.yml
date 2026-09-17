@@ -36,6 +36,49 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # M1 adds two jobs here, and they must stay green on every push:
-  # web: pnpm install --frozen-lockfile, then pnpm run lint, typecheck, test, build
-  # api: uv sync --frozen, then ruff check, pytest, sam validate
+  web:
+    name: Web (lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  api:
+    name: API (ruff, pytest, template checks)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - run: uv lock --check
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests
+      - run: uv run pytest -q
+      # The Lambda bundle is built from requirements.txt, so it must match uv.lock.
+      - name: requirements.txt matches uv.lock
+        run: |
+          uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt
+          git diff --exit-code -- src/requirements.txt
+      - run: uvx cfn-lint ../../infra/template.yaml
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - run: sam validate --lint --template-file ../../infra/template.yaml --region ap-south-1

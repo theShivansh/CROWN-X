@@ -1,94 +1,109 @@
-# CROWN-X Kit v4: Claude Code starter for First Commit 2026
+# CROWN-X
 
-This is the pre-event kit for **CROWN-X**, an evidence-first workspace that answers questions across
-evolving project documents, shows where they contradict each other, and cites every claim. It holds
-the product specs, the four-day plan, and a Claude Code setup for Opus 5 (subagents, skills, hooks,
-MCP, tests).
+Evidence-first answers across evolving project documents. Upload the versions of a brief, a spec or an
+organiser update, ask a question, and CROWN-X shows the passages behind the answer, where the sources
+disagree, and which source is newer.
 
-The event rules allow planning before the start, but not project code. This kit is planning and
-tooling only. The application gets built in a fresh repository from Sept 17.
+Built for AWS First Commit 2026 (Ship It track), 17-20 September 2026.
 
-> Replace this README with the product README during M1. Keep the "Working with Claude Code" section.
+> **Status (17 September, day 1):** the walking skeleton (milestone M1) is in progress. The API,
+> ingestion and retrieval code and the web app pass their unit tests and were checked in a local
+> browser. **Nothing is deployed yet**: the new AWS account is still being verified, which blocks
+> Bedrock calls. Answers, conflict detection and the timeline come in M2 to M4. Live state:
+> [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
-## What's inside
+## The problem
+Project facts such as deadlines, owners and limits change across document versions and informal notes.
+Generic document chat answers from whichever passage it happens to retrieve and doesn't mention that
+another source says something else. Teams find out late.
 
-```text
-CLAUDE.md                     project memory, under 120 lines: rules, stack, commands, how to work
-CREDITS.md                    AI tools and third-party credits (required by the rules)
-.mcp.json                     Playwright (browser verification), AWS documentation
-.claude/
-  settings.json               permissions (deny secrets, ask before push/deploy) and hooks
-  hooks/                      session_start · guard_bash · guard_secrets · format_changed · stop_gate
-  agents/                     reviewer · security · evals · ui-verifier
-  skills/
-    resume/  milestone/  verify-stage/  record-decision/  aws-ship/  release/   (you invoke)
-    rag-evidence/  workflow-learning/  crown-ui/                                (Claude loads)
-    crown-ui/references/      COMPONENTS.md (approved, pinned UI sources) · ANTI_SLOP.md (bans, checklist)
-prompts/                      detailed stage prompts, one per milestone, written for Opus 5
-  00-OPENING-BOOTSTRAP.md     first hour: harness live, deadline, M0 facts, demo scenario, M1 planned
-  01-M1 … 06-M6               walking skeleton → grounded answers → contradictions → polish → workflows → submit
-  07-UI-SCREEN-PASS.md        insert: one screen, every state, verified in the browser
-  08-TRIAGE-BEHIND-SCHEDULE.md  insert: cut scope on purpose, Build It fallback
-docs/
-  PROGRESS.md                 the single state file: next step, milestones, blockers, risks, log
-  DECISIONS.md                ADR index + ADR-001..008
-  MILESTONES.md               M0-M6: scope, done-means with verification level, kill criteria, prompt
-  HACKATHON.md                rules (verified 2026-09-16), plan, video script, submission checklist
-  PRD.md  SRS.md  ARCHITECTURE.md  UI_UX.md  DESIGN.md  EVALUATION.md  SECURITY.md  BENCHMARKS.md
-scripts/
-  install_ui_skills.py        installs taste-skill + ui-ux-pro-max at pinned commits
-  validate_kit.py             checks the harness wiring, frontmatter, references, secrets
-tests/test_hooks.py           the hooks decide things, so they are tested
-.github/workflows/ci.yml      harness checks + gitleaks (M1 adds web and api jobs)
+CROWN-X is built around three rules:
+- every factual answer cites evidence IDs that resolve to stored passages, or says the evidence is
+  insufficient;
+- deciding that two values conflict is deterministic code, never a model's judgement;
+- retrieved document text is data: it can't change instructions, tools or permissions.
+
+## What works today
+- Create a workspace; its unguessable ID is the access key for the event.
+- Upload Markdown or plain-text files (up to 5 MB) straight to S3 with a pre-signed POST; each file's
+  card moves through upload, parsing and indexing to `Ready`, or says why it failed. Re-uploading the
+  same content is detected by checksum.
+- Ask a question: BM25 and k-NN retrieval, both filtered by workspace inside the query, fused with
+  reciprocal rank fusion, return ranked passages with chunk IDs and character offsets.
+
+Not built yet: written answers with citations (M2), contradiction detection and the conflict
+inspector (M3), the value timeline and UI polish (M4).
+
+## Architecture
+```mermaid
+flowchart TD
+    U[Browser: Next.js static export on Amplify Hosting] --> G[API Gateway HTTP API]
+    G --> L[Lambda: API, Python 3.12]
+    U -- pre-signed POST, size-limited --> S3[(S3: raw documents)]
+    L -- async invoke after /complete --> I[Lambda: ingestion worker]
+    I --> S3
+    I --> OS[(OpenSearch: chunks and vectors)]
+    I --> D[(DynamoDB: workspaces, documents, checksums)]
+    L --> OS
+    L --> D
+    L --> B[Amazon Bedrock: Titan embeddings; answer model from M2]
+    I --> B
+    L --> CW[CloudWatch logs by request ID]
+    I --> CW
 ```
 
-## Today (before opening): M0
-1. Work through `docs/MILESTONES.md` → M0: AWS account and budget alert, Builder Center verification,
-   region, Bedrock model access, local tools. Record results in `docs/PROGRESS.md` of **this kit**.
-2. Read `docs/HACKATHON.md`: the four judging criteria and the plan.
-3. Don't create the project repository and don't write application code yet.
+| Service | Job in CROWN-X | Why this service |
+|---|---|---|
+| Amplify Hosting | Serves the static web app, redeploys on push | Git-connected, no servers to run |
+| API Gateway (HTTP API) | API edge, CORS for the app's origins, throttling | Managed boundary, cheap per request |
+| Lambda | API and ingestion worker, one least-privilege role each | Scales to zero between demos |
+| S3 | Raw documents, uploaded directly from the browser | No file bytes through Lambda; S3 enforces the size limit |
+| OpenSearch Service | BM25 and k-NN in one index, filtered by workspace | Hybrid search with metadata filters, idempotent writes by chunk ID (ADR-011) |
+| Amazon Bedrock | Titan Text Embeddings V2; the answer model from M2 | Managed models scoped by IAM (ADR-013) |
+| DynamoDB | Workspace and document records, checksum locks | Keyed by workspace, on-demand billing |
+| CloudWatch | Structured logs carrying `request_id` | Every error shown in the UI can be found in the logs |
 
-## At opening (Sept 17)
-1. Create a new public GitHub repository and clone it.
-2. Copy the **contents** of this kit folder into the repository root, including hidden files
-   (`.claude/`, `.mcp.json`, `.gitignore`, `.github/`), so `CLAUDE.md` sits at the root.
+Everything runs in `ap-south-1` (ADR-012). Decisions and their reasons: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
-   On Windows PowerShell:
-   ```powershell
-   Copy-Item -Path "C:\path\to\CROWN-X_Kit_v4\*" -Destination . -Recurse -Force
-   Get-ChildItem -Force   # confirm .claude, .mcp.json, .github are there
-   ```
-3. Install the design skills and check the harness:
-   ```bash
-   python scripts/install_ui_skills.py
-   python scripts/validate_kit.py
-   python -m pytest tests -q
-   ```
-4. Commit it all as the first commit, by path, before any application code.
-5. Start Claude Code **interactively** at the repository root and accept the workspace trust dialog.
-   Until you do, Claude Code ignores the project's permission rules; `claude -p` in an untrusted
-   folder says so and skips them. Approve the project MCP servers when asked (Playwright, AWS docs).
-6. Check that the setup is live before building:
-   - ask "what does the session start hook say?", which should quote the next-session line;
-   - ask Claude to run `git add -A`, which should be denied by `guard_bash`;
-   - run `/resume`.
-
-   Then paste `prompts/00-OPENING-BOOTSTRAP.md`. It confirms the deadline and M0 facts, writes the
-   demo scenario and plans M1. After that, `/milestone M1`.
-
-## The daily loop
+## Repository
 ```text
-/resume                 where things stand: ledger + git, reconciled
-/milestone M3           loads prompts/03-…, plans (plan mode) → build → verify → persist → commit
-/verify-stage M3        gates with PASS / FAIL / NOT TESTED evidence
-/record-decision …      whenever a material choice is made
-/aws-ship deploy        when a milestone needs to be live (asks before deploying)
-/release                Sunday: freeze, writeup, video check, submit early
+apps/web/           Next.js App Router, TypeScript strict, Tailwind v4, static export
+services/api/       Python 3.12 Lambdas: domain/ (pure logic), adapters/ (AWS), app/ (handlers)
+infra/template.yaml AWS SAM template for the whole backend
+amplify.yml         Amplify build settings and security headers
+demo/               the demo scenario; seeded documents from M2
+docs/               PRD, SRS, architecture, design system, decisions, progress
 ```
+
+## Run it locally
+Requirements: Node 22 with pnpm 10, Python 3.12 through [uv](https://docs.astral.sh/uv/), and for
+deploying, the AWS CLI and SAM CLI.
+
+```bash
+cd services/api && uv sync && uv run pytest -q
+```
+
+```bash
+cd apps/web && pnpm install --frozen-lockfile && pnpm test && pnpm build
+```
+
+The web app reads the API address from `NEXT_PUBLIC_API_URL` at build time; `pnpm dev` in `apps/web`
+starts it on port 3000. Deployment steps are in the S1 runbook in [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
+## Limitations
+- No accounts: the workspace ID in the link is the only access control during the event
+  ([`docs/SECURITY.md`](docs/SECURITY.md) §3). Share a workspace link only with people who should see it.
+- Markdown and plain text only; PDF arrives in M2.
+- Retrieval returns passages, not written answers, until M2.
+- Not deployed yet (see the status note above). No performance figures are claimed: none are measured.
+
+## Credits
+AI coding tools, third-party components and licences: [`CREDITS.md`](CREDITS.md). MIT licence:
+[`LICENSE`](LICENSE).
 
 ## Working with Claude Code
 
-| Feature | How this kit uses it | Why |
+| Feature | How this repository uses it | Why |
 |---|---|---|
 | `CLAUDE.md` | Rules that each name what enforces them; commands; how to work | Loaded every session, so it's short |
 | Skills | Workflows you invoke (`disable-model-invocation`), domain rules Claude loads by description | Detail loads only when used; commands are merged into skills |
@@ -106,36 +121,12 @@ tests/test_hooks.py           the hooks decide things, so they are tested
 - Progress lives in files and git, not in the conversation.
 - Skills that deserve more thought set `effort: high`.
 
-## UI direction (anti-slop)
-- **Locked design:** `docs/DESIGN.md`. A dark, precise "instrument" language; neutral surfaces stepped
-  by tone; one blue accent; evidence states that always pair colour with an icon and a label; Geist and
-  Geist Mono; Phosphor icons; one signature motion sequence. Contrast was computed for every token and
-  passes WCAG AA.
-- **UI UX Pro Max** was run for this product. Its accessibility and density guidance is used; its
-  palette and page pattern were overridden, with reasons in ADR-007.
-- **taste-skill** contributes the bans and brief-reading discipline (`ANTI_SLOP.md`).
-- **Vengeance UI:** six components approved at a pinned commit, each with a specific job, and seven
-  rejected with reasons (`COMPONENTS.md`).
-- **Skiper UI:** conditional; there's no public source to audit.
-- **Animmaster Lib:** not used; it's a paid bundle with no verifiable licence, and the rules require
-  one.
-
-## Requirements
-- `python` on PATH (3.11 or newer) for the hooks and scripts. On macOS or Linux, if only `python3`
-  exists, change `"command": "python"` in `.claude/settings.json`.
-- Git, Node 22 with pnpm, uv (for the AWS docs MCP server), AWS CLI, SAM CLI, Docker.
-
-## What changed from kits v1-v3
-| Problem in v1-v3 | Fixed in v4 |
-|---|---|
-| `.claude/` and `CLAUDE.md` nested in `09_CLAUDE_CODE/`, so Claude Code never loaded them | Kit laid out as a repository root |
-| Two hooks printed to stderr with exit 0; Claude never saw them | Hooks return decisions; the Stop gate blocks on real lint and typecheck failures and can't loop |
-| Secret guard missed Anthropic, Groq and GitHub keys and `.env` writes | Broader patterns, env files blocked, all covered by tests |
-| Relative hook paths broke when the working directory changed | `${CLAUDE_PROJECT_DIR}` in `args` |
-| Eight agents with no tool limits, five on Opus | Four agents with tool limits and output formats |
-| Eight state files to update per milestone | `docs/PROGRESS.md` plus `docs/DECISIONS.md` |
-| No browser verification | Playwright MCP in every stage's done-means; a `ui-verifier` agent for an independent pass on request |
-| Rules from the older rulebook (five criteria including "Learning") | Rules re-verified 2026-09-16: four criteria, Best UI open to both tracks, AI tools must be named |
-| Workflow Learning Lite marked P0 while the plan treated it as removable | Gated behind M4 (ADR-005) |
-| PRD, SRS and UI spec split across kits with different detail | Merged; SRS has the data model, API and error table; UI spec has every state |
-| No design system, no library policy | `DESIGN.md`, `COMPONENTS.md`, `ANTI_SLOP.md`, pinned design skills |
+### The daily loop
+```text
+/resume                 where things stand: ledger + git, reconciled
+/milestone M3           loads prompts/03-…, plans (plan mode) → build → verify → persist → commit
+/verify-stage M3        gates with PASS / FAIL / NOT TESTED evidence
+/record-decision …      whenever a material choice is made
+/aws-ship deploy        when a milestone needs to be live (asks before deploying)
+/release                Sunday: freeze, writeup, video check, submit early
+```
