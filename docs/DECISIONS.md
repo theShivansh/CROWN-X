@@ -4,6 +4,9 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub · proposed
+- ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form · proposed
+- ADR-012 · 2026-09-17 · Region: ap-south-1 (Mumbai) · accepted
 - ADR-011 · 2026-09-17 · Retrieval store: a single-node OpenSearch Service domain · proposed
 - ADR-010 · 2026-09-16 · Stage prompts and working style written for Opus 5 · accepted
 - ADR-009 · 2026-09-16 · A question is two calls: retrieve, then answer · accepted
@@ -17,6 +20,60 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub
+Status: proposed (the user chose it at M1 plan approval; accepted when a push deploys the site in S6)
+
+**Context:** The web app is a static export (ARCHITECTURE §8). Judges see the deployed URL and the video,
+and a manual release step before every recording is one more thing to forget in a four-day event.
+**Decision:** one Amplify Hosting app connected to `github.com/theShivansh/CROWN-X`, branch `main`, with
+a monorepo `amplify.yml` (appRoot `apps/web`), `NEXT_PUBLIC_API_URL` as an Amplify environment variable,
+and the security headers as `customHeaders`. The user authorizes the GitHub app in the Amplify console.
+**Rejected:** manual zip deploys: a release step to remember before each recording. S3 plus CloudFront
+by hand: more infrastructure to write for the same static site.
+**Consequences:** every push to `main` redeploys the judged URL, so CI has to be green before pushing;
+build minutes and hosting draw on the credits.
+**Verify / revisit if:** a push in S6 deploys the site and the golden path works on the Amplify URL.
+
+### ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form
+Status: proposed; the measurement waits until AWS finishes verifying the account (PROGRESS B4)
+
+**Context:** The Anthropic use-case form couldn't be submitted, so Claude Haiku 4.5 is out. The answer
+call needs schema-valid output, low latency and a model still served 30+ days after the event. Model
+cards and the Price List API (Mumbai, published 2026-09-15), standard tier, USD per 1M tokens:
+
+| Model, ID in ap-south-1 | Access | Structured output on `bedrock-runtime` | Input / output |
+|---|---|---|---|
+| Qwen3 235B A22B 2507, `qwen.qwen3-235b-a22b-2507-v1:0` | in-Region | tool calling and structured outputs | $0.26 / $1.04 |
+| gpt-oss-120b, `openai.gpt-oss-120b-1:0` | in-Region | structured outputs (tool calling not listed) | $0.18 / $0.71 |
+| Amazon Nova 2 Lite, `global.amazon.nova-2-lite-v1:0` | global profile only | tool calling (no structured outputs) | not in the Mumbai list |
+| Titan Text Embeddings V2, `amazon.titan-embed-text-v2:0` | in-Region | 1,024 dimensions | $0.024 input |
+
+All four are Active, and Bedrock gives at least six months of legacy notice before an end of life. On
+2026-09-17 every Converse and InvokeModel call returned "Your account is currently being verified".
+**Decision (proposed):** when calls work, run the S0 measurement (one grounded prompt, forced
+`submit_answer`, three runs each) and pick the fastest model valid in all runs, preferring in-Region;
+Qwen3 235B is the expected pick. Embeddings: Titan V2 at 1,024 dimensions. IDs live only in config.
+**Rejected:** Claude Haiku 4.5: needs the form. Smaller models (Nova Micro, Gemma 3, Ministral): cheaper,
+but riskier for schema-bound grounded answers (not measured).
+**Consequences:** no Anthropic dependency; about $0.001 per grounded question with Qwen3. If gpt-oss wins,
+M2 uses structured outputs instead of a forced tool.
+**Verify / revisit if:** the measurement is recorded here; revisit if M2's citation precision misses its gate.
+
+### ADR-012 · 2026-09-17 · Region: ap-south-1 (Mumbai)
+Status: accepted
+
+**Context:** The team and the demo recording are in India, and every ADR-001 service has to exist in one
+Region. Observed from the account on 2026-09-17: the CLI is configured for ap-south-1; Bedrock lists 69
+text models there, including in-Region Qwen3 235B and gpt-oss-120b, a `global.` profile for Nova 2 Lite
+and on-demand Titan Text Embeddings V2; OpenSearch 3.7 offers m7g.medium.search with encryption at rest.
+**Decision:** everything deploys to `ap-south-1`: the SAM stack, Amplify Hosting and the CLI profile;
+recorded in `docs/ARCHITECTURE.md` §11.
+**Rejected:** us-east-1: the widest model catalogue and the cheapest t3 node, but about 250 ms farther
+from the team and the recording, and nothing M1-M3 needs is missing in Mumbai.
+**Consequences:** OpenSearch at $0.048 an hour. Models offered only through global profiles need IAM that
+names every destination Region.
+**Verify / revisit if:** M1's deploy succeeds there; revisit if a required model turns out to be unusable.
 
 ### ADR-011 · 2026-09-17 · Retrieval store: a single-node OpenSearch Service domain
 Status: proposed; the user confirmed it at M1 plan approval (2026-09-17); accepted once M1's deploy verifies it

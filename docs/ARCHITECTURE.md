@@ -119,9 +119,9 @@ Names only; values live in the environment, SAM parameters or SSM, never in the 
 
 | Variable | Used by | Meaning |
 |---|---|---|
-| `AWS_REGION` | all | Deployment region (record in M1) |
-| `BEDROCK_ANSWER_MODEL_ID` | API | Model or inference profile for answers |
-| `BEDROCK_EMBEDDING_MODEL_ID` | ingestion, API | Embedding model |
+| `AWS_REGION` | all | Deployment region: `ap-south-1` (ADR-012) |
+| `BEDROCK_ANSWER_MODEL_ID` | API | Model or inference profile for answers (candidates in ADR-013) |
+| `BEDROCK_EMBEDDING_MODEL_ID` | ingestion, API | Embedding model: `amazon.titan-embed-text-v2:0` (ADR-013) |
 | `OPENSEARCH_ENDPOINT`, `OPENSEARCH_INDEX` | ingestion, API | Retrieval store |
 | `DOCUMENTS_BUCKET` | API, ingestion | Raw document bucket |
 | `TABLE_NAME` | API, ingestion | DynamoDB single table |
