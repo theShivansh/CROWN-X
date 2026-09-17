@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import math
+import re
 
-from crownx.adapters.ports import ObjectInfo
+from crownx.adapters.ports import ObjectInfo, SearchHit
 from crownx.domain.models import Document, DocumentStatus, Workspace
 
 
@@ -76,6 +78,9 @@ class FakeObjects:
     def sha256(self, key: str) -> str:
         return hashlib.sha256(self.objects[key]).hexdigest()
 
+    def read_bytes(self, key: str) -> bytes:
+        return self.objects[key]
+
     def ping(self) -> None:
         if self.fail_ping:
             raise ConnectionError("bucket unreachable")
@@ -89,12 +94,95 @@ class FakeIngest:
         self.enqueued.append((workspace_id, document_id))
 
 
+def _tokens(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+class FakeEmbedder:
+    """Deterministic bag-of-words vectors: texts sharing words point the same way."""
+
+    dimensions = 32
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+        self.error: Exception | None = None
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if self.error:
+            raise self.error
+        self.calls.append(list(texts))
+        vectors = []
+        for text in texts:
+            vector = [0.0] * self.dimensions
+            for token in _tokens(text):
+                vector[int(hashlib.md5(token.encode()).hexdigest(), 16) % self.dimensions] += 1.0
+            norm = math.sqrt(sum(v * v for v in vector)) or 1.0
+            vectors.append([v / norm for v in vector])
+        return vectors
+
+
 class FakeIndex:
+    """Honours the workspace filter *as written in the request body*, like OpenSearch would.
+
+    A body without the filter searches every workspace, so a service that forgets it fails the
+    isolation tests instead of passing by accident.
+    """
+
     def __init__(self) -> None:
         self.exists = True
         self.error: Exception | None = None
+        self.created_with: dict | None = None
+        self.chunks: dict[str, dict] = {}
+        self.bodies: list[dict] = []
+        self.fail_index = False
 
     def index_exists(self) -> bool:
         if self.error:
             raise self.error
         return self.exists
+
+    def ensure_index(self, body: dict) -> bool:
+        if self.exists and self.created_with is not None:
+            return False
+        self.exists, self.created_with = True, body
+        return True
+
+    def index_chunks(self, chunks: list[dict]) -> None:
+        if self.fail_index:
+            raise ConnectionError("bulk failed")
+        for chunk in chunks:
+            self.chunks[chunk["chunk_id"]] = dict(chunk)
+
+    def search(self, body: dict) -> list[SearchHit]:
+        if self.error:
+            raise self.error
+        self.bodies.append(body)
+        query = body["query"]
+        if "knn" in query:
+            clause = query["knn"]["embedding"]
+            workspace = (clause.get("filter") or {}).get("term", {}).get("workspace_id")
+            scored = [
+                (sum(a * b for a, b in zip(clause["vector"], c["embedding"], strict=True)), c)
+                for c in self._in(workspace)
+            ]
+            scored = [(s, c) for s, c in scored if s > 0]
+        else:
+            filters = query["bool"].get("filter", [])
+            workspace = next((f["term"]["workspace_id"] for f in filters if "term" in f), None)
+            words = set(_tokens(query["bool"]["must"][0]["match"]["text"]["query"]))
+            scored = [(float(len(words & set(_tokens(c["text"])))), c) for c in self._in(workspace)]
+            scored = [(s, c) for s, c in scored if s > 0]
+        scored.sort(key=lambda pair: (-pair[0], pair[1]["chunk_id"]))
+        return [
+            SearchHit(
+                chunk_id=c["chunk_id"],
+                score=s,
+                source={k: v for k, v in c.items() if k != "embedding"},
+            )
+            for s, c in scored[: body["size"]]
+        ]
+
+    def _in(self, workspace: str | None) -> list[dict]:
+        return [
+            c for c in self.chunks.values() if workspace is None or c["workspace_id"] == workspace
+        ]

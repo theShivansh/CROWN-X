@@ -1,6 +1,6 @@
 # CROWN-X progress
 
-Next session starts here: M1 is in progress. S0 is half done (Region verified, ADRs 012-014 recorded; model measurement blocked by AWS account verification, B4). S2 (API core against fakes) is done at unit level. Next: S3's domain logic (chunking, RRF, query construction, ingestion worker with fakes) and S4 web, while B4, B5 and B7 close; then S0's measurement and the S1 deploy.
+Next session starts here: M1 is in progress. S0 is half done (Region verified, ADRs 012-014 recorded; model measurement blocked by AWS account verification, B4). S2 (API core) and S3 (ingestion and retrieval) are done at unit level against fakes. Next: S4 web and the S1 SAM template, while B4, B5 and B7 close; then S0's measurement, the S1 deploy (invoke `{"action": "ensure_index"}` after it), and the integration cross-workspace test against the deployed stack.
 
 The repo overrules this file; memory overrules neither. Update it before every session ends.
 
@@ -16,7 +16,7 @@ on", are still being finalised. Re-check the schedule page and record it here.
 | ID | Milestone | Status | Verified at | Commit | Notes |
 |---|---|---|---|---|---|
 | M0 | Preparation | done except SAM and Docker | none | `75458e2`, `ae14492` | Harness committed and pushed; non-root CLI identity; Region and model catalogue observed; M1 plan approved. Open: SAM CLI (B5), Docker (B7) |
-| M1 | Walking skeleton, deployed | in progress: S0 partly done, S2 done (unit) | unit (S2) | see git log | Region ADR accepted; models ADR proposed (measurement blocked by B4). S2: `services/api` on Python 3.12 with uv; workspaces, pre-signed upload, checksum-locked `complete`, documents, `/health`, one error envelope with `request_id`; 33 tests pass against fakes, including the `domain/` import boundary. Deploy blocked by B5 until SAM is installed |
+| M1 | Walking skeleton, deployed | in progress: S0 partly done; S2 and S3 done (unit) | unit (S2, S3) | see git log | Region ADR accepted; models ADR proposed (measurement blocked by B4). S2: `services/api` on Python 3.12 with uv; workspaces, pre-signed upload, checksum-locked `complete`, documents, `/health`, one error envelope with `request_id`. S3: heading/paragraph chunking with exact offsets, Titan embedder, OpenSearch index mapping and bulk writes by `{doc}:{ordinal}`, idempotent ingestion worker with `ensure_index`, `/query` with BM25 and k-NN both filtered by workspace and fused by RRF (k = 60), 503 `retrieval_unavailable`. 65 API tests pass against fakes, including the `domain/` import boundary and a fake index that honours the filter as written. Integration and live checks wait for the deploy (B4, B5) |
 | M2 | Grounded answers + eval baseline | not started | none | none | |
 | M3 | Contradictions + conflict inspector | not started | none | none | |
 | M4 | Timeline, polish, reliability | not started | none | none | |

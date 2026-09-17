@@ -6,13 +6,15 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from fakes import FakeIndex, FakeIngest, FakeObjects, FakeStore
+from fakes import FakeEmbedder, FakeIndex, FakeIngest, FakeObjects, FakeStore
 
 from crownx.app.api import build_resolver
+from crownx.app.ingestion import IngestionWorker
 from crownx.app.service import CrownService, Limits
 
-MAX_BYTES = 1024
+MAX_BYTES = 64 * 1024
 MAX_DOCS = 3
+TOP_K = 4
 
 
 @dataclass
@@ -21,7 +23,9 @@ class ApiHarness:
     objects: FakeObjects
     ingest: FakeIngest
     index: FakeIndex
+    embedder: FakeEmbedder
     service: CrownService
+    worker: IngestionWorker
 
     def call(
         self,
@@ -64,19 +68,46 @@ class ApiHarness:
         response = resolver.resolve(event, object())
         return response["statusCode"], json.loads(response["body"]), response.get("headers") or {}
 
+    def new_workspace(self) -> str:
+        status, body, _ = self.call("POST", "/workspaces")
+        assert status == 201
+        return body["workspace"]["workspace_id"]
+
+    def upload(self, workspace_id: str, filename: str, content: bytes, ingest: bool = True) -> str:
+        """Upload through the API as the browser would, then run the ingestion worker."""
+        status, body, _ = self.call(
+            "POST",
+            f"/workspaces/{workspace_id}/documents/upload-url",
+            {"filename": filename, "size_bytes": len(content)},
+        )
+        assert status == 201, body
+        document_id = body["document"]["document_id"]
+        self.objects.objects[self.objects.posts[-1]["key"]] = content
+        status, body, _ = self.call(
+            "POST", f"/workspaces/{workspace_id}/documents/{document_id}/complete"
+        )
+        assert status == 200, body
+        if ingest:
+            self.worker.ingest(workspace_id, document_id)
+        return document_id
+
 
 @pytest.fixture
 def api() -> ApiHarness:
-    store, objects, ingest, index = FakeStore(), FakeObjects(), FakeIngest(), FakeIndex()
+    store, objects, ingest = FakeStore(), FakeObjects(), FakeIngest()
+    index, embedder = FakeIndex(), FakeEmbedder()
     service = CrownService(
         store=store,
         objects=objects,
         ingest=ingest,
         index=index,
+        embedder=embedder,
         limits=Limits(
             max_upload_bytes=MAX_BYTES,
             max_documents_per_workspace=MAX_DOCS,
             upload_url_expiry_seconds=300,
+            retrieval_top_k=TOP_K,
         ),
     )
-    return ApiHarness(store, objects, ingest, index, service)
+    worker = IngestionWorker(store=store, objects=objects, embedder=embedder, index=index)
+    return ApiHarness(store, objects, ingest, index, embedder, service, worker)

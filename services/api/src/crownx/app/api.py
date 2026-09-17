@@ -24,6 +24,12 @@ class UploadUrlRequest(BaseModel):
     size_bytes: int
 
 
+class QueryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=1, max_length=500)
+
+
 def request_id_of(event: dict[str, Any]) -> str:
     return f"req_{(event.get('requestContext') or {}).get('requestId') or 'local'}"
 
@@ -125,6 +131,13 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
         documents = service().list_documents(workspace_id)
         return reply({"documents": [d.public() for d in documents]})
 
+    @app.post("/workspaces/<workspace_id>/query")
+    def query(workspace_id: str) -> Response:
+        request = body_as(QueryRequest)
+        result = service().query(workspace_id, request.question)
+        # `conflicts` is part of the stage-1 contract; M3 fills it.
+        return reply({"status": result.status, "evidence": result.evidence, "conflicts": []})
+
     return app
 
 
@@ -133,6 +146,7 @@ def _live_service() -> CrownService:
     """Built once per cold start from the environment, so tests never touch AWS."""
     import boto3
 
+    from crownx.adapters.bedrock import TitanEmbedder
     from crownx.adapters.dynamo import DynamoMetadataStore
     from crownx.adapters.ingest_queue import LambdaIngestQueue
     from crownx.adapters.opensearch import OpenSearchIndex, build_client
@@ -152,10 +166,14 @@ def _live_service() -> CrownService:
             ),
             settings.opensearch_index,
         ),
+        embedder=TitanEmbedder(
+            session.client("bedrock-runtime"), settings.bedrock_embedding_model_id
+        ),
         limits=Limits(
             max_upload_bytes=settings.max_upload_bytes,
             max_documents_per_workspace=settings.max_documents_per_workspace,
             upload_url_expiry_seconds=settings.upload_url_expiry_seconds,
+            retrieval_top_k=settings.retrieval_top_k,
         ),
     )
 

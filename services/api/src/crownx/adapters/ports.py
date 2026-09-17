@@ -45,6 +45,8 @@ class ObjectStore(Protocol):
 
     def sha256(self, key: str) -> str: ...
 
+    def read_bytes(self, key: str) -> bytes: ...
+
     def ping(self) -> None: ...
 
 
@@ -52,7 +54,32 @@ class IngestQueue(Protocol):
     def enqueue(self, workspace_id: str, document_id: str) -> None: ...
 
 
+class Embedder(Protocol):
+    dimensions: int
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """One vector per text, in order."""
+        ...
+
+
+@dataclass(frozen=True)
+class SearchHit:
+    chunk_id: str
+    score: float
+    source: dict
+
+
 class SearchIndex(Protocol):
     def index_exists(self) -> bool:
         """False when the index hasn't been created; raises when the store is unreachable."""
         ...
+
+    def ensure_index(self, body: dict) -> bool:
+        """Create the index if it's missing; True when this call created it."""
+        ...
+
+    def index_chunks(self, chunks: list[dict]) -> None:
+        """Write chunks by `chunk_id` and return once they're searchable."""
+        ...
+
+    def search(self, body: dict) -> list[SearchHit]: ...

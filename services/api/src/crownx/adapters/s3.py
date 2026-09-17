@@ -50,5 +50,9 @@ class S3ObjectStore:
                 digest.update(chunk)
         return digest.hexdigest()
 
+    def read_bytes(self, key: str) -> bytes:
+        with self._client.get_object(Bucket=self._bucket, Key=key)["Body"] as body:
+            return body.read()
+
     def ping(self) -> None:
         self._client.head_bucket(Bucket=self._bucket)

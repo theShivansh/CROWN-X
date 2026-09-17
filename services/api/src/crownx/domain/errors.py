@@ -45,3 +45,8 @@ class TooLarge(DomainError):
 class LimitReached(DomainError):
     status = 429
     code = "limit_reached"
+
+
+class RetrievalUnavailable(DomainError):
+    status = 503
+    code = "retrieval_unavailable"

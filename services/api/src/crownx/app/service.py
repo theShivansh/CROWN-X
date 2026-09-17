@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
-from crownx.adapters.ports import IngestQueue, MetadataStore, ObjectStore, SearchIndex
-from crownx.domain.errors import LimitReached, NotFound, TooLarge, UploadIncomplete
+from crownx.adapters.ports import (
+    Embedder,
+    IngestQueue,
+    MetadataStore,
+    ObjectStore,
+    SearchHit,
+    SearchIndex,
+)
+from crownx.domain.errors import (
+    InvalidRequest,
+    LimitReached,
+    NotFound,
+    RetrievalUnavailable,
+    TooLarge,
+    UploadIncomplete,
+)
+from crownx.domain.fusion import reciprocal_rank_fusion
 from crownx.domain.ids import is_document_id, is_workspace_id, new_document_id, new_workspace_id
 from crownx.domain.models import Document, DocumentStatus, Workspace, utc_now
+from crownx.domain.retrieval import lexical_query, semantic_query
 from crownx.domain.uploads import object_key, validate_upload
+
+log = logging.getLogger(__name__)
+
+MAX_QUESTION_CHARS = 500
+RRF_K = 60
 
 
 @dataclass(frozen=True)
@@ -16,6 +38,13 @@ class Limits:
     max_upload_bytes: int
     max_documents_per_workspace: int
     upload_url_expiry_seconds: int
+    retrieval_top_k: int = 8
+
+
+@dataclass(frozen=True)
+class QueryResult:
+    status: str  # "retrieved" or "insufficient_evidence" (SRS §3, stage 1)
+    evidence: list[dict]
 
 
 @dataclass(frozen=True)
@@ -38,12 +67,14 @@ class CrownService:
         objects: ObjectStore,
         ingest: IngestQueue,
         index: SearchIndex,
+        embedder: Embedder,
         limits: Limits,
     ) -> None:
         self._store = store
         self._objects = objects
         self._ingest = ingest
         self._index = index
+        self._embedder = embedder
         self._limits = limits
 
     # Workspaces ---------------------------------------------------------------------------------
@@ -152,6 +183,63 @@ class CrownService:
         if document is None:
             raise NotFound("Document not found in this workspace.")
         return document
+
+    # Retrieval ----------------------------------------------------------------------------------
+
+    def query(self, workspace_id: str, question: str) -> QueryResult:
+        """Stage 1 of a question (ADR-009): BM25 and k-NN, each filtered by workspace, fused by RRF."""
+        self.require_workspace(workspace_id)
+        question = question.strip()
+        if not question or len(question) > MAX_QUESTION_CHARS:
+            raise InvalidRequest(f"Ask a question between 1 and {MAX_QUESTION_CHARS} characters.")
+
+        top_k = self._limits.retrieval_top_k
+        pool = top_k * 2
+        try:
+            vector = self._embedder.embed([question])[0]
+            lexical = self._index.search(lexical_query(question, workspace_id, pool))
+            semantic = self._index.search(semantic_query(vector, workspace_id, pool))
+        except Exception as exc:
+            log.exception("retrieval failed")
+            raise RetrievalUnavailable(
+                "Evidence couldn't be retrieved right now, so no answer was attempted. "
+                "Retry in a moment."
+            ) from exc
+
+        hits: dict[str, SearchHit] = {hit.chunk_id: hit for hit in [*semantic, *lexical]}
+        if any(hit.source.get("workspace_id") != workspace_id for hit in hits.values()):
+            # The filter is inside both queries, so this can't happen; if it does, fail closed.
+            raise RuntimeError("search returned a chunk from another workspace")
+
+        fused = reciprocal_rank_fusion(
+            [[h.chunk_id for h in lexical], [h.chunk_id for h in semantic]], k=RRF_K, top_k=top_k
+        )
+        filenames: dict[str, str | None] = {}
+        for doc_id in {hits[f.chunk_id].source["document_id"] for f in fused}:
+            doc = self._store.get_document(workspace_id, doc_id)
+            filenames[doc_id] = doc.filename if doc else None
+        evidence = []
+        for hit in fused:
+            source = hits[hit.chunk_id].source
+            evidence.append(
+                {
+                    "evidence_id": f"ev_{hit.rank}",
+                    "chunk_id": hit.chunk_id,
+                    "document_id": source["document_id"],
+                    "filename": filenames.get(source["document_id"]),
+                    "quoted_span": source["text"],
+                    "page_or_section": source.get("page_or_section"),
+                    "char_start": source["char_start"],
+                    "char_end": source["char_end"],
+                    "version_label": source.get("version_label"),
+                    "source_timestamp": source.get("source_timestamp"),
+                    "retrieval_rank": hit.rank,
+                    "retrieval_score": round(hit.score, 6),
+                }
+            )
+        return QueryResult(
+            status="retrieved" if evidence else "insufficient_evidence", evidence=evidence
+        )
 
     def _settled(self, document: Document) -> Completion:
         if document.status is DocumentStatus.DUPLICATE and document.duplicate_of:
