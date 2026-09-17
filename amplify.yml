@@ -1,0 +1,39 @@
+# Amplify Hosting build for the static-export web app (ADR-014, ARCHITECTURE §8).
+# The Amplify app needs AMPLIFY_MONOREPO_APP_ROOT=apps/web and NEXT_PUBLIC_API_URL set in the console.
+version: 1
+applications:
+  - appRoot: apps/web
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm install 22 && nvm use 22
+            - npm install -g pnpm@10.33.0
+            - pnpm install --frozen-lockfile
+        build:
+          commands:
+            - pnpm run build
+      artifacts:
+        baseDirectory: out
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+    # A static export can't set headers, so Amplify does (M1 prompt, SECURITY §2).
+    # connect-src allows API Gateway and S3 in ap-south-1 by Region until the first deploy names the
+    # API and the bucket; S6 replaces both wildcards with the stack outputs.
+    # 'unsafe-inline' in script-src: the App Router's static HTML bootstraps with inline scripts.
+    customHeaders:
+      - pattern: "**/*"
+        headers:
+          - key: Content-Security-Policy
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.execute-api.ap-south-1.amazonaws.com https://*.s3.ap-south-1.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          - key: X-Content-Type-Options
+            value: nosniff
+          - key: Referrer-Policy
+            value: strict-origin-when-cross-origin
+          - key: X-Frame-Options
+            value: DENY
+          - key: Strict-Transport-Security
+            value: max-age=31536000; includeSubDomains

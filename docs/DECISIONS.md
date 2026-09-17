@@ -4,6 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-015 · 2026-09-17 · M1's Thursday-evening kill criterion deferred while AWS verifies the account · accepted
 - ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub · proposed
 - ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form · proposed
 - ADR-012 · 2026-09-17 · Region: ap-south-1 (Mumbai) · accepted
@@ -20,6 +21,23 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-015 · 2026-09-17 · M1's Thursday-evening kill criterion deferred while AWS verifies the account
+Status: accepted
+
+**Context:** M1's kill criterion switches to the Build It fallback if the deployed path isn't working
+by Thursday evening (MILESTONES M1, ADR-001, ADR-004). At 19:13 IST on 2026-09-17 nothing could be
+deployed: a Titan V2 `invoke-model` call still returned "Operation not allowed" (B4), and SAM CLI and
+Docker weren't installed (B5, B7). The fallback needs Docker too, so it isn't available either. The
+user expects AWS to finish verifying the new account within about 24 hours of creation (00:05 IST).
+**Decision:** the user waived the Thursday-evening check. `prompts/08-TRIAGE-BEHIND-SCHEDULE.md` is not
+run on Thursday; M1 continues with the slices that need no AWS (S4 web, S5 CI) and deploys as soon as
+B4, B5 and B7 close.
+**Rejected:** running the triage prompt now: its Build It fallback needs Docker, which isn't installed,
+so it would not unblock anything tonight.
+**Consequences:** M2 and M3 start late if verification slips; the live done-means of M1 are still owed.
+**Verify / revisit if:** a Bedrock runtime call succeeds and `sam deploy` works by Friday 12:00 IST.
+If not, run the triage prompt then.
 
 ### ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub
 Status: proposed (the user chose it at M1 plan approval; accepted when a push deploys the site in S6)

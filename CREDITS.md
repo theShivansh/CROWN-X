@@ -16,7 +16,7 @@ not written during the event. Keep this file complete; `/release` checks it.
 ## UI components (add a row for each one installed)
 | Component | Source | Commit | Licence | Changes made |
 |---|---|---|---|---|
-| shadcn/ui primitives | github.com/shadcn-ui/ui | per install | MIT | re-themed to docs/DESIGN.md |
+| shadcn/ui primitives: button, input, badge, skeleton (shadcn CLI 4.21, style radix-nova, 2026-09-17) | github.com/shadcn-ui/ui | per install | MIT | colour variables mapped to docs/DESIGN.md tokens; control radius set to `sm`; Lucide replaced by Phosphor |
 | _e.g. border-beam_ | github.com/Ashutoshx7/VengeanceUI | 813d9c192b1f82cb36db3d5af93c2ac7d3285ae4 | MIT | _motion/react, tokens, runs only while comparing_ |
 
 ## Libraries

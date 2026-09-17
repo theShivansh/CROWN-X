@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* The app is dark-only (DESIGN.md §3), so shadcn's `dark:` styles always apply, whatever the OS setting. */
+@custom-variant dark (&:where(html, html *));
+
+/* docs/DESIGN.md §3, pasted as written. Change it there first, with an ADR. */
+@theme {
+  /* Surfaces: neutral near-black, stepped by tone rather than shadow */
+  --color-bg: #0a0a0b;
+  --color-surface: #111113;
+  --color-surface-2: #18181b;
+  --color-surface-3: #202024;
+  --color-border: rgb(255 255 255 / 0.08);
+  --color-border-strong: rgb(255 255 255 / 0.14);
+
+  /* Text */
+  --color-text: #ededef;
+  --color-text-muted: #a1a1aa;
+  --color-text-subtle: #8b8b93;
+
+  /* Brand accent: interactive and "newer source" only */
+  --color-accent: #6e9bff;
+  --color-accent-fg: #0a0a0b;
+  --color-accent-soft: rgb(110 155 255 / 0.12);
+  --color-ring: #6e9bff;
+
+  /* Evidence states: always paired with an icon and a label */
+  --color-grounded: #3dd68c;
+  --color-grounded-soft: rgb(61 214 140 / 0.12);
+  --color-conflict: #f5a524;
+  --color-conflict-soft: rgb(245 165 36 / 0.12);
+  --color-insufficient: #a1a1aa;
+  --color-error: #f87171;
+  --color-error-soft: rgb(248 113 113 / 0.12);
+
+  /* Type */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-spatial: 280ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* DESIGN.md §4: the 13/18 dense-list step, which Tailwind's default scale doesn't have. */
+@theme {
+  --text-dense: 13px;
+  --text-dense--line-height: 18px;
+}
+
+/* shadcn/ui's variable names, mapped onto the tokens above so no default shadcn look ships.
+   `accent`, `border` and `ring` keep DESIGN.md's meaning; the owned components use `muted` for hover. */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-popover: var(--color-surface-3);
+  --color-popover-foreground: var(--color-text);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+  --color-secondary: var(--color-surface-2);
+  --color-secondary-foreground: var(--color-text);
+  --color-muted: var(--color-surface-2);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-input: var(--color-border-strong);
+  --color-destructive: var(--color-error);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+  html {
+    color-scheme: dark;
+    @apply bg-bg font-sans text-text antialiased;
+  }
+  body {
+    @apply min-h-dvh bg-bg text-sm text-text;
+  }
+}

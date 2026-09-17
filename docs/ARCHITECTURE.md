@@ -127,6 +127,7 @@ Names only; values live in the environment, SAM parameters or SSM, never in the 
 | `TABLE_NAME` | API, ingestion | DynamoDB single table |
 | `MAX_UPLOAD_BYTES`, `MAX_DOCUMENTS_PER_WORKSPACE`, `RETRIEVAL_TOP_K` | API | Limits |
 | `NEXT_PUBLIC_API_URL` | web | API Gateway base URL (public, not a secret) |
+| `NEXT_PUBLIC_DEMO_WORKSPACE_ID` | web | Optional: the workspace behind "Open demo workspace" on `/` |
 
 ## 12. Workflow Learning Lite (M5, gated)
 ```mermaid

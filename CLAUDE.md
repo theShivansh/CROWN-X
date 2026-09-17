@@ -21,11 +21,11 @@ over time. Built for AWS First Commit 2026 (Sept 17-20).
 
 ## Commands
 Fill these in during M1 and keep them exact, so they are run rather than guessed.
-- install: api `cd services/api && uv sync` | web `TBD`
-- dev web: `TBD` | dev api: `TBD`
-- test: api `cd services/api && uv run pytest -q` | harness `python -m pytest tests -q` | web `TBD`
-- lint: api `cd services/api && uv run ruff check src tests` | infra `uvx cfn-lint infra/template.yaml`
-- typecheck: `TBD` | build: `TBD` | Lambda deps: `cd services/api && uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt`
+- install: api `cd services/api && uv sync` | web `cd apps/web && pnpm install --frozen-lockfile`
+- dev web: `cd apps/web && pnpm dev` (needs `NEXT_PUBLIC_API_URL` in the environment) | dev api: `TBD`
+- test: api `cd services/api && uv run pytest -q` | harness `python -m pytest tests -q` | web `cd apps/web && pnpm test`
+- lint: api `cd services/api && uv run ruff check src tests` | infra `uvx cfn-lint infra/template.yaml` | web `cd apps/web && pnpm lint`
+- typecheck: web `cd apps/web && pnpm typecheck` | build: web `cd apps/web && pnpm build` (static export to `apps/web/out`) | Lambda deps: `cd services/api && uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt`
 - eval: `TBD`
 - deploy (always ask first): `sam deploy` and the Amplify publish step recorded in `/aws-ship`
 
