@@ -49,15 +49,23 @@ class S3ObjectStore:
         )
 
     def sha256(self, key: str) -> str:
+        # Not `with body`: botocore's StreamingBody.__enter__ hands back the raw urllib3 response,
+        # which has no iter_chunks. Close it in `finally` instead.
         digest = hashlib.sha256()
-        with self._client.get_object(Bucket=self._bucket, Key=key)["Body"] as body:
+        body = self._client.get_object(Bucket=self._bucket, Key=key)["Body"]
+        try:
             for chunk in body.iter_chunks(chunk_size=64 * 1024):
                 digest.update(chunk)
+        finally:
+            body.close()
         return digest.hexdigest()
 
     def read_bytes(self, key: str) -> bytes:
-        with self._client.get_object(Bucket=self._bucket, Key=key)["Body"] as body:
+        body = self._client.get_object(Bucket=self._bucket, Key=key)["Body"]
+        try:
             return body.read()
+        finally:
+            body.close()
 
     def ping(self) -> None:
         self._client.head_bucket(Bucket=self._bucket)

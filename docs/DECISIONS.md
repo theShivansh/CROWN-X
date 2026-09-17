@@ -8,7 +8,7 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub · proposed
 - ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form · proposed
 - ADR-012 · 2026-09-17 · Region: ap-south-1 (Mumbai) · accepted
-- ADR-011 · 2026-09-17 · Retrieval store: a single-node OpenSearch Service domain · proposed
+- ADR-011 · 2026-09-17 · Retrieval store: a single-node OpenSearch Service domain · accepted
 - ADR-010 · 2026-09-16 · Stage prompts and working style written for Opus 5 · accepted
 - ADR-009 · 2026-09-16 · A question is two calls: retrieve, then answer · accepted
 - ADR-008 · 2026-09-16 · Claude Code harness: one state file, four agents, tested hooks · accepted
@@ -94,7 +94,7 @@ names every destination Region.
 **Verify / revisit if:** M1's deploy succeeds there; revisit if a required model turns out to be unusable.
 
 ### ADR-011 · 2026-09-17 · Retrieval store: a single-node OpenSearch Service domain
-Status: proposed; the user confirmed it at M1 plan approval (2026-09-17); accepted once M1's deploy verifies it
+Status: accepted 2026-09-18, when the stack deployed: the domain was created and `/health` reports the index `ok`
 
 **Context:** M1 needs BM25 and k-NN in one index, both filtered by `workspace_id`, with deterministic
 chunk IDs. AWS Price List API (published 2026-09-11), ap-south-1 / us-east-1, vs $100 credits per team:
