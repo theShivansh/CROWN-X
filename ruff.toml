@@ -1,0 +1,12 @@
+# Lint and format settings for the whole repository. M1 may extend `extend-select` for the API
+# package; keep the line length so hooks, scripts and app code format the same way.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "B", "UP", "I", "PLW1510", "ISC"]
+# The formatter owns code line length; long prose lines in docstrings and comments are fine.
+ignore = ["E501"]
+
+[format]
+quote-style = "double"

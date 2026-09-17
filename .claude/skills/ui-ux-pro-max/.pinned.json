@@ -1,0 +1,12 @@
+{
+  "repo": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+  "sha": "8bd29e775453ebcae52b6e6514fbf134df0c5770",
+  "subdir": ".claude/skills/ui-ux-pro-max",
+  "installed_at": "2026-09-17T07:56:01+00:00",
+  "patches": [
+    [
+      "${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max/",
+      "${CLAUDE_SKILL_DIR}/"
+    ]
+  ]
+}

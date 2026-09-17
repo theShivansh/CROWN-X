@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    name: Harness checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet pytest ruff
+      - run: python scripts/validate_kit.py
+      - run: ruff check .claude/hooks scripts tests
+      - run: python -m pytest tests -q
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Free for personal accounts. A repository owned by an organization needs a
+      # GITLEAKS_LICENSE secret; see the gitleaks-action README.
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # M1 adds two jobs here, and they must stay green on every push:
+  # web: pnpm install --frozen-lockfile, then pnpm run lint, typecheck, test, build
+  # api: uv sync --frozen, then ruff check, pytest, sam validate

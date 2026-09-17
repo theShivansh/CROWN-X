@@ -1,0 +1,6 @@
+# One line ending everywhere, so hooks, scripts and diffs behave the same on Windows, macOS and CI.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.pdf binary

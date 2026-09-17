@@ -1,0 +1,48 @@
+# Secrets. No `!.env.example` negation: a tracked env template is one paste away from a credential.
+# Variable names are documented in docs/ARCHITECTURE.md (Configuration) instead.
+.env
+.env.*
+*.pem
+*.key
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+.vercel/
+
+# AWS
+.aws-sam/
+samconfig.local.toml
+cdk.out/
+amplify/#current-cloud-backend/
+amplify/.config/local-*
+amplify/backend/amplify-meta.json
+
+# Browser testing
+playwright-report/
+test-results/
+blob-report/
+.playwright-mcp/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

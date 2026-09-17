@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git switch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(uv run:*)",
+      "Bash(uv sync:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(pnpm dlx shadcn@latest:*)",
+      "Bash(npx shadcn@latest:*)",
+      "Bash(sam validate:*)",
+      "Bash(sam build:*)",
+      "Bash(sam local:*)",
+      "Bash(aws sts get-caller-identity:*)",
+      "Bash(aws bedrock list-foundation-models:*)",
+      "Bash(aws bedrock list-inference-profiles:*)",
+      "Bash(aws logs tail:*)",
+      "Bash(python scripts/validate_kit.py:*)",
+      "mcp__playwright__*",
+      "mcp__aws-docs__*"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(sam deploy:*)",
+      "Bash(sam delete:*)",
+      "Bash(aws s3 rm:*)",
+      "Bash(aws cloudformation delete-stack:*)",
+      "Bash(pnpm publish:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(~/.aws/credentials)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(terraform destroy:*)"
+    ]
+  },
+  "includeCoAuthoredBy": false,
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/session_start.py"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_bash.py"],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_secrets.py"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/format_changed.py"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/stop_gate.py"],
+            "timeout": 180
+          }
+        ]
+      }
+    ]
+  }
+}
