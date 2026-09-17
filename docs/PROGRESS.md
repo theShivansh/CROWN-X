@@ -1,6 +1,6 @@
 # CROWN-X progress
 
-Next session starts here: at the repository root, confirm the harness is live (SessionStart line, `git add -A` denied, Playwright MCP tools present), close B2-B8, then run `/milestone M1` and start at slice S0 of the approved M1 plan below.
+Next session starts here: start Claude Code at this repository's root and confirm the harness is live (SessionStart line, `git add -A` denied, Playwright MCP tools present). Close B3 first (root credentials), then B4-B8, then run `/milestone M1` from slice S0 of the approved M1 plan below.
 
 The repo overrules this file; memory overrules neither. Update it before every session ends.
 
@@ -8,14 +8,14 @@ The repo overrules this file; memory overrules neither. Update it before every s
 (read 2026-09-16 23:43 IST; the countdown was gone at 2026-09-17 10:10 IST). Nothing in the repository
 predates it.
 
-**Event deadline (record with time zone):** not published yet. At 2026-09-16 23:43, 2026-09-17 07:39
-and 2026-09-17 10:10 IST the schedule page said the hours, including "the deadline the clock stops
+**Event deadline (record with time zone):** not published yet. At 2026-09-16 23:43, 2026-09-17 07:39,
+10:10 and 13:30 IST the schedule page said the hours, including "the deadline the clock stops
 on", are still being finalised. Re-check the schedule page and record it here.
 
 ## Milestones
 | ID | Milestone | Status | Verified at | Commit | Notes |
 |---|---|---|---|---|---|
-| M0 | Preparation | in progress, blocked | none | none | Harness rehearsed in a scratch copy (installer, validator, 39 tests pass); ADR-011 proposed and confirmed by the user; `demo/SCENARIO.md` written; M1 plan approved. AWS CLI, SAM, uv and Docker missing, so no AWS fact is confirmed (B3-B7) |
+| M0 | Preparation | in progress, blocked | none | `75458e2` (harness) | Harness committed after installer, validator and 39 tests passed in the repo; AWS facts read from the account (below); ADR-011 confirmed by the user; `demo/SCENARIO.md` written; M1 plan approved. Open: root credentials (B3), Anthropic form (B4), SAM, uv and Docker (B5-B7), Free plan and no budget (B8) |
 | M1 | Walking skeleton, deployed | planned, approved 2026-09-17 | none | none | Plan below; starts at S0 once B3-B8 close |
 | M2 | Grounded answers + eval baseline | not started | none | none | |
 | M3 | Contradictions + conflict inspector | not started | none | none | |
@@ -23,19 +23,25 @@ on", are still being finalised. Re-check the schedule page and record it here.
 | M5 | Workflow Learning Lite (gated) | not started | none | none | Only if M4 is verified by Saturday evening |
 | M6 | Freeze and submit | not started | none | none | |
 
-## M0 facts (bootstrap session, 2026-09-16 23:40 to 2026-09-17 08:00 IST)
+## M0 facts (bootstrap session, 2026-09-16 23:40 to 2026-09-17 13:35 IST)
 
-**Harness, rehearsed in a scratch copy of the kit** (not the repository, which doesn't exist yet):
-- the README's `Copy-Item` command copied all 54 files, including `.claude/`, `.github/` and `.mcp.json`;
+**Repository:** `github.com/theShivansh/CROWN-X`, created 2026-09-17 13:18 IST (initial commit with an
+MIT `LICENSE`), cloned to `Downloads\CROWN-X_\CROWN-X`.
+
+**Harness, in the repository** (2026-09-17 13:25 IST), after copying the kit in:
 - `python scripts/install_ui_skills.py` installed `design-taste-frontend` at `ccbc156` and
-  `ui-ux-pro-max` at `8bd29e7` (network and git work);
+  `ui-ux-pro-max` at `8bd29e7`;
 - `python scripts/validate_kit.py`: "Kit valid: 4 agents, 11 skills, hooks wired, no credential
   patterns.";
-- `python -m pytest tests -q`: 39 passed.
+- `python -m pytest tests -q`: 39 passed;
+- committed by explicit path as `75458e2` (107 files), 2026-09-17 13:27 IST.
 
-The harness was not live in that session. Claude Code ran one folder above the kit, outside any git
-repository, so no SessionStart line appeared, `git add -A` was not denied by `guard_bash`, and no
-Playwright MCP tools loaded. Check all three again at the repository root.
+The same checks had passed the night before in a scratch copy, which also showed the README's
+`Copy-Item` command copies the hidden `.claude/`, `.github/` and `.mcp.json`.
+
+The harness was not live in the bootstrap session. Claude Code started one folder above the kit, and
+settings load at session start, so no SessionStart line appeared and `git add -A --dry-run` was not
+denied, even after the working directory moved into the repo. Check all three at the next start.
 
 **Tools** (Windows 11):
 
@@ -45,30 +51,38 @@ Playwright MCP tools loaded. Check all three again at the repository root.
 | pytest, ruff | 9.1.1, 0.16.3 | hook tests, Stop gate |
 | node, pnpm | v22.19.0, 10.33.0 | web |
 | git | 2.50.0.windows.1, user `theshivanshshukla` | commits |
-| aws | not installed | every AWS fact (B3) |
+| aws | aws-cli/2.36.47, Region `ap-south-1` | every AWS fact; signed in with root keys (B3) |
 | sam | not installed | build and deploy (B5) |
 | uv | not installed | API dependencies, Python 3.12, the `aws-docs` MCP server (B6) |
 | docker | not installed | `sam local`, the Build It fallback (B7) |
 | gh | not installed | optional |
 
-**AWS account:** not confirmed. The AWS CLI isn't installed and the AWS connector in the Claude session
-wasn't authenticated, so identity, the root check, Region, account plan, credits and the budget alert
-are all unverified (B3, B8).
+**AWS account** (read-only CLI calls, 2026-09-17 13:25-13:35 IST; account ending 4806):
+- `aws sts get-caller-identity`: the **root user**, through long-lived access keys in the shared
+  credentials file. `aws iam get-account-summary`: root MFA off, a root access key present, zero IAM
+  users (B3).
+- `aws freetier get-account-plan-state`: **Free plan**, active, $100.00 credits remaining, expires
+  2027-03-16 (B8).
+- `aws budgets describe-budgets`: no budgets (B8).
+- `aws bedrock get-use-case-for-model-access`: "You have not filled out the request form" (B4).
 
-**Region:** none configured on this machine. The user chose `ap-south-1` (Mumbai) at M1 plan approval:
-nearest to the team and the demo recording, Titan Text Embeddings V2 runs in-Region there, and the
-smallest suitable OpenSearch node is $0.048 an hour. (`us-east-1` has the widest model catalogue and
-the cheapest t3 node, $0.036 an hour.) S0 verifies it and records the ADR.
+**Region:** `ap-south-1` (Mumbai), set in `~/.aws/config`. The user chose it at M1 plan approval:
+nearest to the team and the demo recording, Titan Text Embeddings V2 on-demand in-Region, and the
+smallest suitable OpenSearch node at $0.048 an hour. S0 records the ADR.
 
-**Bedrock shortlist.** From the AWS model cards read 2026-09-16, not from this account. Confirm in the
-chosen Region with `aws bedrock list-foundation-models --by-output-modality TEXT` and
-`aws bedrock list-inference-profiles`; M1 measures both answer models.
+**Bedrock in ap-south-1, from this account** (`list-foundation-models`: 69 TEXT models;
+`list-inference-profiles`). M1 measures both answer candidates.
 
-| Role | Model | ID to call | Notes |
+| Role | Model | ID to call | Observed |
 |---|---|---|---|
-| answer, candidate A | Claude Haiku 4.5 | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | Converse tool use. `bedrock-runtime` needs a geo or global profile, and the geo profiles are US, EU, AU and JP, so Mumbai uses the global one. Needs Anthropic's one-time use-case form (B4) |
-| answer, candidate B | Amazon Nova 2 Lite | `amazon.nova-2-lite-v1:0`, or `global.amazon.nova-2-lite-v1:0` | client-side tool calling supported, native structured outputs not; no form needed; listed for ap-south-1 (in-Region or global only: the CLI shows which) |
-| embeddings | Titan Text Embeddings V2 | `amazon.titan-embed-text-v2:0` | in-Region only; listed for ap-south-1 and us-east-1; 1,024 dimensions by default (512 and 256 optional); throttled by requests per minute |
+| answer, candidate A | Claude Haiku 4.5 | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | ACTIVE; inference profile only in this Region (no `apac.` profile); needs the Anthropic form (B4) |
+| answer, candidate B | Amazon Nova 2 Lite | `global.amazon.nova-2-lite-v1:0` | ACTIVE; inference profile only in this Region, so not in-Region; no form |
+| embeddings | Titan Text Embeddings V2 | `amazon.titan-embed-text-v2:0` | ACTIVE, on-demand in-Region; 1,024 dimensions by default |
+
+Also available through global profiles if Haiku's answers fall short: Claude Sonnet 4.5, 4.6 and 5
+(`global.anthropic.claude-sonnet-5`). Both answer candidates are global profiles, so the M2 answer
+role's IAM statement must cover the global profile's destinations; record that shape in the models ADR
+(SECURITY T4).
 
 Model access today: serverless models are enabled on first use; Anthropic models need the one-time
 use-case form first (Bedrock console playground, or `PutUseCaseForModelAccess`).
@@ -80,13 +94,13 @@ in Mumbai.
 | ID | Blocker | Owner | Closes when |
 |---|---|---|---|
 | B2 | Submission deadline not published | organisers; you re-check the schedule page | the deadline and its time zone are recorded above |
-| B3 | AWS CLI v2 not installed, so no AWS fact is confirmed | you | `winget install -e --id Amazon.AWSCLI`; `aws login` as an IAM user (never root); `aws sts get-caller-identity` shows a non-root identity and `aws configure get region` the chosen Region |
-| B4 | Anthropic models need the one-time use-case form | you | form submitted in the Bedrock console playground (Claude Haiku 4.5) in the chosen Region; M1's Converse call succeeds |
+| B3 | The CLI uses long-lived root access keys; root MFA is off; the account has no IAM users. Nothing gets deployed with root credentials | you | root MFA on; an admin identity exists (an IAM Identity Center user, or an IAM user); the CLI signs in as it (`aws login`), so `aws sts get-caller-identity` shows a non-root ARN; the root access key is deleted |
+| B4 | Anthropic use-case form not filled out (confirmed 2026-09-17 13:30 IST) | you | form submitted in the Bedrock console playground (Claude Haiku 4.5) in ap-south-1; `aws bedrock get-use-case-for-model-access` returns it; M1's Converse call succeeds |
 | B5 | SAM CLI not installed | you | `winget install -e --id Amazon.SAM-CLI`; `sam --version` works |
 | B6 | uv not installed; no Python 3.12 | you | `winget install -e --id astral-sh.uv`; `uv --version` works; `uv python install 3.12` |
 | B7 | Docker not installed | you | `winget install -e --id Docker.DockerDesktop`; Docker Desktop running; `docker --version` works |
-| B8 | Check-in, event credits, account plan and budget alert unconfirmed. A Free-plan account can't redeem promotional credits (AWS Billing docs), so the event code may need the Paid plan | you | checked in on the First Commit page; credit code redeemed; an AWS Budgets alert exists |
-| B9 | No GitHub repository; Claude Code not yet run at its root | you, then Claude | you create an empty public repo; Claude clones it, copies the kit in, reruns the checks, commits by path and pushes after you confirm; you start Claude Code at its root with workspace trust accepted and both MCP servers approved |
+| B8 | The account is on the Free plan ($100 credits left) with no budget; check-in unconfirmed. Free plans can't redeem other promotional credits and exclude some AWS Marketplace offers (AWS Billing docs), so the event's $100 code needs the Paid plan | you | checked in on the First Commit page; Paid-plan decision made and the event code redeemed; an AWS Budgets alert exists |
+| B9 | First push not done; Claude Code not yet started at the repository root | you | push confirmed; Claude Code started at the root with workspace trust accepted and both MCP servers approved |
 
 ## Risks
 | Risk | Severity | Mitigation |
@@ -95,7 +109,8 @@ in Mumbai.
 | Deployment eats day 1 | high | M1 deploys first; Build It fallback decided by Thursday evening |
 | Tool setup and AWS access eat the first hours | high | B3-B8 closed in parallel with the harness commit; M1 starts with `/aws-ship check` |
 | OpenSearch domain creation slows the first deploy | medium | Deploy infrastructure first and write the API while the domain creates (ADR-011) |
-| Anthropic model access blocked (form or account plan) | medium | Nova 2 Lite is the second answer candidate and needs no form |
+| Anthropic model access blocked (form, or Free-plan Marketplace limits) | medium | Nova 2 Lite is the second answer candidate: Amazon's own model, no form |
+| Root credentials leak or get used for deploys | high | B3 closes before S0; no `sam deploy` under a root identity |
 | Local Python 3.11 against the Lambda 3.12 runtime | medium | uv-managed 3.12 for the API; `sam build --use-container` once Docker runs |
 | Poor retrieval | high | Golden set from M2, baseline before tuning |
 | False conflict on screen | high | Deterministic predicate; format-equivalence tests |
