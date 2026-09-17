@@ -1,0 +1,30 @@
+[project]
+name = "crownx-api"
+version = "0.1.0"
+description = "CROWN-X API and ingestion Lambdas (Python 3.12, AWS SAM)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "aws-lambda-powertools>=3",
+    "boto3>=1.40",
+    "opensearch-py>=2.8",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.15",
+]
+
+[tool.uv]
+# Lambda code is deployed from src/ by SAM, not installed as a package.
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+extend = "../../ruff.toml"
+target-version = "py312"

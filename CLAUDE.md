@@ -21,9 +21,10 @@ over time. Built for AWS First Commit 2026 (Sept 17-20).
 
 ## Commands
 Fill these in during M1 and keep them exact, so they are run rather than guessed.
-- install: `TBD`
+- install: api `cd services/api && uv sync` | web `TBD`
 - dev web: `TBD` | dev api: `TBD`
-- test: `TBD` | lint: `TBD` | typecheck: `TBD` | build: `TBD`
+- test: api `cd services/api && uv run pytest -q` | harness `python -m pytest tests -q` | web `TBD`
+- lint: api `cd services/api && uv run ruff check src tests` | typecheck: `TBD` | build: `TBD`
 - eval: `TBD`
 - deploy (always ask first): `sam deploy` and the Amplify publish step recorded in `/aws-ship`
 
