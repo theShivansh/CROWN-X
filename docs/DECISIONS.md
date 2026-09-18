@@ -4,10 +4,12 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
-- ADR-016 · 2026-09-18 · M2 architecture lock: providers behind one router, one namespaced index · accepted
+- ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only · accepted
+- ADR-017 · 2026-09-18 · Production providers: Groq answers, local ONNX embeddings, OpenSearch kept · accepted
+- ADR-016 · 2026-09-18 · M2 architecture lock: providers behind one router, one namespaced index · accepted (production providers superseded by ADR-017)
 - ADR-015 · 2026-09-17 · M1's Thursday-evening kill criterion deferred while AWS verifies the account · accepted
 - ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub · proposed
-- ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form · proposed
+- ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form · superseded by ADR-017
 - ADR-012 · 2026-09-17 · Region: ap-south-1 (Mumbai) · accepted
 - ADR-011 · 2026-09-17 · Retrieval store: a single-node OpenSearch Service domain · accepted
 - ADR-010 · 2026-09-16 · Stage prompts and working style written for Opus 5 · accepted
@@ -15,13 +17,127 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-008 · 2026-09-16 · Claude Code harness: one state file, four agents, tested hooks · accepted
 - ADR-007 · 2026-09-16 · Third-party UI sources and design skills · accepted
 - ADR-006 · 2026-09-16 · Web stack and dark-first design system · accepted
-- ADR-005 · 2026-09-16 · Workflow Learning Lite is deterministic and gated behind M4 · accepted
+- ADR-005 · 2026-09-16 · Workflow Learning Lite is deterministic and gated behind M4 · accepted (gate amended by ADR-018)
 - ADR-004 · 2026-09-16 · Frozen MVP scope with kill criteria · accepted
 - ADR-003 · 2026-09-16 · Deterministic contradiction predicate · accepted
 - ADR-002 · 2026-09-16 · Evidence-first responses · accepted
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only
+Status: accepted (the user required it in M2 on 2026-09-18; this amends ADR-005's M4 gate)
+
+**Context:** ADR-005 kept Workflow Learning Lite behind M4 so it couldn't endanger the core demo. The
+user asked for it in M2, limited to event logging, stored events and suggestions with confidence, and
+explicitly no automation.
+**Decision:**
+- Events are written server-side only, during upload, ingestion, questions and answers, as an
+  append-only stream per workspace (`SK EVENT#{ts}#{event_id}`, conditional put, idempotent by
+  `event_id`). An event holds a type and scalar attributes: IDs, counts, statuses, timings. Never
+  document text, questions or answers (the model forbids nested values). Timestamps are strictly
+  increasing per process so one request's events keep their order. A failed event write is logged
+  and never fails the request.
+- The miner (`domain/workflow.py`) is pure and deterministic:
+  - normalizes events to three steps (`add_document`, `ask_question`, `read_answer`);
+  - splits sessions on a 30-minute gap and collapses consecutive repeats;
+  - counts contiguous, non-overlapping n-grams of length 3 to 7;
+  - keeps sequences with support ≥ 3 and at least 3 different steps;
+  - drops a sequence that is contained in a longer one with the same support.
+- Scores are defined in every response. `support` is the number of occurrences, and `recency` is the
+  last one's end. `confidence` is support divided by how often the first step occurs, which stays
+  between 0 and 1. The workflow-learning skill's definition (support over sessions containing the
+  first step) can exceed 1 when a pattern repeats within a session, so it was not used.
+- `GET /workspaces/{ws}/workflow-suggestions` is read-only, returns `automation: "none"`, and uses no
+  model, not even for naming. There's no save, dismiss or UI yet (M5); rule 10 keeps the confidence
+  number out of the UI until its presentation is defined.
+**Rejected:** suggestions from a model (not reproducible; ADR-005); client-side events for "open
+evidence" and similar (needs a write endpoint and abuse limits, M5).
+**Consequences:** every upload and question adds one to three small DynamoDB items. The rule of at
+least 3 different steps was added after the first run of our own synthetic benchmark. That run found
+alternating ask/read fragments outranking the planted workflow (precision 0.33). The benchmark is
+synthetic and written by us, so its 1.0 shows that the rules do what they say, not that the
+suggestions are useful.
+**Verify / revisit if:** `tests/test_workflow.py` (normalization, support, near misses, duplicates,
+determinism, trace links, scoping, non-blocking writes) and `evals/workflow_eval.py` pass; revisit in
+M5 with client events and real usage.
+
+### ADR-017 · 2026-09-18 · Production providers: Groq answers, local ONNX embeddings, OpenSearch kept
+Status: accepted (the user, 2026-09-18, after the organisers confirmed by email that Bedrock can be skipped)
+
+**Context:** Bedrock stayed refused (B4). Titan embedded every chunk and question, and ADR-016 allowed
+only Bedrock in production, so retrieval was down, not just answers. The organisers confirmed that
+Bedrock isn't required. The user chose Groq `openai/gpt-oss-120b` for answers and asked for a free,
+local retrieval stack. The user's reference design was FAISS + BM25 with e5 embeddings, RRF and a
+reranker.
+**Decision:**
+- Answers come from Groq `openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b`. The call uses the
+  same system prompt, evidence rendering and forced `submit_answer` tool as before, and
+  `reasoning_effort: low`. `finalize()` still drops any claim citing unknown evidence.
+- Reliability layer, in this order, inside a 26 s deadline:
+  1. A timeout retries once.
+  2. A 429 retries once, only if `Retry-After` ≤ 2 s.
+  3. Anything else falls back once to the fallback model.
+  4. If that fails too, the request returns 503 `answer_unavailable`.
+  Every attempt (model and outcome) goes into the audit record, the structured log and the `/answer`
+  response as `answered_by_model` and `attempts`.
+- The Groq key is a SecureString in SSM Parameter Store, created by a person outside the stack. The
+  API role may `ssm:GetParameter` that one ARN only. The key is read once per cold start and never
+  logged, described or put in the template.
+- Embeddings run locally in the Lambdas with ONNX Runtime and `tokenizers` (no torch): `bge-small-en-v1.5`
+  int8 (34 MB, 384 dimensions, CLS pooling, BGE's query instruction). `multilingual-e5-small` int8
+  (118 MB, `query:`/`passage:` prefixes, mean pooling) stays selectable by parameter.
+  - Models are published to `s3://<bucket>/models/<name>/` by `scripts/fetch_models.py`, pinned to a
+    Hugging Face commit.
+  - Each Lambda copies its model to `/tmp` once and refuses a file whose sha256 differs from the
+    stack parameter.
+- OpenSearch stays the production index. The user chose it over FAISS in Lambda: BM25 plus Lucene
+  HNSW, workspace and namespace filters inside both queries, and RRF (k = 60). A new index,
+  `crownx-chunks-v2`, holds the 384-dimension vectors; embedding version 2.
+- Retrieval pipeline:
+  1. 15 candidates each from BM25 and k-NN.
+  2. RRF.
+  3. Near-duplicates within one document removed (Jaccard ≥ 0.9; passages from different documents
+     are never merged, because M3 needs agreement to stay visible).
+  4. Optional cross-encoder rerank of the top 8.
+  5. The top 8 become evidence.
+- FAISS `IndexFlatIP` and `rank_bm25` BM25Okapi are the offline evaluation's local index, as dev
+  dependencies only. `evals/run.py --compare` measures BM25, dense, hybrid and hybrid + rerank for each
+  local model.
+- Tests never touch the network. `MockGroqTransport` scripts Groq's responses under the real
+  `GroqAnswerer`: ok, invented ID, malformed JSON, no tool call, timeouts, 429s and 500s. An autouse
+  socket guard fails any outbound connection. The scripted transport is refused in production.
+- Measured choices (2026-09-18, `docs/BENCHMARKS.md`):
+  - bge-small over e5-small, by the pre-set rule (better MRR, no worse recall@8). Combined hybrid MRR
+    over both sets: 0.832 vs 0.825, with equal recall@8. e5 wins on the golden set (0.952 vs 0.917),
+    bge on paraphrases (0.661 vs 0.572). I expected e5's multilingual training to win the 4 Hinglish
+    questions, but it didn't: bge scored 0.833 against e5's 0.619, because these questions are
+    mostly English words. bge is also a quarter of the size, which makes cold starts faster. The
+    margin is small and the set is small (42 cases), so this is a measured default, not a finding.
+  - The reranker is off in production by the pre-set rule: it must win on MRR within +150 ms p95. It
+    wins on MRR (golden 0.95 → 1.0, paraphrase 0.57 → 0.74) but adds about 300-600 ms p95 on a laptop CPU.
+    Its recall@8 is unchanged, so the answer model sees the same passages either way.
+**Rejected:**
+- FAISS + BM25 files in S3 per workspace: new persistence and concurrency code, weaker AWS story, and
+  the user preferred OpenSearch.
+- A hosted embedding API: another external dependency and rate limit.
+- torch in Lambda: too big for a zip package.
+- Keeping Bedrock as the only production provider: blocked for an unknown time.
+- A local LLM fallback: no local model fits a Lambda.
+**Consequences:**
+- The two Lambdas grow to 2,048 MB, because ONNX is CPU-bound.
+- Cold starts download about 135 MB from S3.
+- Groq's free-tier limits apply to live runs: `evals/run.py --api` paces answers and retries 503s.
+- Titan-namespace chunks from M1 are hidden and never reused.
+- ADR-013 is superseded.
+- ADR-016's rules stand except its production provider list: production allows groq/onnx (or
+  bedrock), never the mock.
+**Verify / revisit if:**
+- `test_providers.py`, `test_groq_reliability.py`, `test_onnx_models.py`,
+  `test_retrieval_pipeline.py`, `test_observability.py` and `test_infra.py` pass.
+- The live gate measures groundedness and latency.
+- Revisit the reranker if it can run in under 150 ms on Lambda, or if the corpus grows beyond one
+  screen of chunks.
 
 ### ADR-016 · 2026-09-18 · M2 architecture lock: providers behind one router, one namespaced index
 Status: accepted (the user set it on 2026-09-18 as "ADR-014"; that number was already Amplify hosting)

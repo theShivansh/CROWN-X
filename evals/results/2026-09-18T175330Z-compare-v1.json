@@ -1,0 +1,143 @@
+{
+  "dataset": "v1",
+  "mode": "compare",
+  "run_at": "2026-09-18T17:53:30Z",
+  "commit": "fbe3dea",
+  "cases": 28,
+  "index": "local BM25Okapi + FAISS IndexFlatIP (in process)",
+  "rows": [
+    {
+      "system": "bm25",
+      "embedding_model": null,
+      "reranker": null,
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 0.9881,
+      "recall_at_8": 1.0,
+      "mrr": 0.9643,
+      "p50_query_ms": 2.0333,
+      "p95_query_ms": 2.7,
+      "mrr_range": [
+        0.9643,
+        0.9643
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "dense",
+      "embedding_model": "multilingual-e5-small-int8",
+      "reranker": null,
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 0.9881,
+      "recall_at_8": 1.0,
+      "mrr": 0.9464,
+      "p50_query_ms": 9.8,
+      "p95_query_ms": 12.0667,
+      "mrr_range": [
+        0.9464,
+        0.9464
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid",
+      "embedding_model": "multilingual-e5-small-int8",
+      "reranker": null,
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 0.9881,
+      "recall_at_8": 1.0,
+      "mrr": 0.9524,
+      "p50_query_ms": 15.0,
+      "p95_query_ms": 18.1333,
+      "mrr_range": [
+        0.9464,
+        0.9643
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid + rerank",
+      "embedding_model": "multilingual-e5-small-int8",
+      "reranker": "ms-marco-MiniLM-L-6-v2-int8",
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_8": 1.0,
+      "mrr": 1.0,
+      "p50_query_ms": 372.8667,
+      "p95_query_ms": 483.3,
+      "mrr_range": [
+        1.0,
+        1.0
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "dense",
+      "embedding_model": "bge-small-en-v1.5-int8",
+      "reranker": null,
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 0.9881,
+      "recall_at_8": 1.0,
+      "mrr": 0.8643,
+      "p50_query_ms": 15.0667,
+      "p95_query_ms": 18.7667,
+      "mrr_range": [
+        0.8643,
+        0.8643
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid",
+      "embedding_model": "bge-small-en-v1.5-int8",
+      "reranker": null,
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 0.9881,
+      "recall_at_8": 1.0,
+      "mrr": 0.9167,
+      "p50_query_ms": 15.4333,
+      "p95_query_ms": 20.5,
+      "mrr_range": [
+        0.9048,
+        0.9226
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid + rerank",
+      "embedding_model": "bge-small-en-v1.5-int8",
+      "reranker": "ms-marco-MiniLM-L-6-v2-int8",
+      "cases": 28.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 1.0,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_8": 1.0,
+      "mrr": 1.0,
+      "p50_query_ms": 311.7,
+      "p95_query_ms": 532.1,
+      "mrr_range": [
+        1.0,
+        1.0
+      ],
+      "repeats": 3
+    }
+  ]
+}

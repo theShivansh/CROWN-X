@@ -26,7 +26,8 @@ Fill these in during M1 and keep them exact, so they are run rather than guessed
 - test: api `cd services/api && uv run pytest -q` | harness `python -m pytest tests -q` | web `cd apps/web && pnpm test`
 - lint: api `cd services/api && uv run ruff check src tests` | infra `uvx cfn-lint infra/template.yaml` | web `cd apps/web && pnpm lint`
 - typecheck: web `cd apps/web && pnpm typecheck` | build: web `cd apps/web && pnpm build` (static export to `apps/web/out`) | Lambda deps: `cd services/api && uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt`
-- eval: offline `cd services/api && uv run python ../../evals/run.py --offline` | live `cd services/api && uv run python ../../evals/run.py --api <ApiUrl>`
+- eval: offline `cd services/api && uv run python ../../evals/run.py --offline [--embedding bge-small-en-v1.5-int8]` | retrieval benchmark `... --compare [--dataset paraphrase]` | workflow `cd services/api && uv run python ../../evals/workflow_eval.py` | live `... --api <ApiUrl> --pace 2.5`
+- local models: `python scripts/fetch_models.py` (into `services/api/.models/`, gitignored) | publish `... --publish <DocumentsBucket>`
 - deploy (always ask first): `sam deploy` and the Amplify publish step recorded in `/aws-ship`
 
 ## Rules that don't bend

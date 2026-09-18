@@ -89,12 +89,21 @@ a spec only).
 - [x] Evaluation runner and offline baseline recorded with commit and dataset version (offline)
 - [x] All tests, lint, typecheck and builds green; redeployed with production on Bedrock (integration)
 
-*External Bedrock Gate* (blocked until AWS enables inference, B4):
-- [ ] Titan embeddings run live; a demo document reaches `ready` on the deployed stack (live)
-- [ ] Answer-model benchmark (Qwen3 235B, gpt-oss-120b, Nova 2 Lite) and the ADR-013 decision
-- [ ] Live eval baseline: recall@8, MRR, groundedness and latency; gates proposed in DECISIONS
-- [ ] Injection case doesn't change the answer format with the real model (integration)
-- [ ] The golden question answered with citations that open the right passage, on the deployed URL (live)
+*Offline Gate additions after ADR-017 / ADR-018* (2026-09-18, no network):
+- [x] Groq reliability layer through the scripted MockGroqTransport, every branch (unit)
+- [x] Local ONNX embedder and reranker on generated models, plus the real models when downloaded (unit)
+- [x] Retrieval correctness with a real local model: offline eval with e5-small, security gate 1.0 (offline)
+- [x] BM25 vs dense vs hybrid vs hybrid + rerank measured on v1 and the paraphrase set (offline)
+- [x] Workflow events, deterministic miner and read-only suggestions; synthetic benchmark (unit, offline)
+- [x] Provider and environment in /health, structured logs, audit records and the banner (unit)
+- [x] Tests fail on any outbound connection (socket guard)
+
+*Live Gate* (replaces the External Bedrock Gate, ADR-017; needs the Groq key in SSM and a deploy):
+- [ ] ONNX embeddings run live; a demo document reaches `ready` on the deployed stack (live)
+- [ ] The golden question answered by Groq with citations that open the right passage (live)
+- [ ] Live eval: groundedness, recall@8, MRR, latency and fallback rate; gates proposed in DECISIONS
+- [ ] Injection case doesn't change the answer format with the real model (live)
+- [ ] Reranker on vs off and gpt-oss-120b vs its fallback, measured on the deployed stack
 - [ ] A PDF from the demo corpus ingested and cited (live)
 
 **Kill criteria:** hybrid retrieval tuning over 2 hours → ship semantic-only, record it, move on.

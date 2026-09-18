@@ -25,11 +25,45 @@ every push (`.github/workflows/ci.yml`).
 | 13 | Git checkpoint | PASS | slices committed by path and pushed: `ad1a018` (A), `06d8b31` (B), `3226596` (C), `6ac4715` (D), `beab017` (E), `551708a` and `81f4630` (F), redeploy recorded after G |
 | 14 | Redeploy (slice G) | PASS | `sam build` + `sam deploy`: UPDATE_COMPLETE; `ensure_index` added the namespace fields to the live mapping; `/health` 200 with every dependency `ok` |
 
+### Re-run after ADR-017 and ADR-018: GREEN (2026-09-18 23:45 IST, working tree after `fbe3dea`)
+Items 1 to 14 were re-checked where the code changed. Items 15 to 21 are new. No test, eval or check
+touched the network: an autouse socket guard fails any outbound connection, and `GROQ_API_KEY` was
+unset.
+
+| # | Item | Result | Evidence |
+|---|---|---|---|
+| 1 | Backend tests | PASS | `uv run pytest -q`: 254 passed; `ruff check src tests`: clean; `uv lock --check`: ok; `requirements.txt` re-exported |
+| 2 | Frontend checks | PASS | `pnpm lint`, `pnpm typecheck` clean; `pnpm test` 12 passed; `pnpm build` compiled |
+| 5 | Citation validation | PASS | unchanged `finalize()`; `test_groq_reliability.py`: an invented ID from the Groq path is dropped (`partial`) |
+| 6 | Prompt-injection handling | PASS | Groq path sends the same prompt and forced tool; offline eval injection 1.0 through `GroqAnswerer` |
+| 7 | Cross-workspace isolation | PASS | offline eval isolation 1.0 on the local BM25 + FAISS index, which honours filters only as written |
+| 9 | Provider abstraction | PASS | `test_providers.py`: production allows groq/onnx/bedrock, refuses the mock and the scripted transport; the Groq key comes from SSM once and is never described |
+| 10 | Evaluation runner | PASS | `evals/run.py --offline`: security gate passed with mock and with e5-small embeddings (`evals/results/2026-09-18T1801*-offline.json`) |
+| 15 | Groq reliability layer (deterministic MockGroq transport) | PASS | `test_groq_reliability.py`: ok, timeout retry, two timeouts then fallback, short Retry-After wait, long Retry-After straight to fallback, 500/malformed/no-tool fallback, both failing is 503 with every attempt, the 26 s deadline, no key in errors, every scripted mode covered |
+| 16 | Local ONNX models | PASS | `test_onnx_models.py`: mean pooling ignores padding, unit vectors, E5 prefixes, CLS pooling, sha256 pin refused on mismatch, S3 download once then verify, cross-encoder scores, router builds the namespace; real bge, e5 and reranker rank the right passage first |
+| 17 | Retrieval correctness and pipeline | PASS | `test_retrieval_pipeline.py`: query/passage kinds, same-document dedup only, rerank reorders and renumbers evidence, a failing reranker keeps the fused order, bm25/dense modes |
+| 18 | Retrieval benchmark and latency without network | PASS | `evals/run.py --compare` on v1 and the paraphrase set, 3 runs each (BENCHMARKS); bge-small chosen by the pre-set rule; reranker off (fails +150 ms p95) |
+| 19 | Workflow Learning Lite | PASS | `test_workflow.py` (20 tests); `evals/workflow_eval.py`: precision 1.0, recall 1.0, support accuracy 1.0, deterministic |
+| 20 | Observability | PASS | `test_observability.py`: `/health` providers, audit has environment, providers and `answered_by_model`, the fallback shows in the response and in the structured log, unavailable answers audited with attempts; web `fellBack` test |
+| 21 | ADRs, docs, infra | PASS | ADR-017, ADR-018; BENCHMARKS, MILESTONES, PROGRESS, HANDOFF, ARCHITECTURE §11; `cfn-lint` clean; `test_infra.py` (SSM read only for Groq, models/* only, no key or scripted transport in the template) |
+
 Known and not part of this gate:
-- Mock answer quality is low by design (answer value match 0.46); it is reported, never gated.
+- Answer quality offline is the scripted extractive rule (answer value match 0.46); reported, never gated.
+- The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
-## M2 External Bedrock Gate: BLOCKED (B4)
+## M2 Live Gate: NOT TESTED (needs the Groq key in SSM, B11, and a deploy)
+
+| # | Item | Result | Evidence |
+|---|---|---|---|
+| 1 | ONNX embeddings live; demo documents reach `ready` | NOT TESTED | needs the deploy |
+| 2 | Golden question answered by Groq with citations that resolve | NOT TESTED | |
+| 3 | Live eval: groundedness, recall@8, MRR, latency, fallback rate | NOT TESTED | `evals/run.py --api <ApiUrl> --pace 2.5` ready |
+| 4 | Injection with the real model | NOT TESTED | |
+| 5 | Reranker on/off and model comparison on the deployed stack | NOT TESTED | |
+| 6 | Demo PDF ingested and cited live | NOT TESTED | |
+
+## M2 External Bedrock Gate: superseded by the Live Gate (ADR-017)
 
 | # | Item | Result | Evidence |
 |---|---|---|---|

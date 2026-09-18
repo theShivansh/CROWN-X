@@ -1,0 +1,143 @@
+{
+  "dataset": "paraphrase-v1",
+  "mode": "compare",
+  "run_at": "2026-09-18T17:56:08Z",
+  "commit": "fbe3dea",
+  "cases": 14,
+  "index": "local BM25Okapi + FAISS IndexFlatIP (in process)",
+  "rows": [
+    {
+      "system": "bm25",
+      "embedding_model": null,
+      "reranker": null,
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.7857,
+      "hit_rate_at_8": 0.8571,
+      "recall_at_5": 0.7143,
+      "recall_at_8": 0.7857,
+      "mrr": 0.619,
+      "p50_query_ms": 1.7667,
+      "p95_query_ms": 2.1,
+      "mrr_range": [
+        0.619,
+        0.619
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "dense",
+      "embedding_model": "multilingual-e5-small-int8",
+      "reranker": null,
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.7143,
+      "hit_rate_at_8": 0.9286,
+      "recall_at_5": 0.6786,
+      "recall_at_8": 0.9286,
+      "mrr": 0.6144,
+      "p50_query_ms": 8.7,
+      "p95_query_ms": 12.4667,
+      "mrr_range": [
+        0.6144,
+        0.6144
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid",
+      "embedding_model": "multilingual-e5-small-int8",
+      "reranker": null,
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.7143,
+      "hit_rate_at_8": 0.9286,
+      "recall_at_5": 0.7143,
+      "recall_at_8": 0.9286,
+      "mrr": 0.5721,
+      "p50_query_ms": 10.1333,
+      "p95_query_ms": 12.2,
+      "mrr_range": [
+        0.5721,
+        0.5721
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid + rerank",
+      "embedding_model": "multilingual-e5-small-int8",
+      "reranker": "ms-marco-MiniLM-L-6-v2-int8",
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.9286,
+      "hit_rate_at_8": 0.9286,
+      "recall_at_5": 0.8571,
+      "recall_at_8": 0.9286,
+      "mrr": 0.7405,
+      "p50_query_ms": 346.3,
+      "p95_query_ms": 479.1,
+      "mrr_range": [
+        0.7405,
+        0.7405
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "dense",
+      "embedding_model": "bge-small-en-v1.5-int8",
+      "reranker": null,
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.9286,
+      "hit_rate_at_8": 1.0,
+      "recall_at_5": 0.8929,
+      "recall_at_8": 1.0,
+      "mrr": 0.7662,
+      "p50_query_ms": 11.1667,
+      "p95_query_ms": 14.0333,
+      "mrr_range": [
+        0.7662,
+        0.7662
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid",
+      "embedding_model": "bge-small-en-v1.5-int8",
+      "reranker": null,
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.9286,
+      "hit_rate_at_8": 0.9286,
+      "recall_at_5": 0.8571,
+      "recall_at_8": 0.9286,
+      "mrr": 0.6607,
+      "p50_query_ms": 15.1333,
+      "p95_query_ms": 17.9333,
+      "mrr_range": [
+        0.6607,
+        0.6607
+      ],
+      "repeats": 3
+    },
+    {
+      "system": "hybrid + rerank",
+      "embedding_model": "bge-small-en-v1.5-int8",
+      "reranker": "ms-marco-MiniLM-L-6-v2-int8",
+      "cases": 14.0,
+      "errors": 0.0,
+      "hit_rate_at_5": 0.9286,
+      "hit_rate_at_8": 0.9286,
+      "recall_at_5": 0.8929,
+      "recall_at_8": 0.9286,
+      "mrr": 0.7405,
+      "p50_query_ms": 430.4333,
+      "p95_query_ms": 630.1333,
+      "mrr_range": [
+        0.7405,
+        0.7405
+      ],
+      "repeats": 3
+    }
+  ]
+}

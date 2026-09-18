@@ -127,15 +127,23 @@ Names only; values live in the environment, SAM parameters or SSM, never in the 
 | `TABLE_NAME` | API, ingestion | DynamoDB single table |
 | `MAX_UPLOAD_BYTES`, `MAX_DOCUMENTS_PER_WORKSPACE`, `RETRIEVAL_TOP_K` | API | Limits |
 | `ENVIRONMENT` | ingestion, API | `production` (default), `development`, `test` or `offline-demo` (ADR-016) |
-| `ANSWER_PROVIDER`, `EMBEDDING_PROVIDER` | ingestion, API | `bedrock` (production), `mock`, `groq` (answers, development only); ADR-016 |
+| `ANSWER_PROVIDER`, `EMBEDDING_PROVIDER` | ingestion, API | Production: `groq` + `onnx` (default) or `bedrock`; `mock` outside production only (ADR-016, ADR-017) |
+| `GROQ_MODEL_ID`, `GROQ_FALLBACK_MODEL_ID` | API | `openai/gpt-oss-120b`, falling back once to `openai/gpt-oss-20b` (ADR-017) |
+| `GROQ_API_KEY_PARAMETER` | API | SSM SecureString name holding the Groq key (`/crownx/groq-api-key`); read once per cold start |
+| `GROQ_TRANSPORT`, `GROQ_MOCK_MODE` | API (development, test) | `mock` scripts Groq with no network; refused in production |
+| `ONNX_MODEL_NAME`, `ONNX_MODEL_URI`, `ONNX_MODEL_SHA256` | ingestion, API | Local embedding model (`bge-small-en-v1.5-int8`), its `s3://.../models/<name>/` and pinned sha256 |
+| `RERANKER_ENABLED`, `RERANKER_MODEL_*` | API | Optional cross-encoder rerank of the top 8; off (ADR-017 measurement) |
 | `EMBEDDING_VERSION` | ingestion, API | Namespace version on every chunk; bump when chunking or embeddings change |
 | `BEDROCK_ANSWER_FORCE_TOOL` | API | `true` forces `submit_answer`; `false` for models that accept only `auto` |
-| `GROQ_API_KEY`, `GROQ_MODEL_ID` | API (development only) | Groq answer provider; the key only ever comes from the environment |
+| `GROQ_API_KEY` | API (local runs) | Groq key from the environment for local runs; in AWS the SSM parameter above |
 | `RETRIEVAL_SCORE_FLOOR` | API | Fused-score floor for evidence; 0 until calibrated on the golden set |
 | `NEXT_PUBLIC_API_URL` | web | API Gateway base URL (public, not a secret) |
 | `NEXT_PUBLIC_DEMO_WORKSPACE_ID` | web | Optional: the workspace behind "Open demo workspace" on `/` |
 
-## 12. Workflow Learning Lite (M5, gated)
+## 12. Workflow Learning Lite (events and miner in M2 by ADR-018; card and save in M5)
+Built now: server-side events (`EVENT#` items), the deterministic miner in `domain/workflow.py`, and a
+read-only `GET /workspaces/{ws}/workflow-suggestions`. No model and no automation. The diagram below
+is the M5 target.
 ```mermaid
 flowchart LR
     E[CROWN action] --> W[Lambda: event writer] --> DE[(DynamoDB events)]
