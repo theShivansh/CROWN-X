@@ -1,0 +1,21 @@
+Date: Thursday, 10 September 2026
+From: Sana Sheikh, student coordinator, Innovation Cell
+To: All Campus Build Sprint teams
+Subject: Campus Build Sprint, update 3: new deadline and Events Portal limit
+
+Hi all,
+
+Two changes this week, and one reminder.
+
+1. Deadline. The submission deadline for Campus Build Sprint moves to 22 Sept. Several teams asked
+for more time after the portal outage, and Prof. Kulkarni agreed.
+
+2. Events Portal. IT Services has limited the Events Portal API to 60 requests per minute per team key.
+If your app polls the portal, cache what you can.
+
+3. Reminder. Teams also entering the Inter-College Robotics Expo: expo entries close on 21 Sept. That
+is a separate event with its own form.
+
+Reply to this email with any questions.
+
+Sana
