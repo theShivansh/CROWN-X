@@ -74,12 +74,28 @@ a spec only).
 
 **Out of scope:** contradictions, timeline.
 
-**Done means:**
-- [ ] Citation contract test: an invented evidence ID is dropped (unit)
-- [ ] No-evidence question makes zero model calls and returns `insufficient_evidence` (unit + integration)
-- [ ] Injection case doesn't change the answer format (integration)
-- [ ] Baseline metrics recorded with commit and dataset version (integration)
-- [ ] Seeded question answered with citations on the deployed URL (live)
+**Done means** (split into two independent gates on 2026-09-18, ADR-016):
+
+*M2 Offline Gate* (no Bedrock needed; GREEN 2026-09-18, see `docs/CHECKLIST.md`):
+- [x] PDF extraction by page, with the empty-text and unreadable-PDF failures (unit)
+- [x] Chunking and deterministic metadata (`version_label`, `source_timestamp`) on every demo file (unit)
+- [x] Stored evidence snapshot; `/answer` loads it and never retrieves again (unit)
+- [x] Citation contract: an invented evidence ID is dropped (unit)
+- [x] Evidence escaping: a document can't close or forge an `<evidence>` block (unit)
+- [x] Workspace isolation, including a cross-workspace `query_id` returning 404 (unit, and live for the 404)
+- [x] No-evidence question: zero model calls, `insufficient_evidence` (unit + offline eval)
+- [x] Provider abstraction: MockProvider and BedrockProvider switch by configuration only; production
+      refuses the mock (unit)
+- [x] Evaluation runner and offline baseline recorded with commit and dataset version (offline)
+- [x] All tests, lint, typecheck and builds green; redeployed with production on Bedrock (integration)
+
+*External Bedrock Gate* (blocked until AWS enables inference, B4):
+- [ ] Titan embeddings run live; a demo document reaches `ready` on the deployed stack (live)
+- [ ] Answer-model benchmark (Qwen3 235B, gpt-oss-120b, Nova 2 Lite) and the ADR-013 decision
+- [ ] Live eval baseline: recall@8, MRR, groundedness and latency; gates proposed in DECISIONS
+- [ ] Injection case doesn't change the answer format with the real model (integration)
+- [ ] The golden question answered with citations that open the right passage, on the deployed URL (live)
+- [ ] A PDF from the demo corpus ingested and cited (live)
 
 **Kill criteria:** hybrid retrieval tuning over 2 hours → ship semantic-only, record it, move on.
 
