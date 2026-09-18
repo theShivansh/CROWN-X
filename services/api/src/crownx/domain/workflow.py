@@ -7,8 +7,9 @@ no clock, no randomness, so identical events and config always give identical su
 4. Collapse consecutive repeats of a step into one ("added 6 documents" is one step).
 5. Count contiguous ordered step sequences of length `min_length`..`max_length`, non-overlapping
    within a session, scanning left to right.
-6. Keep sequences with support >= `min_support` that aren't part of a longer kept sequence with the
-   same support (so "a b c" isn't also suggested as "a b").
+6. Keep sequences with support >= `min_support` and at least `min_distinct_steps` different steps
+   (going back and forth between asking and reading is usage, not a workflow), that aren't part of a
+   longer kept sequence with the same support (so "a b c" isn't also suggested as "a b").
 
 Suggestions only: nothing here executes or automates a workflow.
 """
@@ -46,6 +47,7 @@ class MinerConfig:
     min_length: int = 3
     max_length: int = 7
     min_support: int = 3
+    min_distinct_steps: int = 3
     max_traces: int = 5
 
 
@@ -93,7 +95,9 @@ def mine(
                 position += 1
 
     candidates = {
-        key: found for key, found in occurrences.items() if len(found) >= config.min_support
+        key: found
+        for key, found in occurrences.items()
+        if len(found) >= config.min_support and len(set(key)) >= config.min_distinct_steps
     }
     kept = {
         key: found

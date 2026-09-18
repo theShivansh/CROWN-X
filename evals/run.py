@@ -31,6 +31,8 @@ from typing import Any, Protocol
 ROOT = Path(__file__).resolve().parents[1]
 EVALS = ROOT / "evals"
 DATASET = EVALS / "golden" / "v1.jsonl"
+# Same answers as v1 cases, asked in other words or in Hinglish: vocabulary mismatch, for --compare.
+PARAPHRASE = EVALS / "golden" / "paraphrase-v1.jsonl"
 RESULTS = EVALS / "results"
 MODELS = ROOT / "services" / "api" / ".models"
 sys.path[:0] = [str(EVALS), str(ROOT / "demo"), str(ROOT / "services" / "api" / "src")]
@@ -391,10 +393,13 @@ def retrieval_only(client: Client, cases: list[dict], workspaces: dict) -> dict[
     return outcomes
 
 
-def compare(embedders: list[str], timeout_s: int = 180) -> dict:
+def compare(
+    embedders: list[str], timeout_s: int = 180, repeats: int = 3, dataset: Path = DATASET
+) -> dict:
     """BM25 vs dense vs hybrid vs hybrid + rerank on the M2 answerable cases, in process, with the
-    real local models. Every configuration re-ingests the corpus into a fresh index."""
-    cases = [c for c in load_cases() if c["milestone"] == "M2" and c.get("expected_files")]
+    real local models. Each configuration runs `repeats` times on a fresh index: document IDs are
+    random, so exact score ties can break differently; means are reported with the MRR range."""
+    cases = [c for c in load_cases(dataset) if c["milestone"] == "M2" and c.get("expected_files")]
     configs = [("bm25", "mock", "bm25", False)]
     for name in embedders:
         configs += [
@@ -404,20 +409,29 @@ def compare(embedders: list[str], timeout_s: int = 180) -> dict:
         ]
     rows = []
     for label, embedding, retrieval_mode, rerank in configs:
-        client = InProcessClient(embedding, retrieval_mode, rerank)
-        workspaces = seed(client, timeout_s)
-        retrieval_only(client, cases[:3], workspaces)  # warm the models before timing
-        outcomes = retrieval_only(client, cases, workspaces)
+        runs = []
+        for _ in range(repeats):
+            client = InProcessClient(embedding, retrieval_mode, rerank)
+            workspaces = seed(client, timeout_s)
+            retrieval_only(client, cases[:3], workspaces)  # warm the models before timing
+            runs.append(retrieval_metrics(cases, retrieval_only(client, cases, workspaces)))
+        mean = {
+            key: round(sum(r[key] for r in runs) / len(runs), 4)
+            for key in runs[0]
+            if all(isinstance(r[key], int | float) for r in runs)
+        }
         rows.append(
             {
                 "system": label,
                 "embedding_model": None if retrieval_mode == "bm25" else embedding,
                 "reranker": RERANKER if rerank else None,
-                **retrieval_metrics(cases, outcomes),
+                **mean,
+                "mrr_range": [min(r["mrr"] for r in runs), max(r["mrr"] for r in runs)],
+                "repeats": repeats,
             }
         )
     return {
-        "dataset": DATASET.name.removesuffix(".jsonl"),
+        "dataset": dataset.name.removesuffix(".jsonl"),
         "mode": "compare",
         "run_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "commit": _commit(),
@@ -432,16 +446,17 @@ def print_compare(report: dict) -> None:
         f"CROWN-X retrieval comparison · dataset {report['dataset']} · {report['cases']} M2 "
         f"answerable cases · commit {report['commit']}"
     )
-    header = (
-        "| System | Embedding model | Hit@5 | Hit@8 | Recall@5 | Recall@8 | MRR | p50 ms | p95 ms |"
+    print(
+        "| System | Embedding model | Hit@5 | Hit@8 | Recall@5 | Recall@8 | MRR (mean) "
+        "| MRR range | p50 ms | p95 ms |"
     )
-    print(header)
-    print("|" + "---|" * 9)
+    print("|" + "---|" * 10)
     for r in report["rows"]:
+        low, high = r["mrr_range"]
         print(
             f"| {r['system']} | {r['embedding_model'] or 'none'} | {r['hit_rate_at_5']} | "
-            f"{r['hit_rate_at_8']} | {r['recall_at_5']} | {r['recall_at_8']} | {r['mrr']} | "
-            f"{r['p50_query_ms']} | {r['p95_query_ms']} |"
+            f"{r['hit_rate_at_8']} | {r['recall_at_5']} | {r['recall_at_8']} | {r['mrr']:.3f} | "
+            f"{low:.3f}-{high:.3f} | {r['p50_query_ms']:.0f} | {r['p95_query_ms']:.0f} |"
         )
 
 
@@ -509,6 +524,12 @@ def main() -> None:
     )
     parser.add_argument("--rerank", action="store_true", help="offline only: enable the reranker")
     parser.add_argument(
+        "--dataset",
+        choices=["v1", "paraphrase"],
+        default="v1",
+        help="compare only: the golden set, or its paraphrase and Hinglish variant",
+    )
+    parser.add_argument(
         "--pace", type=float, default=0.0, help="live only: seconds between answers"
     )
     parser.add_argument("--timeout", type=int, default=180, help="seconds to wait per document")
@@ -518,9 +539,11 @@ def main() -> None:
         sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
     if args.compare:
-        report = compare(EMBEDDERS, args.timeout)
+        report = compare(
+            EMBEDDERS, args.timeout, dataset=PARAPHRASE if args.dataset == "paraphrase" else DATASET
+        )
         if not args.no_write:
-            _write(report, "compare")
+            _write(report, f"compare-{args.dataset}")
         print_compare(report)
         return
     client: Any = (

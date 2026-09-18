@@ -62,6 +62,9 @@ class Limits:
     # "hybrid" in every deployment; "bm25" and "dense" exist so the evaluation can compare them.
     retrieval_mode: str = "hybrid"
     duplicate_threshold: float = 0.9
+    # How many fused candidates the cross-encoder re-scores; the rest keep their fused order after
+    # them. Its cost grows linearly with this number (docs/BENCHMARKS.md).
+    rerank_candidates: int = 8
 
 
 @dataclass(frozen=True)
@@ -306,12 +309,13 @@ class CrownService:
         if self._reranker is not None and len(candidates) > 1:
             rerank_started = time.perf_counter()
             try:
+                head = candidates[: limits.rerank_candidates]
                 scores = self._reranker.scores(
-                    question, [hits[c.chunk_id].source["text"] for c in candidates]
+                    question, [hits[c.chunk_id].source["text"] for c in head]
                 )
                 # Stable: equal rerank scores keep their fused order.
-                order = sorted(range(len(candidates)), key=lambda i: (-scores[i], i))
-                candidates = [candidates[i] for i in order]
+                order = sorted(range(len(head)), key=lambda i: (-scores[i], i))
+                candidates = [head[i] for i in order] + candidates[len(head) :]
             except Exception:  # noqa: BLE001  # the fused order is still valid evidence
                 log.exception("rerank failed; keeping the fused order")
             timings["rerank"] = _ms_since(rerank_started)

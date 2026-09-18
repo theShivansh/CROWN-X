@@ -64,7 +64,7 @@ Parameters:
     Description: SSM Parameter Store SecureString holding the Groq API key, created outside the stack.
   OnnxModelName:
     Type: String
-    Default: multilingual-e5-small-int8
+    Default: bge-small-en-v1.5-int8
     AllowedValues: [multilingual-e5-small-int8, bge-small-en-v1.5-int8]
     Description: Published to s3://<DocumentsBucket>/models/<name>/ by scripts/fetch_models.py.
   OnnxModelSha256:

@@ -124,6 +124,15 @@ def test_a_sub_sequence_with_the_same_support_is_not_suggested_twice():
     assert ("add_document", "ask_question", "read_answer") not in steps
 
 
+def test_back_and_forth_between_two_steps_is_usage_not_a_workflow():
+    stream = events(*[[ASK, READ, ASK, READ, ASK, READ]] * 3)
+    assert mine(stream) == []
+    assert mine(stream, MinerConfig(min_distinct_steps=2))[0].steps[:2] == [
+        "ask_question",
+        "read_answer",
+    ]
+
+
 def test_confidence_is_support_over_the_first_steps_occurrences():
     stream = events([ADD, ASK, READ], [ADD, ASK, READ], [ADD, ASK, READ], [ADD, READ, ASK])
     [suggestion] = mine(stream)

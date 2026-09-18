@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     # Local ONNX models (ADR-017): `onnx_model_uri` is `s3://bucket/prefix/` or a local directory that
     # holds `model.onnx` and `tokenizer.json`; the model file must match `onnx_model_sha256`. The name
     # picks the pooling and prefixes (adapters/onnx_models.py, EMBEDDING_PROFILES).
-    onnx_model_name: str = "multilingual-e5-small-int8"
+    onnx_model_name: str = "bge-small-en-v1.5-int8"
     onnx_model_uri: str | None = None
     onnx_model_sha256: str | None = None
     reranker_enabled: bool = False
