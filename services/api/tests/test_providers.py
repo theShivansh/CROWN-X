@@ -227,6 +227,16 @@ def test_production_groq_reads_its_key_from_ssm_once_and_never_describes_it():
     assert "gsk_from_ssm" not in repr(described)
 
 
+def test_ingestion_builds_embeddings_only_and_never_reads_the_groq_key():
+    session = SsmSession()
+    providers = ProviderRouter.build_embedding(
+        settings(**GROQ, embedding_provider="bedrock"), session
+    )
+    assert session.ssm.requests == []
+    assert providers.answerer is None and providers.reranker is None
+    assert [name for name, _ in session.clients] == ["bedrock-runtime"]
+
+
 def test_the_scripted_transport_builds_without_network_or_key():
     from crownx.adapters.groq_mock import MockGroqTransport
 

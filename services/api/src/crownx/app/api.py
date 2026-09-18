@@ -151,7 +151,16 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
 
     @app.post("/workspaces/<workspace_id>/queries/<query_id>/answer")
     def answer(workspace_id: str, query_id: str) -> Response:
-        outcome = service().answer(workspace_id, query_id, request_id=rid())
+        try:
+            outcome = service().answer(workspace_id, query_id, request_id=rid())
+        except DomainError as error:
+            # Each model call and its outcome (for example http_429 then http_500), so a failed
+            # answer can be diagnosed from the logs as well as the audit record.
+            logger.warning(
+                "answer not written",
+                extra={"error_code": error.code, "attempts": list(getattr(error, "attempts", ()))},
+            )
+            raise
         logger.info(
             "answer written",
             extra={

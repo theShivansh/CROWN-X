@@ -57,6 +57,15 @@ class ProviderRouter:
         )
 
     @staticmethod
+    def build_embedding(settings: Settings, session: Any = None) -> Providers:
+        """Embeddings only, for ingestion: it never answers, so it never reads the Groq key or builds
+        a reranker (least privilege: the ingest role has no ssm:GetParameter)."""
+        embedder, namespace = ProviderRouter._embedding(settings, session)
+        return Providers(
+            environment=settings.environment, embedder=embedder, namespace=namespace, answerer=None
+        )
+
+    @staticmethod
     def _embedding(settings: Settings, session: Any) -> tuple[Embedder, EmbeddingNamespace]:
         if settings.embedding_provider == "mock":
             from crownx.adapters.mock import MOCK_EMBEDDING_MODEL, MockEmbedder

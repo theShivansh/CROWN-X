@@ -82,3 +82,17 @@ def test_an_unavailable_answer_is_audited_with_its_attempts(api):
         "openai/gpt-oss-20b",
     ]
     assert "answer_unavailable" in api.store.event_types(ws)
+
+
+def test_an_unavailable_answer_logs_its_attempts(api, caplog):
+    api.service._answerer = GroqAnswerer(
+        "k",
+        "openai/gpt-oss-120b",
+        transport=MockGroqTransport("all_fail"),
+        fallback_model_id="openai/gpt-oss-20b",
+        sleep=lambda _s: None,
+    )
+    _, status, _ = _ask_and_answer(api)
+    assert status == 503
+    [logged] = [r for r in caplog.records if r.getMessage() == "answer not written"]
+    assert [a["outcome"] for a in logged.attempts] == ["rate_limited", "http_500"]

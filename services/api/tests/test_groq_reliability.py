@@ -185,6 +185,19 @@ def test_an_invented_id_is_parsed_then_dropped_by_finalize():
     assert all("ev_999" not in c["evidence_ids"] for c in final.claims)
 
 
+def test_every_call_names_its_user_agent_because_groq_refuses_urllibs():
+    seen: list[dict] = []
+
+    def capture(url, headers, body, timeout):
+        seen.append(headers)
+        return MockGroqTransport("ok")(url, headers, body, timeout)
+
+    GroqAnswerer("k", PRIMARY, transport=capture).answer(QUESTION, EVIDENCE)
+    [headers] = seen
+    assert headers["user-agent"].startswith("crownx/")
+    assert "urllib" not in headers["user-agent"].lower()
+
+
 def test_reasoning_effort_is_sent_only_to_gpt_oss_models():
     groq, _, _ = answerer("ok")
     assert groq.request(QUESTION, EVIDENCE)["reasoning_effort"] == "low"

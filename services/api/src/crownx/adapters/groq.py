@@ -35,6 +35,9 @@ from crownx.domain.errors import AnswerUnavailable
 # (url, headers, body, timeout) -> parsed JSON response. Injected so tests never touch the network.
 Transport = Callable[[str, dict, bytes, float], dict]
 
+# Groq's edge refuses Python's default `Python-urllib/x.y` User-Agent with a 403 (observed live on
+# 2026-09-19: urllib's agent got 403, any other got 401 without a key), so every call names itself.
+USER_AGENT = "crownx/1.0 (+https://github.com/theShivansh/CROWN-X)"
 MAX_RETRY_AFTER_S = 2.0
 DEADLINE_S = 26.0  # API Gateway gives up at 30 s; leave room for the rest of the request
 MIN_ATTEMPT_S = 2.0  # don't start a call with less time than this left
@@ -173,7 +176,12 @@ class GroqAnswerer:
         if remaining < MIN_ATTEMPT_S:
             raise _Failed("deadline")
         body = json.dumps(self.request(question, evidence, model)).encode()
-        headers = {"content-type": "application/json", "authorization": f"Bearer {self._api_key}"}
+        headers = {
+            "content-type": "application/json",
+            "accept": "application/json",
+            "user-agent": USER_AGENT,
+            "authorization": f"Bearer {self._api_key}",
+        }
         try:
             response = self._transport(self._url, headers, body, min(self._timeout, remaining))
         except TimeoutError as error:

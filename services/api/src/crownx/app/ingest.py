@@ -43,7 +43,7 @@ def _live_worker() -> IngestionWorker:
 
     settings = get_settings()
     session = boto3.Session(region_name=settings.aws_region)
-    providers = ProviderRouter.build(settings, session)
+    providers = ProviderRouter.build_embedding(settings, session)
     logger.append_keys(**providers.describe())
     return IngestionWorker(
         store=DynamoMetadataStore(session.resource("dynamodb").Table(settings.table_name)),
