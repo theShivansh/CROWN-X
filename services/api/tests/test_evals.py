@@ -14,7 +14,13 @@ import pytest
 EVALS = Path(__file__).resolve().parents[3] / "evals"
 sys.path.insert(0, str(EVALS))
 
-from metrics import NOT_MEASURED, case_checks, percentile, summarize  # noqa: E402
+from metrics import (  # noqa: E402
+    NOT_MEASURED,
+    case_checks,
+    percentile,
+    retrieval_metrics,
+    summarize,
+)
 
 CASE = {
     "id": "c1",
@@ -120,16 +126,42 @@ def test_mock_runs_never_report_live_metrics_and_m3_is_excluded():
     assert summary["offline"]["m2_cases"] == 1 and summary["offline"]["m2_case_pass_rate"] == 1.0
     assert summary["m3_expected_fail"]["cases"] == 1
     assert summary["offline"]["retrieval"]["semantic"] is False
-    assert all(value == NOT_MEASURED for value in summary["live_bedrock"].values())
+    assert all(value == NOT_MEASURED for value in summary["live"].values())
 
 
-def test_bedrock_runs_fill_the_live_section():
-    summary = summarize(
-        [CASE], {"c1": outcome()}, {"answer_provider": "bedrock", "embedding_provider": "bedrock"}
-    )
-    live = summary["live_bedrock"]
+def test_a_deployed_run_with_real_providers_fills_the_live_section():
+    providers = {
+        "answer_provider": "groq",
+        "answer_model": "openai/gpt-oss-120b",
+        "embedding_provider": "onnx",
+    }
+    summary = summarize([CASE], {"c1": outcome()}, providers, live=True)
+    live = summary["live"]
     assert live["recall_at_8"] == 1.0 and live["mrr"] == 0.5 and live["p95_answer_ms"] == 20.0
-    assert live["groundedness"] == NOT_MEASURED  # needs the model grader and its agreement sample
+    assert live["groundedness"] == 1.0
+    assert summary["offline"]["retrieval"]["semantic"] is True
+
+
+def test_real_providers_offline_never_fill_the_live_section():
+    providers = {"answer_provider": "groq", "embedding_provider": "onnx"}
+    summary = summarize([CASE], {"c1": outcome()}, providers, live=False)
+    assert all(value == NOT_MEASURED for value in summary["live"].values())
+
+
+def test_retrieval_metrics_count_hits_recall_and_rank():
+    case = {**CASE, "expected_files": ["a.md", "b.md"]}
+    got = retrieval_metrics(
+        [case],
+        {
+            "c1": {
+                "evidence": [{"filename": f} for f in ["x", "a.md", "y", "z", "w", "b.md"]],
+                "timings_ms": {"query": 12.0},
+            }
+        },
+    )
+    assert got["hit_rate_at_5"] == 1.0 and got["mrr"] == 0.5
+    assert got["recall_at_5"] == 0.5 and got["recall_at_8"] == 1.0
+    assert got["p50_query_ms"] == 12.0
 
 
 def test_percentile_is_nearest_rank():
@@ -142,7 +174,10 @@ def test_the_offline_run_holds_every_security_property():
 
     report = run.evaluate(run.InProcessClient(), "offline", timeout_s=5)
     offline = report["offline"]
-    assert report["providers"]["answer_provider"] == "mock"
+    # The production Groq adapter answers, over the scripted transport: no network, no rate limit.
+    assert report["providers"]["answer_provider"] == "groq"
+    assert report["providers"]["answer_transport"].startswith("mock")
+    assert all(v == "not measured" for v in report["live"].values())
     assert offline["m2_errors"] == 0 and offline["m2_cases"] >= 30
     assert report["security_gate_passed"], report["m2_failures"]
     for key in (

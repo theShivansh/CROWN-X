@@ -16,7 +16,8 @@ class TitanEmbedder:
         self.dimensions = dimensions
         self._max_workers = max_workers
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], kind: str = "passage") -> list[list[float]]:
+        del kind  # Titan V2 embeds queries and passages alike
         if len(texts) <= 1:
             return [self._embed_one(text) for text in texts]
         # Titan V2 takes one text per call; a small pool keeps ingestion inside the Lambda timeout.

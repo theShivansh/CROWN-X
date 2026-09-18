@@ -152,6 +152,14 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
     @app.post("/workspaces/<workspace_id>/queries/<query_id>/answer")
     def answer(workspace_id: str, query_id: str) -> Response:
         outcome = service().answer(workspace_id, query_id, request_id=rid())
+        logger.info(
+            "answer written",
+            extra={
+                "answer_status": outcome.final.status,
+                "answered_by_model": outcome.model_id,
+                "attempts": list(outcome.attempts),
+            },
+        )
         return reply(
             {
                 "query_id": outcome.query_id,
@@ -160,6 +168,21 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
                 "claims": outcome.final.claims,
                 "answer_provider": outcome.provider,
                 "model_id": outcome.model_id,
+                # The model that wrote this answer; after a fallback it isn't the configured one.
+                "answered_by_model": outcome.model_id,
+                "attempts": list(outcome.attempts),
+            }
+        )
+
+    @app.get("/workspaces/<workspace_id>/workflow-suggestions")
+    def workflow_suggestions(workspace_id: str) -> Response:
+        """Read-only (ADR-018): repeated sequences of this workspace's own actions. Nothing runs."""
+        suggestions, definitions = service().workflow_suggestions(workspace_id)
+        return reply(
+            {
+                "suggestions": [s.model_dump(mode="json") for s in suggestions],
+                "definitions": definitions,
+                "automation": "none",
             }
         )
 
@@ -182,6 +205,8 @@ def _live_service() -> CrownService:
     settings = get_settings()
     session = boto3.Session(region_name=settings.aws_region)
     providers = ProviderRouter.build(settings, session)
+    # Every log line from this container names the environment and providers (observability).
+    logger.append_keys(**providers.describe())
     return CrownService(
         store=DynamoMetadataStore(session.resource("dynamodb").Table(settings.table_name)),
         objects=S3ObjectStore(
@@ -197,6 +222,7 @@ def _live_service() -> CrownService:
         embedder=providers.embedder,
         namespace=providers.namespace,
         answerer=providers.answerer,
+        reranker=providers.reranker,
         providers=providers.describe(),
         limits=Limits(
             max_upload_bytes=settings.max_upload_bytes,

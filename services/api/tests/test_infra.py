@@ -57,7 +57,7 @@ def test_the_answer_model_permission_exists_only_when_a_model_is_configured(temp
     assert "AnswerModelId" in str(template["Conditions"]["HasAnswerModel"])
     [policy] = template["Resources"]["ApiRole"]["Properties"]["Policies"]
     conditional = [s for s in policy["PolicyDocument"]["Statement"] if isinstance(s, list)]
-    assert [c[0] for c in conditional] == ["HasAnswerModel"]
+    assert [c[0] for c in conditional] == ["UseBedrockEmbeddings", "UseGroq", "HasAnswerModel"]
     statements = {
         (name, statement.get("Sid")): statement for name, statement in _allow_statements(template)
     }
@@ -125,3 +125,35 @@ def test_every_api_route_in_code_is_wired_in_the_template(template):
     events = template["Resources"]["ApiFunction"]["Properties"]["Events"].values()
     in_template = {(e["Properties"]["Method"], e["Properties"]["Path"]) for e in events}
     assert in_code == in_template
+
+
+def test_the_groq_key_is_read_from_one_ssm_parameter_only_when_groq_answers(template):
+    assert template["Conditions"]["UseGroq"] == ["AnswerProvider", "groq"]
+    statements = {
+        (name, statement.get("Sid")): statement for name, statement in _allow_statements(template)
+    }
+    key = statements[("ApiRole", "ReadGroqKey")]
+    assert key["Action"] == "ssm:GetParameter"
+    assert key["Resource"].endswith(":parameter${GroqApiKeyParameter}")
+    assert ("IngestRole", "ReadGroqKey") not in statements  # ingestion never answers
+
+
+def test_the_lambdas_may_read_published_models_and_nothing_else_new(template):
+    statements = {
+        (name, statement.get("Sid")): statement for name, statement in _allow_statements(template)
+    }
+    for role in ("ApiRole", "IngestRole"):
+        models = statements[(role, "ReadModels")]
+        assert models["Action"] == "s3:GetObject"
+        assert models["Resource"] == "${DocumentsBucket.Arn}/models/*"
+
+
+def test_production_defaults_are_groq_and_onnx_and_never_the_mock(template):
+    parameters = template["Parameters"]
+    assert parameters["AnswerProvider"]["Default"] == "groq"
+    assert parameters["EmbeddingProvider"]["Default"] == "onnx"
+    assert parameters["GroqModelId"]["Default"] == "openai/gpt-oss-120b"
+    assert parameters["Environment"]["Default"] == "production"
+    variables = template["Globals"]["Function"]["Environment"]["Variables"]
+    assert "GROQ_API_KEY" not in variables  # the key itself never goes in the template
+    assert "GROQ_TRANSPORT" not in variables  # the scripted transport is never deployed

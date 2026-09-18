@@ -1,8 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >-
-  CROWN-X M1 backend: HTTP API, API and ingestion Lambdas, S3 documents, DynamoDB metadata,
-  and a single-node OpenSearch Service domain (ADR-011) in ap-south-1 (ADR-012).
+  CROWN-X backend: HTTP API, API and ingestion Lambdas, S3 documents, DynamoDB metadata, and a
+  single-node OpenSearch Service domain (ADR-011) in ap-south-1 (ADR-012). Answers come from Groq and
+  embeddings from a local ONNX model (ADR-017); Bedrock remains an option.
 
 Parameters:
   AllowedOrigins:
@@ -12,7 +13,7 @@ Parameters:
   EmbeddingModelId:
     Type: String
     Default: amazon.titan-embed-text-v2:0
-    Description: Bedrock embedding model (ADR-013), called in-Region.
+    Description: Bedrock embedding model, used only when EmbeddingProvider is bedrock.
   AnswerModelId:
     Type: String
     Default: ""
@@ -29,20 +30,57 @@ Parameters:
     Default: production
     AllowedValues: [production, offline-demo]
     Description: >-
-      ADR-016. production allows only Bedrock; offline-demo runs the mock providers and must be chosen
-      explicitly. development and test are for local runs, never deployed.
+      ADR-016, ADR-017. production answers with Groq or Bedrock and embeds with ONNX or Bedrock, never
+      the mock; offline-demo runs the mock providers and must be chosen explicitly. development and test
+      are for local runs, never deployed.
   AnswerProvider:
     Type: String
-    Default: bedrock
-    AllowedValues: [bedrock, mock]
+    Default: groq
+    AllowedValues: [groq, bedrock, mock]
   EmbeddingProvider:
     Type: String
-    Default: bedrock
-    AllowedValues: [bedrock, mock]
+    Default: onnx
+    AllowedValues: [onnx, bedrock, mock]
   EmbeddingVersion:
     Type: String
-    Default: "1"
+    Default: "2"
     Description: Bump when chunking or embedding parameters change, so old vectors stay out of queries.
+  SearchIndexName:
+    Type: String
+    Default: crownx-chunks-v2
+    Description: >-
+      One index per vector size: v2 holds 384-dimension ONNX vectors; the M1 index held Titan's 1024.
+  GroqModelId:
+    Type: String
+    Default: openai/gpt-oss-120b
+  GroqFallbackModelId:
+    Type: String
+    Default: openai/gpt-oss-20b
+    Description: Used once when the primary model is rate-limited, times out twice or fails.
+  GroqApiKeyParameter:
+    Type: String
+    Default: /crownx/groq-api-key
+    AllowedPattern: "^/[A-Za-z0-9/_.-]+$"
+    Description: SSM Parameter Store SecureString holding the Groq API key, created outside the stack.
+  OnnxModelName:
+    Type: String
+    Default: multilingual-e5-small-int8
+    AllowedValues: [multilingual-e5-small-int8, bge-small-en-v1.5-int8]
+    Description: Published to s3://<DocumentsBucket>/models/<name>/ by scripts/fetch_models.py.
+  OnnxModelSha256:
+    Type: String
+    Default: ""
+    Description: sha256 of the published model.onnx; the Lambdas refuse any other file.
+  RerankerEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  RerankerModelName:
+    Type: String
+    Default: ms-marco-MiniLM-L-6-v2-int8
+  RerankerModelSha256:
+    Type: String
+    Default: ""
   SearchDomainName:
     Type: String
     Default: crownx-search
@@ -78,7 +116,7 @@ Globals:
         DOCUMENTS_BUCKET: !Ref DocumentsBucket
         TABLE_NAME: !Ref MetadataTable
         OPENSEARCH_ENDPOINT: !GetAtt SearchDomain.DomainEndpoint
-        OPENSEARCH_INDEX: crownx-chunks
+        OPENSEARCH_INDEX: !Ref SearchIndexName
         INGEST_FUNCTION_NAME: !Sub "${AWS::StackName}-ingest"
         BEDROCK_EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
         BEDROCK_ANSWER_MODEL_ID: !Ref AnswerModelId
@@ -87,13 +125,27 @@ Globals:
         ANSWER_PROVIDER: !Ref AnswerProvider
         EMBEDDING_PROVIDER: !Ref EmbeddingProvider
         EMBEDDING_VERSION: !Ref EmbeddingVersion
+        GROQ_MODEL_ID: !Ref GroqModelId
+        GROQ_FALLBACK_MODEL_ID: !Ref GroqFallbackModelId
+        GROQ_API_KEY_PARAMETER: !Ref GroqApiKeyParameter
+        ONNX_MODEL_NAME: !Ref OnnxModelName
+        ONNX_MODEL_URI: !Sub "s3://${DocumentsBucket}/models/${OnnxModelName}/"
+        ONNX_MODEL_SHA256: !Ref OnnxModelSha256
+        RERANKER_ENABLED: !Ref RerankerEnabled
+        RERANKER_MODEL_NAME: !Ref RerankerModelName
+        RERANKER_MODEL_URI: !Sub "s3://${DocumentsBucket}/models/${RerankerModelName}/"
+        RERANKER_MODEL_SHA256: !Ref RerankerModelSha256
         MAX_UPLOAD_BYTES: !Ref MaxUploadBytes
         MAX_DOCUMENTS_PER_WORKSPACE: !Ref MaxDocumentsPerWorkspace
         RETRIEVAL_TOP_K: !Ref RetrievalTopK
         POWERTOOLS_LOG_LEVEL: INFO
 
 Conditions:
-  HasAnswerModel: !Not [!Equals [!Ref AnswerModelId, ""]]
+  HasAnswerModel: !And
+    - !Equals [!Ref AnswerProvider, bedrock]
+    - !Not [!Equals [!Ref AnswerModelId, ""]]
+  UseBedrockEmbeddings: !Equals [!Ref EmbeddingProvider, bedrock]
+  UseGroq: !Equals [!Ref AnswerProvider, groq]
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -257,10 +309,25 @@ Resources:
                 Effect: Allow
                 Action: [es:ESHttpGet, es:ESHttpHead, es:ESHttpPost]
                 Resource: !Sub "arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${SearchDomainName}/*"
-              - Sid: EmbedQuestions
+              - !If
+                - UseBedrockEmbeddings
+                - Sid: EmbedQuestions
+                  Effect: Allow
+                  Action: bedrock:InvokeModel
+                  Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}"
+                - !Ref AWS::NoValue
+              - Sid: ReadModels
                 Effect: Allow
-                Action: bedrock:InvokeModel
-                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}"
+                Action: s3:GetObject
+                Resource: !Sub "${DocumentsBucket.Arn}/models/*"
+              # The Groq key: one SecureString, read once per cold start (AWS-managed aws/ssm key).
+              - !If
+                - UseGroq
+                - Sid: ReadGroqKey
+                  Effect: Allow
+                  Action: ssm:GetParameter
+                  Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${GroqApiKeyParameter}"
+                - !Ref AWS::NoValue
               # Converse is authorized by bedrock:InvokeModel, scoped to the one configured model.
               - !If
                 - HasAnswerModel
@@ -301,10 +368,17 @@ Resources:
                 Effect: Allow
                 Action: [es:ESHttpGet, es:ESHttpHead, es:ESHttpPost, es:ESHttpPut]
                 Resource: !Sub "arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${SearchDomainName}/*"
-              - Sid: EmbedChunks
+              - !If
+                - UseBedrockEmbeddings
+                - Sid: EmbedChunks
+                  Effect: Allow
+                  Action: bedrock:InvokeModel
+                  Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}"
+                - !Ref AWS::NoValue
+              - Sid: ReadModels
                 Effect: Allow
-                Action: bedrock:InvokeModel
-                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}"
+                Action: s3:GetObject
+                Resource: !Sub "${DocumentsBucket.Arn}/models/*"
 
   # ---------------------------------------------------------------- compute and API
 
@@ -334,7 +408,8 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-api"
       Handler: crownx.app.api.handler
       Role: !GetAtt ApiRole.Arn
-      MemorySize: 512
+      # ONNX inference is CPU-bound; Lambda CPU scales with memory.
+      MemorySize: 2048
       Timeout: 29
       LoggingConfig:
         LogGroup: !Ref ApiLogGroup
@@ -378,6 +453,12 @@ Resources:
             ApiId: !Ref HttpApi
             Method: POST
             Path: /workspaces/{workspace_id}/queries/{query_id}/answer
+        WorkflowSuggestions:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /workspaces/{workspace_id}/workflow-suggestions
 
   IngestFunction:
     Type: AWS::Serverless::Function
@@ -385,7 +466,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-ingest"
       Handler: crownx.app.ingest.handler
       Role: !GetAtt IngestRole.Arn
-      MemorySize: 1024
+      MemorySize: 2048
       Timeout: 300
       LoggingConfig:
         LogGroup: !Ref IngestLogGroup

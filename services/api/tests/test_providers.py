@@ -1,5 +1,6 @@
-"""ADR-016: providers are chosen by configuration only, Bedrock is the only production provider, and
-embeddings from different providers never meet in one query."""
+"""ADR-016 and ADR-017: providers are chosen by configuration only; production answers with Groq (or
+Bedrock) and embeds with the local ONNX model (or Bedrock), never the mock; and embeddings from
+different providers never meet in one query."""
 
 from __future__ import annotations
 
@@ -26,6 +27,9 @@ BASE = {
     "ingest_function_name": "crownx-ingest",
     "bedrock_embedding_model_id": "amazon.titan-embed-text-v2:0",
 }
+GROQ = {"groq_model_id": "openai/gpt-oss-120b", "groq_api_key_parameter": "/crownx/groq-api-key"}
+ONNX = {"onnx_model_uri": "s3://bucket/models/e5/", "onnx_model_sha256": "0" * 64}
+BEDROCK = {"answer_provider": "bedrock", "embedding_provider": "bedrock"}
 
 
 def settings(**overrides) -> Settings:
@@ -44,26 +48,46 @@ class FakeSession:
 # ---------------------------------------------------------------- which provider each environment may use
 
 
-def test_production_defaults_to_bedrock_for_both():
-    s = settings()
-    assert (s.environment, s.answer_provider, s.embedding_provider) == (
+def test_production_defaults_to_groq_answers_and_onnx_embeddings():
+    s = settings(**GROQ, **ONNX)
+    assert (s.environment, s.answer_provider, s.embedding_provider, s.groq_transport) == (
         "production",
-        "bedrock",
-        "bedrock",
+        "groq",
+        "onnx",
+        "http",
     )
+
+
+def test_production_may_still_choose_bedrock():
+    s = settings(**BEDROCK)
+    assert (s.answer_provider, s.embedding_provider) == ("bedrock", "bedrock")
 
 
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"answer_provider": "mock"},
-        {"embedding_provider": "mock"},
-        {"answer_provider": "groq", "groq_api_key": "k", "groq_model_id": "m"},
+        {"answer_provider": "mock", "embedding_provider": "bedrock"},
+        {"answer_provider": "bedrock", "embedding_provider": "mock"},
     ],
 )
-def test_production_refuses_anything_but_bedrock(overrides):
+def test_production_refuses_the_mock(overrides):
     with pytest.raises(ValidationError, match="isn't allowed in 'production'"):
         settings(environment="production", **overrides)
+
+
+def test_production_refuses_the_scripted_groq_transport():
+    with pytest.raises(ValidationError, match="groq transport 'mock' isn't allowed"):
+        settings(**GROQ, **ONNX, groq_transport="mock")
+
+
+def test_onnx_needs_a_pinned_model():
+    with pytest.raises(ValidationError, match="ONNX_MODEL_URI and ONNX_MODEL_SHA256"):
+        settings(**GROQ, onnx_model_uri="s3://bucket/models/e5/")
+
+
+def test_the_reranker_needs_a_pinned_model_when_enabled():
+    with pytest.raises(ValidationError, match="RERANKER_MODEL_URI"):
+        settings(**BEDROCK, reranker_enabled=True)
 
 
 @pytest.mark.parametrize(
@@ -75,22 +99,36 @@ def test_offline_demo_is_mock_only(overrides):
         settings(environment="offline-demo", **{"embedding_provider": "mock", **overrides})
 
 
+def test_offline_demo_answers_with_the_mock_only():
+    with pytest.raises(ValidationError, match="answer provider 'groq' isn't allowed"):
+        settings(environment="offline-demo", embedding_provider="mock", **GROQ)
+
+
 @pytest.mark.parametrize("environment", ["development", "test", "offline-demo"])
 def test_the_mock_is_allowed_outside_production(environment):
     s = settings(environment=environment, answer_provider="mock", embedding_provider="mock")
     assert s.answer_provider == "mock"
 
 
-def test_groq_needs_its_key_and_model_and_never_leaks_the_key():
-    with pytest.raises(ValidationError, match="GROQ_API_KEY"):
-        settings(environment="development", answer_provider="groq")
+def test_groq_needs_its_model_and_a_key_source_and_never_leaks_the_key():
+    with pytest.raises(ValidationError, match="GROQ_MODEL_ID"):
+        settings(environment="development", embedding_provider="mock")
+    with pytest.raises(ValidationError, match="GROQ_API_KEY or GROQ_API_KEY_PARAMETER"):
+        settings(environment="development", embedding_provider="mock", groq_model_id="m")
     s = settings(
         environment="development",
-        answer_provider="groq",
+        embedding_provider="mock",
         groq_api_key="gsk_secret",
         groq_model_id="m",
     )
     assert "gsk_secret" not in repr(s)
+
+
+def test_the_scripted_transport_needs_no_key():
+    s = settings(
+        environment="test", embedding_provider="mock", groq_model_id="m", groq_transport="mock"
+    )
+    assert s.groq_api_key is None
 
 
 # ---------------------------------------------------------------- the router
@@ -103,21 +141,23 @@ def test_router_builds_the_mock_provider_without_touching_aws():
     )
     assert isinstance(providers.embedder, MockEmbedder)
     assert isinstance(providers.answerer, MockAnswerer)
-    assert providers.namespace == EmbeddingNamespace("mock", "mock-hashed-bow", "1", 1024)
+    assert providers.namespace == EmbeddingNamespace("mock", "mock-hashed-bow", "1", 384)
     assert providers.describe() == {
         "environment": "offline-demo",
         "answer_provider": "mock",
         "answer_model": "mock-extractive",
+        "answer_fallback_model": None,
         "embedding_provider": "mock",
         "embedding_model": "mock-hashed-bow",
         "embedding_version": "1",
+        "reranker_model": None,
     }
 
 
 def test_router_builds_bedrock_with_the_configured_models_only():
     session = FakeSession()
     providers = ProviderRouter.build(
-        settings(bedrock_answer_model_id="qwen.qwen3-235b-a22b-2507-v1:0"), session
+        settings(**BEDROCK, bedrock_answer_model_id="qwen.qwen3-235b-a22b-2507-v1:0"), session
     )
     assert isinstance(providers.embedder, TitanEmbedder)
     assert isinstance(providers.answerer, ConverseAnswerer)
@@ -131,7 +171,7 @@ def test_router_builds_bedrock_with_the_configured_models_only():
 
 
 def test_bedrock_without_an_answer_model_has_no_answerer_and_says_so():
-    providers = ProviderRouter.build(settings(bedrock_answer_model_id=""), FakeSession())
+    providers = ProviderRouter.build(settings(**BEDROCK, bedrock_answer_model_id=""), FakeSession())
     assert providers.answerer is None
     assert providers.describe()["answer_provider"] == "none"
 
@@ -149,6 +189,60 @@ def test_router_builds_groq_for_development():
     )
     assert isinstance(providers.answerer, GroqAnswerer)
     assert providers.describe()["answer_model"] == "llama-3.3-70b-versatile"
+
+
+class FakeSsm:
+    def __init__(self) -> None:
+        self.requests: list[dict] = []
+
+    def get_parameter(self, **request) -> dict:
+        self.requests.append(request)
+        return {"Parameter": {"Value": "gsk_from_ssm"}}
+
+
+class SsmSession(FakeSession):
+    def __init__(self) -> None:
+        super().__init__()
+        self.ssm = FakeSsm()
+
+    def client(self, name: str, config: object = None) -> object:
+        self.clients.append((name, config))
+        return self.ssm if name == "ssm" else object()
+
+
+def test_production_groq_reads_its_key_from_ssm_once_and_never_describes_it():
+    session = SsmSession()
+    providers = ProviderRouter.build(
+        settings(**GROQ, embedding_provider="bedrock", groq_fallback_model_id="openai/gpt-oss-20b"),
+        session,
+    )
+    assert session.ssm.requests == [{"Name": "/crownx/groq-api-key", "WithDecryption": True}]
+    assert isinstance(providers.answerer, GroqAnswerer)
+    assert providers.answerer._api_key == "gsk_from_ssm"
+    described = providers.describe()
+    assert described["answer_provider"] == "groq"
+    assert described["answer_model"] == "openai/gpt-oss-120b"
+    assert described["answer_fallback_model"] == "openai/gpt-oss-20b"
+    assert "gsk_from_ssm" not in repr(described)
+
+
+def test_the_scripted_transport_builds_without_network_or_key():
+    from crownx.adapters.groq_mock import MockGroqTransport
+
+    providers = ProviderRouter.build(
+        settings(
+            environment="test",
+            embedding_provider="mock",
+            groq_model_id="openai/gpt-oss-120b",
+            groq_transport="mock",
+            groq_mock_mode="rate_limited_long",
+            groq_fallback_model_id="openai/gpt-oss-20b",
+        ),
+        session=None,
+    )
+    assert isinstance(providers.answerer._transport, MockGroqTransport)
+    result = providers.answerer.answer("When is the deadline?", [])
+    assert result.model_id == "openai/gpt-oss-20b"  # the scripted 429 sent it to the fallback
 
 
 # ---------------------------------------------------------------- configuration-only switching, one shared index
@@ -229,8 +323,8 @@ def test_chunks_from_one_embedding_namespace_never_answer_another():
     # Same workspace, same index, same vector size: only the namespace differs.
     other = type(mock)(
         environment="test",
-        embedder=MockEmbedder(1024),
-        namespace=EmbeddingNamespace("bedrock", "amazon.titan-embed-text-v2:0", "1", 1024),
+        embedder=MockEmbedder(384),
+        namespace=EmbeddingNamespace("bedrock", "amazon.titan-embed-text-v2:0", "1", 384),
         answerer=MockAnswerer(),
     )
     other_service, _ = _service(store, objects, index, other)

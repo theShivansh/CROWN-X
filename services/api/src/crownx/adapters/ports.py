@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from crownx.domain.answering import AnswerDraft
+from crownx.domain.events import WorkflowEvent
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace
 
 
@@ -17,7 +18,7 @@ class ObjectInfo:
 
 class MetadataStore(Protocol):
     """DynamoDB single table: `PK = WS#{ws}`; `SK` is `META`, `DOC#{doc}`, `CHECKSUM#{sha256}`,
-    `QUERY#{query_id}` or `AUDIT#{iso-ts}#{request_id}`."""
+    `QUERY#{query_id}`, `AUDIT#{iso-ts}#{request_id}` or `EVENT#{iso-ts}#{event_id}`."""
 
     def put_workspace(self, workspace: Workspace) -> None: ...
 
@@ -47,6 +48,14 @@ class MetadataStore(Protocol):
         """IDs, stages, timings and outcomes only: never document text or model output."""
         ...
 
+    def put_event(self, event: WorkflowEvent) -> None:
+        """Append to the workspace's event stream; idempotent by `event_id` (FR-WL-01)."""
+        ...
+
+    def list_events(self, workspace_id: str, limit: int = 2000) -> list[WorkflowEvent]:
+        """The newest `limit` events of one workspace, oldest first."""
+        ...
+
 
 class ObjectStore(Protocol):
     def presigned_post(
@@ -69,8 +78,19 @@ class IngestQueue(Protocol):
 class Embedder(Protocol):
     dimensions: int
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        """One vector per text, in order."""
+    def embed(self, texts: list[str], kind: str = "passage") -> list[list[float]]:
+        """One vector per text, in order. `kind` is "query" or "passage": some models (E5, BGE)
+        embed a question differently from the text that answers it."""
+        ...
+
+
+class Reranker(Protocol):
+    """A cross-encoder that re-orders retrieved passages for one question (ADR-017)."""
+
+    model_id: str
+
+    def scores(self, question: str, passages: list[str]) -> list[float]:
+        """One relevance score per passage, in order; higher is more relevant."""
         ...
 
 
@@ -106,6 +126,9 @@ class AnswerResult:
     input_tokens: int | None = None
     output_tokens: int | None = None
     invocation_id: str | None = None
+    # Every model call made for this answer, in order: {"model_id", "outcome"}. `model_id` above is
+    # the one that answered, which differs from the configured model after a fallback.
+    attempts: tuple[dict, ...] = ()
 
 
 class Answerer(Protocol):

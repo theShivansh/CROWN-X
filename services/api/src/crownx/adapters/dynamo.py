@@ -6,7 +6,9 @@ import json
 from typing import Any
 
 from boto3.dynamodb.conditions import Attr
+from botocore.exceptions import ClientError
 
+from crownx.domain.events import WorkflowEvent
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 
 
@@ -106,6 +108,33 @@ class DynamoMetadataStore:
                 "event_type": event["event_type"],
             }
         )
+
+    def put_event(self, event: WorkflowEvent) -> None:
+        """Append-only and idempotent: writing the same event twice leaves one item."""
+        try:
+            self._table.put_item(
+                Item={
+                    "PK": _ws(event.workspace_id),
+                    "SK": f"EVENT#{event.occurred_at}#{event.event_id}",
+                    "event_json": event.model_dump_json(),
+                    "event_type": event.event_type.value,
+                },
+                ConditionExpression=Attr("SK").not_exists(),
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+
+    def list_events(self, workspace_id: str, limit: int = 2000) -> list[WorkflowEvent]:
+        """The newest `limit` events, oldest first."""
+        response = self._table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+            ExpressionAttributeValues={":pk": _ws(workspace_id), ":prefix": "EVENT#"},
+            ScanIndexForward=False,
+            Limit=limit,
+        )
+        events = [WorkflowEvent.model_validate_json(i["event_json"]) for i in response["Items"]]
+        return sorted(events, key=lambda e: (e.occurred_at, e.event_id))
 
 
 def _document_item(document: Document) -> dict:

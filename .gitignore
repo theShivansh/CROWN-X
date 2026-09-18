@@ -46,3 +46,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local ONNX models (scripts/fetch_models.py); published to S3, never committed
+services/api/.models/

@@ -1,7 +1,9 @@
-"""Reciprocal rank fusion of the lexical and semantic rankings (M1, k = 60)."""
+"""Reciprocal rank fusion of the lexical and semantic rankings (M1, k = 60), and near-duplicate
+removal before the evidence is shown (ADR-017)."""
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -37,3 +39,31 @@ def reciprocal_rank_fusion(
     return [
         FusedHit(chunk_id=cid, score=scores[cid], rank=n) for n, cid in enumerate(ordered, start=1)
     ]
+
+
+_TOKEN = re.compile(r"[a-z0-9₹]+", re.IGNORECASE)
+
+
+def near_duplicates(passages: Sequence[tuple[str, str, str]], threshold: float = 0.9) -> set[str]:
+    """Chunk IDs to drop because a better-ranked passage of the same document says the same thing.
+
+    `passages` are (chunk_id, document_id, text) in rank order. Two passages are near-duplicates when
+    the Jaccard similarity of their word sets is at least `threshold`; the later one is dropped, so the
+    better rank always survives. Passages from different documents are never merged: two versions
+    stating the same value are evidence of agreement, which M3 needs to see.
+    """
+    kept: list[tuple[str, frozenset[str]]] = []
+    dropped: set[str] = set()
+    for chunk_id, document_id, text in passages:
+        words = frozenset(t.lower() for t in _TOKEN.findall(text))
+        if any(doc == document_id and _jaccard(words, other) >= threshold for doc, other in kept):
+            dropped.add(chunk_id)
+        else:
+            kept.append((document_id, words))
+    return dropped
+
+
+def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
+    if not a and not b:
+        return 1.0
+    return len(a & b) / len(a | b)

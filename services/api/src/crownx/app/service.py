@@ -12,9 +12,11 @@ from crownx.adapters.ports import (
     IngestQueue,
     MetadataStore,
     ObjectStore,
+    Reranker,
     SearchHit,
     SearchIndex,
 )
+from crownx.app.events import record_event
 from crownx.domain.answering import FinalAnswer, finalize, insufficient
 from crownx.domain.errors import (
     AnswerUnavailable,
@@ -25,7 +27,8 @@ from crownx.domain.errors import (
     TooLarge,
     UploadIncomplete,
 )
-from crownx.domain.fusion import reciprocal_rank_fusion
+from crownx.domain.events import EventType
+from crownx.domain.fusion import near_duplicates, reciprocal_rank_fusion
 from crownx.domain.ids import (
     is_document_id,
     is_query_id,
@@ -37,6 +40,7 @@ from crownx.domain.ids import (
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 from crownx.domain.retrieval import EmbeddingNamespace, lexical_query, semantic_query
 from crownx.domain.uploads import object_key, validate_upload
+from crownx.domain.workflow import DEFINITIONS, MinerConfig, WorkflowSuggestion, mine
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +57,11 @@ class Limits:
     # Fused-score floor below which a passage isn't evidence. 0 keeps everything; calibrated on the
     # golden set once live embeddings run (docs/EVALUATION.md).
     retrieval_score_floor: float = 0.0
+    # Candidates each ranking contributes before fusion, dedup and the optional rerank (ADR-017).
+    retrieval_candidates: int = 15
+    # "hybrid" in every deployment; "bm25" and "dense" exist so the evaluation can compare them.
+    retrieval_mode: str = "hybrid"
+    duplicate_threshold: float = 0.9
 
 
 @dataclass(frozen=True)
@@ -60,6 +69,7 @@ class QueryResult:
     query_id: str
     status: str  # "retrieved" or "insufficient_evidence" (SRS §3, stage 1)
     evidence: list[dict]
+    timings_ms: dict[str, int] | None = None  # embed, search, rerank: for logs and the evaluation
 
 
 @dataclass(frozen=True)
@@ -67,7 +77,8 @@ class AnswerOutcome:
     query_id: str
     final: FinalAnswer
     provider: str | None  # None when no model was called
-    model_id: str | None
+    model_id: str | None  # the model that answered, which is the fallback model after a fallback
+    attempts: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -95,6 +106,8 @@ class CrownService:
         namespace: EmbeddingNamespace,
         answerer: Answerer | None = None,
         providers: dict | None = None,
+        reranker: Reranker | None = None,
+        miner: MinerConfig | None = None,
     ) -> None:
         self._store = store
         self._objects = objects
@@ -105,6 +118,8 @@ class CrownService:
         self._answerer = answerer
         self._namespace = namespace
         self._providers = providers or {}
+        self._reranker = reranker
+        self._miner = miner or MinerConfig()
 
     # Workspaces ---------------------------------------------------------------------------------
 
@@ -147,6 +162,7 @@ class CrownService:
             uploaded_at=utc_now(),
         )
         self._store.put_document(document)
+        self._event(workspace_id, EventType.DOCUMENT_UPLOAD_REQUESTED, document_id=document_id)
         expires_in = self._limits.upload_url_expiry_seconds
         upload = self._objects.presigned_post(
             document.object_key, spec.content_type, self._limits.max_upload_bytes, expires_in
@@ -183,6 +199,12 @@ class CrownService:
             )
             if not self._store.replace_document(duplicate, DocumentStatus.PENDING):
                 return self._settled(self.require_document(workspace_id, document_id))
+            self._event(
+                workspace_id,
+                EventType.DOCUMENT_DUPLICATE,
+                document_id=document_id,
+                duplicate_of=owner,
+            )
             return Completion(document=self.require_document(workspace_id, owner), duplicate=True)
 
         queued = document.model_copy(
@@ -195,6 +217,13 @@ class CrownService:
         )
         if not self._store.replace_document(queued, DocumentStatus.PENDING):
             return self._settled(self.require_document(workspace_id, document_id))
+        self._event(
+            workspace_id,
+            EventType.DOCUMENT_UPLOADED,
+            document_id=document_id,
+            content_type=document.content_type,
+            size_bytes=info.size_bytes,
+        )
         self._ingest.enqueue(workspace_id, document_id)
         return Completion(document=queued, duplicate=False)
 
@@ -222,17 +251,28 @@ class CrownService:
         if not question or len(question) > MAX_QUESTION_CHARS:
             raise InvalidRequest(f"Ask a question between 1 and {MAX_QUESTION_CHARS} characters.")
 
-        top_k = self._limits.retrieval_top_k
-        pool = top_k * 2
+        self._event(workspace_id, EventType.QUESTION_ASKED, question_chars=len(question))
+        limits = self._limits
+        mode = limits.retrieval_mode
+        pool = max(limits.retrieval_candidates, limits.retrieval_top_k)
+        timings: dict[str, int] = {}
         started = time.perf_counter()
         try:
-            vector = self._embedder.embed([question])[0]
-            lexical = self._index.search(
-                lexical_query(question, workspace_id, pool, self._namespace)
-            )
-            semantic = self._index.search(
-                semantic_query(vector, workspace_id, pool, self._namespace)
-            )
+            lexical: list[SearchHit] = []
+            semantic: list[SearchHit] = []
+            if mode in ("hybrid", "dense"):
+                vector = self._embedder.embed([question], kind="query")[0]
+                timings["embed"] = _ms_since(started)
+            search_started = time.perf_counter()
+            if mode in ("hybrid", "bm25"):
+                lexical = self._index.search(
+                    lexical_query(question, workspace_id, pool, self._namespace)
+                )
+            if mode in ("hybrid", "dense"):
+                semantic = self._index.search(
+                    semantic_query(vector, workspace_id, pool, self._namespace)
+                )
+            timings["search"] = _ms_since(search_started)
         except Exception as exc:
             log.exception("retrieval failed")
             raise RetrievalUnavailable(
@@ -245,25 +285,47 @@ class CrownService:
             # The filters are inside both queries, so this can't happen; if it does, fail closed.
             raise RuntimeError("search returned a chunk from another workspace or namespace")
 
-        fused = [
+        rankings = [r for r in ([h.chunk_id for h in lexical], [h.chunk_id for h in semantic]) if r]
+        candidates = [
             hit
-            for hit in reciprocal_rank_fusion(
-                [[h.chunk_id for h in lexical], [h.chunk_id for h in semantic]],
-                k=RRF_K,
-                top_k=top_k,
-            )
-            if hit.score >= self._limits.retrieval_score_floor
+            for hit in reciprocal_rank_fusion(rankings, k=RRF_K)
+            if hit.score >= limits.retrieval_score_floor
         ]
+        dropped = near_duplicates(
+            [
+                (
+                    c.chunk_id,
+                    hits[c.chunk_id].source["document_id"],
+                    hits[c.chunk_id].source["text"],
+                )
+                for c in candidates
+            ],
+            limits.duplicate_threshold,
+        )
+        candidates = [c for c in candidates if c.chunk_id not in dropped][:pool]
+        if self._reranker is not None and len(candidates) > 1:
+            rerank_started = time.perf_counter()
+            try:
+                scores = self._reranker.scores(
+                    question, [hits[c.chunk_id].source["text"] for c in candidates]
+                )
+                # Stable: equal rerank scores keep their fused order.
+                order = sorted(range(len(candidates)), key=lambda i: (-scores[i], i))
+                candidates = [candidates[i] for i in order]
+            except Exception:  # noqa: BLE001  # the fused order is still valid evidence
+                log.exception("rerank failed; keeping the fused order")
+            timings["rerank"] = _ms_since(rerank_started)
+        fused = candidates[: limits.retrieval_top_k]
         filenames: dict[str, str | None] = {}
         for doc_id in {hits[f.chunk_id].source["document_id"] for f in fused}:
             doc = self._store.get_document(workspace_id, doc_id)
             filenames[doc_id] = doc.filename if doc else None
         evidence = []
-        for hit in fused:
+        for rank, hit in enumerate(fused, start=1):
             source = hits[hit.chunk_id].source
             evidence.append(
                 {
-                    "evidence_id": f"ev_{hit.rank}",
+                    "evidence_id": f"ev_{rank}",
                     "chunk_id": hit.chunk_id,
                     "document_id": source["document_id"],
                     "filename": filenames.get(source["document_id"]),
@@ -273,7 +335,7 @@ class CrownService:
                     "char_end": source["char_end"],
                     "version_label": source.get("version_label"),
                     "source_timestamp": source.get("source_timestamp"),
-                    "retrieval_rank": hit.rank,
+                    "retrieval_rank": rank,
                     "retrieval_score": round(hit.score, 6),
                 }
             )
@@ -288,7 +350,16 @@ class CrownService:
             retrieval_ms=round((time.perf_counter() - started) * 1000),
         )
         self._store.put_query(record)
-        return QueryResult(query_id=record.query_id, status=record.status, evidence=evidence)
+        self._event(
+            workspace_id,
+            EventType.EVIDENCE_RETRIEVED,
+            query_id=record.query_id,
+            evidence_count=len(evidence),
+            retrieval_ms=record.retrieval_ms,
+        )
+        return QueryResult(
+            query_id=record.query_id, status=record.status, evidence=evidence, timings_ms=timings
+        )
 
     def answer(
         self, workspace_id: str, query_id: str, request_id: str | None = None
@@ -305,12 +376,21 @@ class CrownService:
             "query_id": query_id,
             "timestamp": utc_now(),
             "evidence_ids": [e["evidence_id"] for e in record.evidence],
+            # Which deployment and providers were active (ADR-017, observability).
+            "environment": self._providers.get("environment"),
+            "answer_provider": self._providers.get("answer_provider"),
+            "embedding_provider": self._providers.get("embedding_provider"),
+            "embedding_model": self._providers.get("embedding_model"),
         }
         if not record.evidence:
             # The zero-model-call path (CLAUDE.md rule 1): nothing to ground an answer in.
             self._store.put_audit(workspace_id, {**audit, "outcome": "insufficient_evidence"})
+            self._event(
+                workspace_id, EventType.ANSWER_INSUFFICIENT, query_id=query_id, model_calls=0
+            )
             return AnswerOutcome(query_id, insufficient(), provider=None, model_id=None)
         if self._answerer is None:
+            self._event(workspace_id, EventType.ANSWER_UNAVAILABLE, query_id=query_id)
             raise AnswerUnavailable(
                 "Answering isn't configured for this deployment, so no answer was written. "
                 "The evidence panel still shows every retrieved passage."
@@ -328,8 +408,11 @@ class CrownService:
                     "error": type(error).__name__,
                     "provider": answerer.provider,
                     "model_id": answerer.model_id,
+                    "answered_by_model": None,
+                    "attempts": list(getattr(error, "attempts", ())),
                 },
             )
+            self._event(workspace_id, EventType.ANSWER_UNAVAILABLE, query_id=query_id)
             raise
         final = finalize(result.draft, {e["evidence_id"] for e in record.evidence})
         if final.dropped:
@@ -345,7 +428,9 @@ class CrownService:
                 **audit,
                 "outcome": final.status,
                 "provider": result.provider,
-                "model_id": result.model_id,
+                "model_id": answerer.model_id,
+                "answered_by_model": result.model_id,
+                "attempts": list(result.attempts),
                 "model_invocation_id": result.invocation_id,
                 "latency_ms": result.latency_ms,
                 "input_tokens": result.input_tokens,
@@ -354,7 +439,32 @@ class CrownService:
                 "claims_dropped": len(final.dropped),
             },
         )
-        return AnswerOutcome(query_id, final, provider=result.provider, model_id=result.model_id)
+        self._event(
+            workspace_id,
+            EventType.ANSWER_INSUFFICIENT
+            if final.status == "insufficient_evidence"
+            else EventType.ANSWER_GENERATED,
+            query_id=query_id,
+            status=final.status,
+            answered_by_model=result.model_id,
+        )
+        return AnswerOutcome(
+            query_id,
+            final,
+            provider=result.provider,
+            model_id=result.model_id,
+            attempts=result.attempts,
+        )
+
+    # Workflow Learning Lite (ADR-018) ------------------------------------------------------------
+
+    def workflow_suggestions(self, workspace_id: str) -> tuple[list[WorkflowSuggestion], dict]:
+        """Repeated sequences of this workspace's own actions. Suggestions only: nothing runs."""
+        self.require_workspace(workspace_id)
+        return mine(self._store.list_events(workspace_id), self._miner), DEFINITIONS
+
+    def _event(self, workspace_id: str, event_type: EventType, **attributes: object) -> None:
+        record_event(self._store, workspace_id, event_type, **attributes)
 
     def _in_scope(self, source: dict, workspace_id: str) -> bool:
         return source.get("workspace_id") == workspace_id and all(
@@ -393,3 +503,7 @@ class CrownService:
         except Exception:  # noqa: BLE001
             checks["index"] = "unreachable"
         return checks
+
+
+def _ms_since(started: float) -> int:
+    return round((time.perf_counter() - started) * 1000)

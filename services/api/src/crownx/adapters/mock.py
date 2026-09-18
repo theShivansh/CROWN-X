@@ -54,7 +54,8 @@ class MockEmbedder:
     def __init__(self, dimensions: int = 1024) -> None:
         self.dimensions = dimensions
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], kind: str = "passage") -> list[list[float]]:
+        del kind  # a bag of words has no query form
         vectors = []
         for text in texts:
             vector = [0.0] * self.dimensions

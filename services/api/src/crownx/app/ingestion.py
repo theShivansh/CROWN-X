@@ -10,7 +10,9 @@ import logging
 
 from crownx.adapters.pdf import UnreadablePdf, read_pdf_pages
 from crownx.adapters.ports import Embedder, MetadataStore, ObjectStore, SearchIndex
+from crownx.app.events import record_event
 from crownx.domain.chunking import Chunk, chunk_pages, chunk_text, normalize_text
+from crownx.domain.events import EventType
 from crownx.domain.metadata import extract_metadata
 from crownx.domain.models import Document, DocumentStatus
 from crownx.domain.retrieval import EmbeddingNamespace, index_body
@@ -84,7 +86,7 @@ class IngestionWorker:
             if document is None:
                 return None
             self._index.ensure_index(index_body(self._embedder.dimensions))
-            vectors = self._embedder.embed([chunk.text for chunk in chunks])
+            vectors = self._embedder.embed([chunk.text for chunk in chunks], kind="passage")
             self._index.index_chunks(
                 [
                     {
@@ -104,7 +106,16 @@ class IngestionWorker:
                     for chunk, vector in zip(chunks, vectors, strict=True)
                 ]
             )
-            return self._advance(document, DocumentStatus.READY, chunk_count=len(chunks))
+            ready = self._advance(document, DocumentStatus.READY, chunk_count=len(chunks))
+            if ready is not None:
+                record_event(
+                    self._store,
+                    ready.workspace_id,
+                    EventType.DOCUMENT_INDEXED,
+                    document_id=ready.document_id,
+                    chunk_count=len(chunks),
+                )
+            return ready
         except Exception:
             log.exception("ingestion failed at stage %s", document.status)
             self._fail(
@@ -140,5 +151,12 @@ class IngestionWorker:
         failed = document.model_copy(
             update={"status": DocumentStatus.FAILED, "stage": document.status, "error": reason}
         )
-        self._store.replace_document(failed, document.status)
+        if self._store.replace_document(failed, document.status):
+            record_event(
+                self._store,
+                failed.workspace_id,
+                EventType.DOCUMENT_FAILED,
+                document_id=failed.document_id,
+                stage=str(document.status),
+            )
         return failed

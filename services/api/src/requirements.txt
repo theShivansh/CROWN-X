@@ -2,6 +2,8 @@
 #    uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt
 annotated-types==0.8.0
     # via pydantic
+anyio==4.15.1
+    # via httpx
 aws-lambda-powertools==3.35.0
     # via crownx-api
 boto3==1.43.96
@@ -12,27 +14,64 @@ botocore==1.43.96
     #   s3transfer
 certifi==2026.7.22
     # via
+    #   httpcore
+    #   httpx
     #   opensearch-py
     #   requests
 charset-normalizer==3.5.1
     # via requests
+click==8.5.0
+    # via huggingface-hub
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via tqdm
 events==0.5
     # via opensearch-py
+filelock==4.0.0
+    # via huggingface-hub
+flatbuffers==25.12.19
+    # via onnxruntime
+fsspec==2026.7.0
+    # via huggingface-hub
 grpcio==1.84.0
     # via opensearch-protobufs
+h11==0.16.0
+    # via httpcore
+hf-xet==1.6.0 ; platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
+    # via huggingface-hub
+httpcore==1.0.9
+    # via httpx
+httpx==0.28.1
+    # via huggingface-hub
+huggingface-hub==1.32.0
+    # via tokenizers
 idna==3.19
-    # via requests
+    # via
+    #   anyio
+    #   httpx
+    #   requests
 jmespath==1.1.0
     # via
     #   aws-lambda-powertools
     #   boto3
     #   botocore
+numpy==2.5.3
+    # via
+    #   crownx-api
+    #   onnxruntime
+onnxruntime==1.30.0
+    # via crownx-api
 opensearch-protobufs==1.2.0
     # via opensearch-py
 opensearch-py==3.2.0
     # via crownx-api
+packaging==26.3
+    # via
+    #   huggingface-hub
+    #   onnxruntime
 protobuf==7.36.1
-    # via opensearch-protobufs
+    # via
+    #   onnxruntime
+    #   opensearch-protobufs
 pydantic==2.13.5
     # via
     #   crownx-api
@@ -49,16 +88,24 @@ python-dateutil==2.9.0.post0
     #   opensearch-py
 python-dotenv==1.2.3
     # via pydantic-settings
+pyyaml==6.0.3
+    # via huggingface-hub
 requests==2.34.2
     # via opensearch-py
 s3transfer==0.19.2
     # via boto3
 six==1.17.0
     # via python-dateutil
+tokenizers==0.23.2
+    # via crownx-api
+tqdm==4.70.1
+    # via huggingface-hub
 typing-extensions==4.16.0
     # via
+    #   anyio
     #   aws-lambda-powertools
     #   grpcio
+    #   huggingface-hub
     #   pydantic
     #   pydantic-core
     #   typing-inspection

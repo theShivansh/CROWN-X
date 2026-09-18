@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -101,6 +102,19 @@ class ApiHarness:
         if ingest:
             self.worker.ingest(workspace_id, document_id)
         return document_id
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Tests never reach the network: Groq, Bedrock and AWS are all doubles here (ADR-017). Any
+    outbound connection fails the test instead of spending a rate limit or flaking on a 429."""
+
+    def refuse(self, address, *args, **kwargs):
+        raise AssertionError(f"a test tried to open a network connection to {address!r}")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
+    monkeypatch.setattr(socket, "create_connection", lambda *a, **k: refuse(None, a[0]))
 
 
 @pytest.fixture

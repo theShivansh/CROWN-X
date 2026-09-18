@@ -204,14 +204,6 @@ def test_groq_sends_the_same_contract_and_parses_the_tool_call():
     )
 
 
-def test_groq_retries_once_on_429_and_times_out_after_two_timeouts():
-    http = StubHttp(http_error(429), groq_response())
-    assert GroqAnswerer("k", "m", transport=http).answer("q", EVIDENCE).draft.answer
-    http = StubHttp(TimeoutError(), TimeoutError())
-    with pytest.raises(ModelTimeout):
-        GroqAnswerer("k", "m", transport=http).answer("q", EVIDENCE)
-
-
 def test_groq_refusal_does_not_echo_the_key():
     http = StubHttp(http_error(401))
     with pytest.raises(AnswerUnavailable) as caught:

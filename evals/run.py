@@ -1,15 +1,21 @@
 """CROWN-X evaluation runner (docs/EVALUATION.md). Seeds the demo corpus, asks every golden question
 through the public API contract, and writes exact metrics.
 
-    # Offline: the real API handlers in-process, MockProvider, in-memory storage. No network, no AWS.
+    # Offline gate: the real API handlers in-process, in-memory storage, a local BM25Okapi + FAISS
+    # index, and the real GroqAnswerer over the scripted MockGroqTransport. No network, no AWS.
     cd services/api && uv run python ../../evals/run.py --offline
+    # ... with a real local embedding model (after `python scripts/fetch_models.py`):
+    cd services/api && uv run python ../../evals/run.py --offline --embedding multilingual-e5-small-int8
 
-    # Live: any deployed stack (seeds fresh workspaces through the API first).
-    cd services/api && uv run python ../../evals/run.py --api https://<api-id>.execute-api.ap-south-1.amazonaws.com
+    # Retrieval benchmark: BM25 vs dense vs hybrid vs hybrid + rerank, for each local model.
+    cd services/api && uv run python ../../evals/run.py --compare
+
+    # Live gate: any deployed stack (seeds fresh workspaces through the API first), paced for Groq.
+    cd services/api && uv run python ../../evals/run.py --api https://<api-id>.execute-api.ap-south-1.amazonaws.com --pace 2.5
 
 Writes evals/results/<UTC timestamp>-<mode>.json and prints the summary. Exit code 1 if the security
 gate fails (any isolation, injection, zero-model-call, citation or evidence-integrity case). Live
-Bedrock metrics are filled only when /health reports Bedrock for both answers and embeddings.
+metrics are filled only for a deployed run whose /health reports real providers (never the mock).
 """
 
 from __future__ import annotations
@@ -26,9 +32,10 @@ ROOT = Path(__file__).resolve().parents[1]
 EVALS = ROOT / "evals"
 DATASET = EVALS / "golden" / "v1.jsonl"
 RESULTS = EVALS / "results"
+MODELS = ROOT / "services" / "api" / ".models"
 sys.path[:0] = [str(EVALS), str(ROOT / "demo"), str(ROOT / "services" / "api" / "src")]
 
-from metrics import summarize  # noqa: E402
+from metrics import retrieval_metrics, summarize  # noqa: E402
 
 CORPUS = {
     "A": ROOT / "demo" / "documents" / "workspace-a",
@@ -49,35 +56,77 @@ class Client(Protocol):
 
 
 class InProcessClient:
-    """The deployed handler code (`build_resolver`) over in-memory storage and MockProvider.
+    """The deployed handler code (`build_resolver`) over in-memory storage and a local index.
 
     Storage doubles come from services/api/tests/fakes.py: this is the evaluation harness, and the
-    deployed code never imports them. Providers come from the real ProviderRouter, in `test` mode.
+    deployed code never imports them. Providers come from the real ProviderRouter, in `test` mode:
+    answers from the production `GroqAnswerer` over the scripted `MockGroqTransport` (no network, no
+    rate limit), embeddings from the mock or from a downloaded local ONNX model.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        embedding: str = "mock",
+        retrieval_mode: str = "hybrid",
+        reranker: bool = False,
+    ) -> None:
         sys.path.insert(0, str(ROOT / "services" / "api" / "tests"))
+        from crownx.adapters.onnx_models import sha256_of
         from crownx.adapters.providers import ProviderRouter
         from crownx.app.api import build_resolver
         from crownx.app.ingestion import IngestionWorker
         from crownx.app.service import CrownService, Limits
         from crownx.config import Settings
-        from fakes import FakeIndex, FakeObjects, FakeStore
+        from fakes import FakeObjects, FakeStore
+        from local_index import LocalHybridIndex
 
+        def local_model(name: str) -> dict:
+            directory = MODELS / name
+            if not (directory / "model.onnx").exists():
+                raise SystemExit(f"{name} isn't downloaded: run python scripts/fetch_models.py")
+            return {"uri": str(directory), "sha256": sha256_of(directory / "model.onnx")}
+
+        options: dict = {}
+        if embedding != "mock":
+            model = local_model(embedding)
+            options |= {
+                "embedding_provider": "onnx",
+                "onnx_model_name": embedding,
+                "onnx_model_uri": model["uri"],
+                "onnx_model_sha256": model["sha256"],
+            }
+        if reranker:
+            model = local_model(RERANKER)
+            options |= {
+                "reranker_enabled": True,
+                "reranker_model_name": RERANKER,
+                "reranker_model_uri": model["uri"],
+                "reranker_model_sha256": model["sha256"],
+            }
         settings = Settings(
-            environment="test",
-            answer_provider="mock",
-            embedding_provider="mock",
-            aws_region="offline",
-            documents_bucket="offline",
-            table_name="offline",
-            opensearch_endpoint="offline",
-            ingest_function_name="offline",
-            bedrock_embedding_model_id="amazon.titan-embed-text-v2:0",
+            **{
+                "environment": "test",
+                "answer_provider": "groq",
+                "groq_transport": "mock",
+                "groq_model_id": "openai/gpt-oss-120b",
+                "groq_fallback_model_id": "openai/gpt-oss-20b",
+                "embedding_provider": "mock",
+                "aws_region": "offline",
+                "documents_bucket": "offline",
+                "table_name": "offline",
+                "opensearch_endpoint": "offline",
+                "ingest_function_name": "offline",
+                **options,
+            }
         )
         providers = ProviderRouter.build(settings, session=None)
+        self.providers = providers.describe() | {
+            "answer_transport": "mock (scripted, no network)",
+            "index": "local BM25Okapi + FAISS IndexFlatIP",
+            "retrieval_mode": retrieval_mode,
+        }
         self._objects = FakeObjects()
-        store, index = FakeStore(), FakeIndex()
+        store, index = FakeStore(), LocalHybridIndex()
         self._queued: list[tuple[str, str]] = []
         worker = IngestionWorker(
             store, self._objects, providers.embedder, index, providers.namespace
@@ -98,12 +147,14 @@ class InProcessClient:
             embedder=providers.embedder,
             namespace=providers.namespace,
             answerer=providers.answerer,
-            providers=providers.describe(),
+            reranker=providers.reranker,
+            providers=self.providers,
             limits=Limits(
                 max_upload_bytes=settings.max_upload_bytes,
                 max_documents_per_workspace=settings.max_documents_per_workspace,
                 upload_url_expiry_seconds=settings.upload_url_expiry_seconds,
                 retrieval_top_k=settings.retrieval_top_k,
+                retrieval_mode=retrieval_mode,
             ),
         )
         self._resolver = build_resolver(lambda: service)
@@ -140,10 +191,30 @@ class InProcessClient:
 
 
 class HttpClient:
-    def __init__(self, api: str) -> None:
+    """A deployed stack. `pace_s` spaces out answer calls for Groq's free-tier rate limit; a 503
+    `answer_unavailable` (rate limited even after the fallback) is retried after a pause."""
+
+    def __init__(self, api: str, pace_s: float = 0.0) -> None:
         self._api = api.rstrip("/")
+        self._pace_s = pace_s
+        self._last_answer = 0.0
 
     def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
+        if not path.endswith("/answer"):
+            return self._call(method, path, body)
+        for attempt in range(3):
+            wait = self._last_answer + self._pace_s - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self._last_answer = time.monotonic()
+            status, reply = self._call(method, path, body)
+            code = (reply.get("error") or {}).get("code")
+            if status != 503 or code != "answer_unavailable" or attempt == 2:
+                return status, reply
+            time.sleep(20 * (attempt + 1))  # the per-minute window resets
+        raise AssertionError("unreachable")
+
+    def _call(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
         import urllib.error
         import urllib.request
 
@@ -241,6 +312,8 @@ def run_case(client: Client, case: dict, workspace: dict) -> dict:
         "claims": answer["claims"],
         "answer_provider": answer["answer_provider"],
         "model_id": answer["model_id"],
+        "answered_by_model": answer.get("answered_by_model"),
+        "attempts": answer.get("attempts") or [],
         "evidence": [
             {
                 k: e.get(k)
@@ -263,7 +336,7 @@ def evaluate(client: Client, mode: str, timeout_s: int = 180) -> dict:
     cases = load_cases()
     workspaces = seed(client, timeout_s)
     outcomes = {c["id"]: run_case(client, c, workspaces[c["workspace"]]) for c in cases}
-    summary = summarize(cases, outcomes, providers)
+    summary = summarize(cases, outcomes, providers, live=mode == "live")
     return {
         "dataset": DATASET.name.removesuffix(".jsonl"),
         "mode": mode,
@@ -293,8 +366,87 @@ def _commit() -> str:
         return "unknown"
 
 
+RERANKER = "ms-marco-MiniLM-L-6-v2-int8"
+EMBEDDERS = ["multilingual-e5-small-int8", "bge-small-en-v1.5-int8"]
+
+
+def retrieval_only(client: Client, cases: list[dict], workspaces: dict) -> dict[str, dict]:
+    """Stage 1 only: the evidence each question retrieves, and how long retrieval took."""
+    outcomes = {}
+    for case in cases:
+        ws = workspaces[case["workspace"]]["workspace_id"]
+        started = time.perf_counter()
+        status, query = client.call(
+            "POST", f"/workspaces/{ws}/query", {"question": case["question"]}
+        )
+        elapsed = (time.perf_counter() - started) * 1000
+        outcomes[case["id"]] = (
+            {"error": f"query HTTP {status}"}
+            if status != 200
+            else {
+                "evidence": [{"filename": e.get("filename")} for e in query["evidence"]],
+                "timings_ms": {"query": round(elapsed, 1)},
+            }
+        )
+    return outcomes
+
+
+def compare(embedders: list[str], timeout_s: int = 180) -> dict:
+    """BM25 vs dense vs hybrid vs hybrid + rerank on the M2 answerable cases, in process, with the
+    real local models. Every configuration re-ingests the corpus into a fresh index."""
+    cases = [c for c in load_cases() if c["milestone"] == "M2" and c.get("expected_files")]
+    configs = [("bm25", "mock", "bm25", False)]
+    for name in embedders:
+        configs += [
+            ("dense", name, "dense", False),
+            ("hybrid", name, "hybrid", False),
+            ("hybrid + rerank", name, "hybrid", True),
+        ]
+    rows = []
+    for label, embedding, retrieval_mode, rerank in configs:
+        client = InProcessClient(embedding, retrieval_mode, rerank)
+        workspaces = seed(client, timeout_s)
+        retrieval_only(client, cases[:3], workspaces)  # warm the models before timing
+        outcomes = retrieval_only(client, cases, workspaces)
+        rows.append(
+            {
+                "system": label,
+                "embedding_model": None if retrieval_mode == "bm25" else embedding,
+                "reranker": RERANKER if rerank else None,
+                **retrieval_metrics(cases, outcomes),
+            }
+        )
+    return {
+        "dataset": DATASET.name.removesuffix(".jsonl"),
+        "mode": "compare",
+        "run_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": _commit(),
+        "cases": len(cases),
+        "index": "local BM25Okapi + FAISS IndexFlatIP (in process)",
+        "rows": rows,
+    }
+
+
+def print_compare(report: dict) -> None:
+    print(
+        f"CROWN-X retrieval comparison · dataset {report['dataset']} · {report['cases']} M2 "
+        f"answerable cases · commit {report['commit']}"
+    )
+    header = (
+        "| System | Embedding model | Hit@5 | Hit@8 | Recall@5 | Recall@8 | MRR | p50 ms | p95 ms |"
+    )
+    print(header)
+    print("|" + "---|" * 9)
+    for r in report["rows"]:
+        print(
+            f"| {r['system']} | {r['embedding_model'] or 'none'} | {r['hit_rate_at_5']} | "
+            f"{r['hit_rate_at_8']} | {r['recall_at_5']} | {r['recall_at_8']} | {r['mrr']} | "
+            f"{r['p50_query_ms']} | {r['p95_query_ms']} |"
+        )
+
+
 def print_summary(report: dict) -> None:
-    offline, live = report["offline"], report["live_bedrock"]
+    offline, live = report["offline"], report["live"]
     print(
         f"CROWN-X eval · dataset {report['dataset']} · {report['mode']} · commit {report['commit']}"
     )
@@ -318,7 +470,7 @@ def print_summary(report: dict) -> None:
     print(f"  retrieval ({retrieval['label']}, semantic={retrieval['semantic']})")
     print(f"    hit_rate_at_8                      {retrieval['hit_rate_at_8']}")
     print(f"    mrr                                {retrieval['mrr']}")
-    print("\nLive Bedrock metrics (external gate)")
+    print("\nLive metrics (live gate: deployed stack, real providers)")
     for key, value in live.items():
         print(f"  {key:36} {value}")
     m3 = report["m3_expected_fail"]
@@ -336,25 +488,50 @@ def print_summary(report: dict) -> None:
             print(f"  {failure['id']} ({failure['category']}): {failure.get('error') or flags}")
 
 
+def _write(report: dict, mode: str) -> None:
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    path = RESULTS / f"{report['run_at'].replace(':', '')}-{mode}.json"
+    path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"wrote {path.relative_to(ROOT)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the CROWN-X golden set.")
     target = parser.add_mutually_exclusive_group(required=True)
-    target.add_argument("--offline", action="store_true", help="in-process, MockProvider")
+    target.add_argument("--offline", action="store_true", help="in-process, scripted Groq")
+    target.add_argument("--compare", action="store_true", help="retrieval benchmark, in-process")
     target.add_argument("--api", help="base URL of a deployed stack")
+    parser.add_argument(
+        "--embedding",
+        default="mock",
+        choices=["mock", *EMBEDDERS],
+        help="offline only: the embedding model (a local ONNX model must be downloaded first)",
+    )
+    parser.add_argument("--rerank", action="store_true", help="offline only: enable the reranker")
+    parser.add_argument(
+        "--pace", type=float, default=0.0, help="live only: seconds between answers"
+    )
     parser.add_argument("--timeout", type=int, default=180, help="seconds to wait per document")
     parser.add_argument("--no-write", action="store_true", help="don't write a results file")
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
-    client: Any = InProcessClient() if args.offline else HttpClient(args.api)
+    if args.compare:
+        report = compare(EMBEDDERS, args.timeout)
+        if not args.no_write:
+            _write(report, "compare")
+        print_compare(report)
+        return
+    client: Any = (
+        InProcessClient(args.embedding, reranker=args.rerank)
+        if args.offline
+        else HttpClient(args.api, args.pace)
+    )
     mode = "offline" if args.offline else "live"
     report = evaluate(client, mode, args.timeout)
     if not args.no_write:
-        RESULTS.mkdir(parents=True, exist_ok=True)
-        path = RESULTS / f"{report['run_at'].replace(':', '')}-{mode}.json"
-        path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        print(f"wrote {path.relative_to(ROOT)}")
+        _write(report, mode)
     print_summary(report)
     sys.exit(0 if report["security_gate_passed"] else 1)
 

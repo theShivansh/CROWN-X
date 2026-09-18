@@ -8,6 +8,7 @@ import re
 
 from crownx.adapters.ports import AnswerResult, ObjectInfo, SearchHit
 from crownx.domain.answering import AnswerDraft
+from crownx.domain.events import WorkflowEvent
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace
 
 
@@ -18,6 +19,8 @@ class FakeStore:
         self.checksums: dict[tuple[str, str], str] = {}
         self.queries: dict[tuple[str, str], QueryRecord] = {}
         self.audit: list[tuple[str, dict]] = []
+        self.events: dict[str, WorkflowEvent] = {}
+        self.event_error: Exception | None = None
         self.fail = False
 
     def _check(self) -> None:
@@ -63,6 +66,18 @@ class FakeStore:
 
     def put_audit(self, workspace_id: str, event: dict) -> None:
         self.audit.append((workspace_id, dict(event)))
+
+    def put_event(self, event: WorkflowEvent) -> None:
+        if self.event_error:
+            raise self.event_error
+        self.events.setdefault(event.event_id, event)
+
+    def list_events(self, workspace_id: str, limit: int = 2000) -> list[WorkflowEvent]:
+        found = [e for e in self.events.values() if e.workspace_id == workspace_id]
+        return sorted(found, key=lambda e: (e.occurred_at, e.event_id))[-limit:]
+
+    def event_types(self, workspace_id: str) -> list[str]:
+        return [e.event_type.value for e in self.list_events(workspace_id)]
 
 
 class FakeObjects:
@@ -119,12 +134,14 @@ class FakeEmbedder:
 
     def __init__(self) -> None:
         self.calls: list[list[str]] = []
+        self.kinds: list[str] = []
         self.error: Exception | None = None
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], kind: str = "passage") -> list[list[float]]:
         if self.error:
             raise self.error
         self.calls.append(list(texts))
+        self.kinds.append(kind)
         vectors = []
         for text in texts:
             vector = [0.0] * self.dimensions

@@ -1,12 +1,13 @@
 """Exact metrics over recorded case outcomes (docs/EVALUATION.md §§2-3). Pure functions, no I/O.
 
-Two sections, never mixed (ADR-016):
+Two sections, never mixed (ADR-016, ADR-017):
 - `offline`: properties of the pipeline that hold whatever the provider: citation validity, evidence
   integrity, workspace isolation, injection resistance, the zero-model-call path, and the M2 case pass
   rate. Retrieval numbers here come from lexical search plus whatever embeddings ran, and are labelled
-  with that provider, so mock numbers are never read as semantic retrieval quality.
-- `live_bedrock`: recall@8, MRR, evidence hit rate, answer value match and latency, reported only when
-  both providers were Bedrock. Otherwise every value is "not measured".
+  with that provider: `semantic` is true only for a real embedding model, so mock numbers are never
+  read as semantic retrieval quality. Answers offline come from a scripted transport: never quality.
+- `live`: recall@8, MRR, evidence hit rate, answer value match, groundedness and latency, reported only
+  for a deployed run with real providers (no mock anywhere). Otherwise every value is "not measured".
 
 M3 cases (contradictions, format-equal, missing timestamps) are scored separately as expected-fail and
 never enter the M2 headline.
@@ -92,7 +93,41 @@ def case_checks(case: dict, outcome: dict) -> dict:
     return checks
 
 
-def summarize(cases: list[dict], outcomes: dict[str, dict], providers: dict) -> dict:
+REAL_EMBEDDINGS = {"onnx", "bedrock"}
+REAL_ANSWERS = {"groq", "bedrock"}
+
+
+def retrieval_metrics(cases: list[dict], outcomes: dict[str, dict]) -> dict:
+    """Stage-1 quality for cases with `expected_files`: hit rate, recall and MRR at the evidence
+    list's ranks, plus query latency. `recall@k` is the share of a case's relevant files found in the
+    top k, averaged over cases; `hit@k` is whether any of them is."""
+    scored = [(c, outcomes[c["id"]]) for c in cases if c.get("expected_files")]
+    ok = [(c, o) for c, o in scored if not o.get("error")]
+    ranks, recall5, recall8 = [], [], []
+    for case, outcome in ok:
+        files = [e.get("filename") for e in outcome["evidence"]]
+        relevant = set(case["expected_files"])
+        ranks.append(next((i for i, f in enumerate(files, start=1) if f in relevant), None))
+        recall5.append(len(relevant & set(files[:5])) / len(relevant))
+        recall8.append(len(relevant & set(files[:8])) / len(relevant))
+    latencies = [o["timings_ms"]["query"] for _, o in ok if "query" in (o.get("timings_ms") or {})]
+    count = len(ok)
+    return {
+        "cases": len(scored),
+        "errors": len(scored) - count,
+        "hit_rate_at_5": _rate(sum(1 for r in ranks if r and r <= 5), count),
+        "hit_rate_at_8": _rate(sum(1 for r in ranks if r and r <= 8), count),
+        "recall_at_5": round(sum(recall5) / count, 4) if count else NOT_MEASURED,
+        "recall_at_8": round(sum(recall8) / count, 4) if count else NOT_MEASURED,
+        "mrr": round(sum(1 / r for r in ranks if r) / count, 4) if count else NOT_MEASURED,
+        "p50_query_ms": percentile(latencies, 50),
+        "p95_query_ms": percentile(latencies, 95),
+    }
+
+
+def summarize(
+    cases: list[dict], outcomes: dict[str, dict], providers: dict, live: bool = False
+) -> dict:
     scored = [(c, case_checks(c, outcomes[c["id"]])) for c in cases]
     m2 = [(c, r) for c, r in scored if c["milestone"] == "M2"]
     m3 = [(c, r) for c, r in scored if c["milestone"] != "M2"]
@@ -112,9 +147,11 @@ def summarize(cases: list[dict], outcomes: dict[str, dict], providers: dict) -> 
         f"lexical BM25 + {providers.get('embedding_provider', '?')} embeddings "
         f"({providers.get('embedding_model', '?')})"
     )
+    semantic = providers.get("embedding_provider") in REAL_EMBEDDINGS
     is_live = (
-        providers.get("answer_provider") == "bedrock"
-        and providers.get("embedding_provider") == "bedrock"
+        live
+        and providers.get("answer_provider") in REAL_ANSWERS
+        and providers.get("embedding_provider") in REAL_EMBEDDINGS
     )
 
     offline = {
@@ -137,19 +174,35 @@ def summarize(cases: list[dict], outcomes: dict[str, dict], providers: dict) -> 
         "answer_value_match": rate(answerable, "values_ok"),
         "retrieval": {
             "label": retrieval_label,
-            "semantic": is_live,
+            "semantic": semantic,
             "hit_rate_at_8": hit8,
             "mrr": mrr,
         },
     }
-    live = {
+    live_section = {
         "recall_at_8": hit8 if is_live else NOT_MEASURED,
         "mrr": mrr if is_live else NOT_MEASURED,
         "semantic_evidence_hit_rate": hit8 if is_live else NOT_MEASURED,
         "answer_value_match": offline["answer_value_match"] if is_live else NOT_MEASURED,
-        # The model-graded "does this claim follow from its passage" check needs Bedrock and a
-        # hand-checked agreement sample first (docs/EVALUATION.md §3).
-        "groundedness": NOT_MEASURED,
+        # Exact groundedness proxy: the share of answered cases whose every claim cites evidence
+        # and whose expected values appear (a model-graded check needs a hand-checked sample first,
+        # docs/EVALUATION.md §3).
+        "groundedness": rate(
+            [(c, r) for c, r in answerable if outcomes[c["id"]]["claims"]], "passed"
+        )
+        if is_live
+        else NOT_MEASURED,
+        "fallback_rate": _rate(
+            sum(
+                1
+                for c, _ in ok
+                if outcomes[c["id"]].get("answered_by_model")
+                and outcomes[c["id"]].get("answered_by_model") != providers.get("answer_model")
+            ),
+            len(ok),
+        )
+        if is_live
+        else NOT_MEASURED,
         "p50_query_ms": percentile([t["query"] for t in timings if "query" in t], 50)
         if is_live
         else NOT_MEASURED,
@@ -189,7 +242,7 @@ def summarize(cases: list[dict], outcomes: dict[str, dict], providers: dict) -> 
     return {
         "providers": providers,
         "offline": offline,
-        "live_bedrock": live,
+        "live": live_section,
         "m3_expected_fail": m3_summary,
         "security_gate_passed": security_gate,
         "m2_failures": failures,

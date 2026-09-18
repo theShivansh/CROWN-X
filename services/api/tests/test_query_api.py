@@ -78,7 +78,8 @@ def test_both_retrieval_requests_carry_the_workspace_filter(api):
     ]
     assert lexical["query"]["bool"]["filter"] == scope
     assert semantic["query"]["knn"]["embedding"]["filter"] == {"bool": {"filter": scope}}
-    assert lexical["size"] == semantic["size"] == TOP_K * 2
+    # Each ranking contributes its candidate pool before fusion, dedup and rerank (ADR-017).
+    assert lexical["size"] == semantic["size"] == max(15, TOP_K)
 
 
 def test_a_fact_only_in_another_workspace_never_appears(api):
