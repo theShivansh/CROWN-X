@@ -36,8 +36,9 @@ B4, B5 and B7 close.
 **Rejected:** running the triage prompt now: its Build It fallback needs Docker, which isn't installed,
 so it would not unblock anything tonight.
 **Consequences:** M2 and M3 start late if verification slips; the live done-means of M1 are still owed.
-**Verify / revisit if:** a Bedrock runtime call succeeds and `sam deploy` works by Friday 12:00 IST.
-If not, run the triage prompt then.
+**Verify / revisit if:** a Bedrock runtime call succeeds. Update 2026-09-18: `sam deploy` works and the
+stack is live; Bedrock still refused at 15:04 IST, and the user waived the triage check for Friday too.
+Next check: 2026-09-19, after AWS verifies the account.
 
 ### ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub
 Status: proposed (the user chose it at M1 plan approval; accepted when a push deploys the site in S6)

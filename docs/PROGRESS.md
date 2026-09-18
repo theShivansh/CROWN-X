@@ -84,7 +84,7 @@ in Mumbai.
 | ID | Blocker | Owner | Closes when |
 |---|---|---|---|
 | B2 | Submission deadline not published | organisers; you re-check the schedule page | the deadline and its time zone are recorded above |
-| B4 | AWS hasn't finished verifying the account (created 2026-09-17 00:05 IST). Re-checked 2026-09-18: `invoke-model` and `converse` both return `ValidationException: Operation not allowed` for Titan V2, Qwen3 235B and Nova 2 Lite, and `On-demand model inference requests per minute` reads 0. Everything else in the account works: the whole stack deployed and runs | you | you've written to aws-verification@amazon.com; a Titan V2 `invoke-model` call succeeds; S0's measurement runs |
+| B4 | AWS hasn't finished verifying the account (created 2026-09-17 00:05 IST). Re-checked 2026-09-18: `invoke-model` and `converse` both return `ValidationException: Operation not allowed` for Titan V2, Qwen3 235B and Nova 2 Lite, and `On-demand model inference requests per minute` reads 0. Everything else in the account works: the whole stack deployed and runs. Re-checked 2026-09-18 15:04 IST: still refused. The user set this to be solved on 2026-09-19 once the account is verified; development continues against test doubles meanwhile | you | you've written to aws-verification@amazon.com; a Titan V2 `invoke-model` call succeeds; S0's measurement runs |
 | ~~B5~~ | Closed 2026-09-18: SAM CLI 1.166.2 installed at `C:\Program Files\Amazon\AWSSAMCLIin\sam.cmd` (not on this shell's PATH; call it by full path) | you | closed |
 | B7 | Docker not installed. The user chose to skip it on 2026-09-18; `sam build` works without it, and the Build It fallback stays unavailable | you | only if the Build It fallback is needed |
 | B8 | Free plan ($100 credits) and no budget; check-in unconfirmed. Free plans can't redeem other promotional credits, and the account closes when the credits run out, which would take the demo URL down within 30 days of steady spend | you | checked in; Paid-plan decision made and the event code redeemed; an AWS Budgets alert exists |
@@ -153,7 +153,7 @@ S4; S0's measurement and S1 as soon as they close.
 
 Kill criterion: if the deployed path isn't working by Thursday evening, run
 `prompts/08-TRIAGE-BEHIND-SCHEDULE.md` (Build It fallback). Deferred by the user on 2026-09-17 while AWS
-verifies the account (ADR-015); revisit Friday 12:00 IST.
+verifies the account (ADR-015). On 2026-09-18 the user also waived the triage check for Friday; next check 2026-09-19.
 
 ## Verification log
 One line per `/verify-stage` run: `date time | milestone | commit | gates | level | failures`
