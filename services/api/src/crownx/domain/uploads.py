@@ -38,7 +38,9 @@ def sanitize_filename(name: str) -> str:
 
 def validate_upload(filename: str, size_bytes: int, max_bytes: int) -> UploadSpec:
     if not filename.strip():
-        raise InvalidRequest("A filename is required. Choose a .md, .txt or .pdf file and try again.")
+        raise InvalidRequest(
+            "A filename is required. Choose a .md, .txt or .pdf file and try again."
+        )
     supported = ", ".join(SUPPORTED_TYPES)
     suffix = PurePosixPath(filename.replace("\\", "/")).suffix.lower()
     if suffix not in SUPPORTED_TYPES:

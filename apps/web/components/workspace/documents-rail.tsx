@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 import type { LocalUpload } from "./use-documents";
 
-const ACCEPT = ".md,.txt";
+const ACCEPT = ".md,.txt,.pdf";
 
 export function DocumentsRail(props: {
   documents: DocumentRecord[] | null;
@@ -72,7 +72,7 @@ export function DocumentsRail(props: {
           <UploadSimple data-icon="inline-start" />
           Upload files
         </Button>
-        <p className="text-xs text-text-muted">Drop files here. Markdown or plain text, up to 5 MB each.</p>
+        <p className="text-xs text-text-muted">Drop files here. Markdown, plain text or PDF, up to 5 MB each.</p>
         <input
           ref={input}
           type="file"

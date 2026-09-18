@@ -101,6 +101,8 @@ def _best_sentence(span: str, asked: set[str]) -> tuple[int, str] | None:
         if not sentence or _INSTRUCTION.search(sentence):
             continue
         score = len(asked & set(words(sentence)))
-        if score and (best is None or score > best[0]):
+        # A sentence has to carry at least half of the question's content words, so one shared
+        # common word ("team") never passes for an answer and "not enough evidence" stays reachable.
+        if score >= max(1, len(asked) // 2) and (best is None or score > best[0]):
             best = (score, sentence)
     return best

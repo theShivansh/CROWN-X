@@ -77,9 +77,39 @@ const DocumentsResponse = z.object({
 
 const QueryResponse = z.object({
   request_id: RequestId,
+  query_id: z.string().min(1),
   status: z.enum(["retrieved", "insufficient_evidence"]),
   evidence: z.array(EvidenceSchema),
   conflicts: z.array(z.unknown()),
+});
+
+export const ANSWER_STATUSES = ["grounded", "partial", "insufficient_evidence"] as const;
+
+const AnswerResponse = z.object({
+  request_id: RequestId,
+  query_id: z.string().min(1),
+  status: z.enum(ANSWER_STATUSES),
+  answer: z.string(),
+  claims: z.array(z.object({ text: z.string().min(1), evidence_ids: z.array(z.string().min(1)).min(1) })),
+  answer_provider: z.string().nullable(),
+  model_id: z.string().nullable(),
+});
+
+const ProvidersSchema = z.object({
+  environment: z.string().min(1),
+  answer_provider: z.string().min(1),
+  answer_model: z.string().nullable(),
+  embedding_provider: z.string().min(1),
+  embedding_model: z.string().min(1),
+  embedding_version: z.string().min(1),
+});
+
+const HealthResponse = z.object({
+  request_id: RequestId,
+  status: z.enum(["ok", "degraded"]),
+  dependencies: z.record(z.string(), z.string()),
+  // Absent only when the configuration itself failed to load.
+  providers: ProvidersSchema.optional(),
 });
 
 const ErrorEnvelope = z.object({
@@ -92,6 +122,9 @@ export type Evidence = z.infer<typeof EvidenceSchema>;
 export type UploadTicket = z.infer<typeof UploadUrlResponse>;
 export type Completion = z.infer<typeof CompleteResponse>;
 export type QueryResult = z.infer<typeof QueryResponse>;
+export type AnswerResult = z.infer<typeof AnswerResponse>;
+export type Health = z.infer<typeof HealthResponse>;
+export type Providers = z.infer<typeof ProvidersSchema>;
 
 export class ApiError extends Error {
   readonly status: number | null;
@@ -134,6 +167,8 @@ export function createApiClient(options: { baseUrl: string | undefined; fetch?: 
     method: "GET" | "POST",
     path: string,
     body?: unknown,
+    // Statuses whose body is a normal response, not an error envelope (a degraded /health is 503).
+    acceptStatuses: readonly number[] = [],
   ): Promise<T> {
     if (!baseUrl) {
       throw new ApiError({
@@ -172,7 +207,7 @@ export function createApiClient(options: { baseUrl: string | undefined; fetch?: 
       payload = undefined;
     }
 
-    if (!response.ok) {
+    if (!response.ok && !acceptStatuses.includes(response.status)) {
       const envelope = ErrorEnvelope.safeParse(payload);
       if (envelope.success) {
         throw new ApiError({
@@ -224,6 +259,15 @@ export function createApiClient(options: { baseUrl: string | undefined; fetch?: 
 
     query: (workspaceId: string, question: string) =>
       call(QueryResponse, "POST", `${ws(workspaceId)}/query`, { question }),
+
+    answer: (workspaceId: string, queryId: string) =>
+      call(
+        AnswerResponse,
+        "POST",
+        `${ws(workspaceId)}/queries/${encodeURIComponent(queryId)}/answer`,
+      ),
+
+    health: () => call(HealthResponse, "GET", "/health", undefined, [503]),
   };
 }
 

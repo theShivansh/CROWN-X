@@ -239,6 +239,17 @@ def test_mock_answerer_never_repeats_an_instruction_as_a_claim():
     assert "1 October" not in result.draft.answer
 
 
+def test_mock_answerer_does_not_answer_from_one_shared_common_word():
+    evidence = [
+        {
+            "evidence_id": "ev_1",
+            "quoted_span": "IT Services has limited the Events Portal API to 60 requests per team key.",
+        }
+    ]
+    result = MockAnswerer().answer("What is the URL of the team GitHub repository?", evidence)
+    assert result.draft.insufficient_evidence and result.draft.claims == []
+
+
 def test_mock_answerer_with_nothing_relevant_says_insufficient():
     result = MockAnswerer().answer("Who is the faculty coordinator?", EVIDENCE[:1])
     assert result.draft.insufficient_evidence and result.draft.claims == []

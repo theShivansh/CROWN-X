@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CircleNotch, MagnifyingGlass, Question } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -8,17 +8,24 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ErrorNotice } from "@/components/error-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, asApiError, type ApiError, type QueryResult } from "@/lib/api";
+import { api, asApiError, type AnswerResult, type ApiError, type QueryResult } from "@/lib/api";
 
+import { AnswerCard } from "./answer-card";
 import { DocumentsRail } from "./documents-rail";
-import { EvidencePanel } from "./evidence-panel";
+import { EvidencePanel, evidenceElementId } from "./evidence-panel";
+import { ProviderBanner } from "./provider-banner";
 import { useDocuments } from "./use-documents";
 
+/**
+ * One question is two calls (ADR-009): retrieve, then answer over exactly what was retrieved. Each
+ * phase on screen is one of those calls.
+ */
 export type AskState =
   | { phase: "idle" }
-  | { phase: "loading"; question: string }
-  | { phase: "done"; question: string; result: QueryResult }
-  | { phase: "error"; question: string; error: ApiError };
+  | { phase: "retrieving"; question: string }
+  | { phase: "answering"; question: string; query: QueryResult }
+  | { phase: "done"; question: string; query: QueryResult; answer: AnswerResult }
+  | { phase: "error"; question: string; query: QueryResult | null; error: ApiError };
 
 export function WorkspaceScreen() {
   const workspaceId = useSearchParams().get("ws");
@@ -43,8 +50,10 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
   const docs = useDocuments(workspaceId);
   const [ask, setAsk] = useState<AskState>({ phase: "idle" });
   const [question, setQuestion] = useState("");
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const askInput = useRef<HTMLInputElement>(null);
+  const run = useRef(0); // ignores results from a question the user has already replaced
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -57,35 +66,74 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  async function run(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setAsk({ phase: "loading", question: trimmed });
-    setAnnouncement("Retrieving evidence");
+  async function answerStage(id: number, text: string, query: QueryResult) {
+    setAsk({ phase: "answering", question: text, query });
+    setAnnouncement("Writing answer");
     try {
-      const result = await api.query(workspaceId, trimmed);
-      setAsk({ phase: "done", question: trimmed, result });
+      const answer = await api.answer(workspaceId, query.query_id);
+      if (run.current !== id) return;
+      setAsk({ phase: "done", question: text, query, answer });
       setAnnouncement(
-        result.evidence.length ? `${result.evidence.length} passages retrieved` : "Not enough evidence",
+        answer.status === "insufficient_evidence" ? "Not enough evidence" : "Answer ready",
       );
     } catch (error) {
+      if (run.current !== id) return;
       const apiError = asApiError(error);
-      setAsk({ phase: "error", question: trimmed, error: apiError });
+      setAsk({ phase: "error", question: text, query, error: apiError });
       setAnnouncement(apiError.message);
     }
   }
 
+  async function ask_(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const id = ++run.current;
+    setHighlighted(null);
+    setAsk({ phase: "retrieving", question: trimmed });
+    setAnnouncement("Retrieving evidence");
+    let query: QueryResult;
+    try {
+      query = await api.query(workspaceId, trimmed);
+    } catch (error) {
+      if (run.current !== id) return;
+      const apiError = asApiError(error);
+      setAsk({ phase: "error", question: trimmed, query: null, error: apiError });
+      setAnnouncement(apiError.message);
+      return;
+    }
+    if (run.current !== id) return;
+    setAnnouncement(`${query.evidence.length} passages retrieved`);
+    await answerStage(id, trimmed, query);
+  }
+
+  function retry() {
+    if (ask.phase !== "error") return;
+    // A failed answer is retried over the same stored evidence; a failed retrieval asks again.
+    if (ask.query) void answerStage(++run.current, ask.question, ask.query);
+    else void ask_(ask.question);
+  }
+
+  function cite(evidenceId: string) {
+    setHighlighted(evidenceId);
+    const card = document.getElementById(evidenceElementId(evidenceId));
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Focus first, so the focus change can't interrupt the scroll.
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    void run(question);
+    void ask_(question);
   }
 
   const workspaceMissing = docs.loadError?.code === "not_found";
+  const busy = ask.phase === "retrieving" || ask.phase === "answering";
 
   return (
-    <div className="grid min-h-dvh grid-rows-[auto_1fr] bg-bg">
+    <div className="grid min-h-dvh grid-rows-[auto_1fr] bg-bg lg:h-dvh">
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <Link href="/" className="text-sm font-semibold text-text">
+        <Link href="/" className="shrink-0 text-sm font-semibold whitespace-nowrap text-text">
           CROWN-X
         </Link>
         <span className="text-text-subtle" aria-hidden>
@@ -94,6 +142,9 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
         <span className="min-w-0 truncate font-mono text-xs text-text-muted" title={workspaceId}>
           {workspaceId}
         </span>
+        <div className="ml-auto min-w-0">
+          <ProviderBanner />
+        </div>
       </header>
 
       {workspaceMissing && docs.loadError ? (
@@ -109,8 +160,8 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
           />
         </main>
       ) : (
-        <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)_400px]">
-          <div className="border-b border-border lg:border-r lg:border-b-0">
+        <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)_400px] lg:grid-rows-[minmax(0,1fr)]">
+          <div className="border-b border-border lg:min-h-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
             <DocumentsRail
               documents={docs.documents}
               loadError={docs.loadError}
@@ -121,7 +172,7 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
             />
           </div>
 
-          <main className="flex min-w-0 flex-col gap-6 p-4 lg:px-6">
+          <main className="flex min-w-0 flex-col gap-6 p-4 lg:min-h-0 lg:overflow-y-auto lg:px-6">
             <h1 className="sr-only">Workspace</h1>
             <form onSubmit={onSubmit} className="flex flex-col gap-2" role="search">
               <label htmlFor="ask" className="text-sm font-medium text-text">
@@ -139,27 +190,27 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     maxLength={500}
-                    placeholder="What is the submission deadline?"
+                    placeholder="What is the current submission deadline?"
                     autoComplete="off"
                     className="h-11 bg-surface pl-9"
                   />
                 </div>
-                <Button type="submit" className="h-11 px-4" disabled={ask.phase === "loading" || !question.trim()}>
+                <Button type="submit" className="h-11 px-4" disabled={busy || !question.trim()}>
                   Ask
                   <ArrowRight data-icon="inline-end" />
                 </Button>
               </div>
               <p className="text-xs text-text-subtle">
-                <kbd className="font-mono">Ctrl K</kbd> focuses this box. Results are the matching
-                passages; written answers arrive in the next build.
+                <kbd className="font-mono">Ctrl K</kbd> focuses this box. Every sentence in an answer
+                cites the passages it comes from.
               </p>
             </form>
 
-            <QuestionStatus ask={ask} onRetry={() => void run(ask.phase === "idle" ? question : ask.question)} />
+            <AnswerCard ask={ask} onRetry={retry} onCite={cite} />
           </main>
 
-          <div className="border-t border-border lg:border-t-0 lg:border-l">
-            <EvidencePanel ask={ask} />
+          <div className="border-t border-border lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-l">
+            <EvidencePanel ask={ask} highlighted={highlighted} />
           </div>
         </div>
       )}
@@ -168,53 +219,5 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
         {announcement}
       </p>
     </div>
-  );
-}
-
-function QuestionStatus({ ask, onRetry }: { ask: AskState; onRetry: () => void }) {
-  if (ask.phase === "idle") return null;
-  return (
-    <section aria-label="Question" className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
-      <p className="text-base text-text">{ask.question}</p>
-      {ask.phase === "loading" ? (
-        <p className="flex items-center gap-2 text-sm text-text-muted">
-          <CircleNotch className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
-          Retrieving evidence
-        </p>
-      ) : null}
-      {ask.phase === "error" ? (
-        <ErrorNotice
-          error={ask.error}
-          action={
-            <Button size="sm" variant="outline" onClick={onRetry}>
-              Retry
-            </Button>
-          }
-        />
-      ) : null}
-      {ask.phase === "done" && ask.result.evidence.length === 0 ? (
-        <div className="flex gap-2 text-sm">
-          <Question weight="bold" className="mt-0.5 size-4 shrink-0 text-insufficient" aria-hidden />
-          <div className="flex flex-col gap-1">
-            <p className="font-medium text-text">Not enough evidence</p>
-            <p className="text-text-muted">
-              No passage in this workspace matches that question. Upload a document that covers it,
-              or ask about something else.
-            </p>
-          </div>
-        </div>
-      ) : null}
-      {ask.phase === "done" && ask.result.evidence.length > 0 ? (
-        <p className="text-sm text-text-muted">
-          <span className="font-mono tabular-nums text-text">{ask.result.evidence.length}</span>{" "}
-          matching passages from{" "}
-          <span className="font-mono tabular-nums text-text">
-            {new Set(ask.result.evidence.map((e) => e.document_id)).size}
-          </span>{" "}
-          {new Set(ask.result.evidence.map((e) => e.document_id)).size === 1 ? "document" : "documents"},
-          ranked in the evidence panel.
-        </p>
-      ) : null}
-    </section>
   );
 }
