@@ -93,15 +93,20 @@ const AnswerResponse = z.object({
   claims: z.array(z.object({ text: z.string().min(1), evidence_ids: z.array(z.string().min(1)).min(1) })),
   answer_provider: z.string().nullable(),
   model_id: z.string().nullable(),
+  // ADR-017: the model that wrote this answer, and every call made for it (a fallback shows here).
+  answered_by_model: z.string().nullish(),
+  attempts: z.array(z.object({ model_id: z.string().min(1), outcome: z.string().min(1) })).default([]),
 });
 
 const ProvidersSchema = z.object({
   environment: z.string().min(1),
   answer_provider: z.string().min(1),
   answer_model: z.string().nullable(),
+  answer_fallback_model: z.string().nullish(),
   embedding_provider: z.string().min(1),
   embedding_model: z.string().min(1),
   embedding_version: z.string().min(1),
+  reranker_model: z.string().nullish(),
 });
 
 const HealthResponse = z.object({
@@ -123,6 +128,12 @@ export type UploadTicket = z.infer<typeof UploadUrlResponse>;
 export type Completion = z.infer<typeof CompleteResponse>;
 export type QueryResult = z.infer<typeof QueryResponse>;
 export type AnswerResult = z.infer<typeof AnswerResponse>;
+
+/** True when the configured model didn't write this answer: the reliability layer fell back (ADR-017). */
+export function fellBack(answer: Pick<AnswerResult, "attempts" | "answered_by_model">): boolean {
+  const first = answer.attempts[0]?.model_id;
+  return Boolean(first && answer.answered_by_model && answer.answered_by_model !== first);
+}
 export type Health = z.infer<typeof HealthResponse>;
 export type Providers = z.infer<typeof ProvidersSchema>;
 

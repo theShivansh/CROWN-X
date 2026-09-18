@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, createApiClient } from "./api";
+import { ApiError, createApiClient, fellBack } from "./api";
 
 const WS = "ws_abcdefghijklmnopqrstuv";
 
@@ -172,5 +172,21 @@ describe("api client", () => {
     const health = await client.health();
     expect(health.status).toBe("degraded");
     expect(health.providers?.environment).toBe("production");
+  });
+});
+
+describe("fellBack", () => {
+  it("is true only when a model other than the first one tried wrote the answer", () => {
+    const primary = { model_id: "openai/gpt-oss-120b", outcome: "rate_limited" };
+    expect(
+      fellBack({
+        attempts: [primary, { model_id: "openai/gpt-oss-20b", outcome: "ok" }],
+        answered_by_model: "openai/gpt-oss-20b",
+      }),
+    ).toBe(true);
+    expect(
+      fellBack({ attempts: [{ ...primary, outcome: "ok" }], answered_by_model: "openai/gpt-oss-120b" }),
+    ).toBe(false);
+    expect(fellBack({ attempts: [], answered_by_model: null })).toBe(false);
   });
 });

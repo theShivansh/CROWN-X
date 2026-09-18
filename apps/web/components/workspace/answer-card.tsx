@@ -5,7 +5,7 @@ import { CircleNotch, Question, SealCheck, SealWarning } from "@phosphor-icons/r
 import { ErrorNotice } from "@/components/error-notice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AnswerResult, Evidence } from "@/lib/api";
+import { fellBack, type AnswerResult, type Evidence } from "@/lib/api";
 
 import type { AskState } from "./workspace-screen";
 
@@ -119,7 +119,8 @@ function Answered({
       </ol>
       {answer.answer_provider ? (
         <p className="font-mono text-xs text-text-subtle">
-          {answer.answer_provider} · {answer.model_id}
+          {answer.answer_provider} · {answer.answered_by_model ?? answer.model_id}
+          {fellBack(answer) ? <span className="text-text-muted"> · fallback model, primary was busy</span> : null}
         </p>
       ) : null}
     </div>
