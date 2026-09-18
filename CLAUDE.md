@@ -26,7 +26,7 @@ Fill these in during M1 and keep them exact, so they are run rather than guessed
 - test: api `cd services/api && uv run pytest -q` | harness `python -m pytest tests -q` | web `cd apps/web && pnpm test`
 - lint: api `cd services/api && uv run ruff check src tests` | infra `uvx cfn-lint infra/template.yaml` | web `cd apps/web && pnpm lint`
 - typecheck: web `cd apps/web && pnpm typecheck` | build: web `cd apps/web && pnpm build` (static export to `apps/web/out`) | Lambda deps: `cd services/api && uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o src/requirements.txt`
-- eval: `TBD`
+- eval: offline `cd services/api && uv run python ../../evals/run.py --offline` | live `cd services/api && uv run python ../../evals/run.py --api <ApiUrl>`
 - deploy (always ask first): `sam deploy` and the Amplify publish step recorded in `/aws-ship`
 
 ## Rules that don't bend
