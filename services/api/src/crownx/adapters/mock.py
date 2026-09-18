@@ -39,7 +39,12 @@ MAX_CLAIMS = 3
 
 
 def words(text: str) -> list[str]:
-    return [w for w in (m.group(0).lower() for m in _WORD.finditer(text)) if w not in _STOP]
+    """Content words; one-letter tokens (the "s" of "team's") carry no meaning here."""
+    return [
+        w
+        for w in (m.group(0).lower() for m in _WORD.finditer(text))
+        if w not in _STOP and (len(w) > 1 or w.isdigit())
+    ]
 
 
 class MockEmbedder:

@@ -179,3 +179,17 @@ def test_markdown_header_metadata_reaches_the_document_and_every_chunk(api):
     document = api.store.get_document(ws, doc)
     assert (document.version_label, document.source_timestamp) == ("Sync 5", "2026-09-11")
     assert {c["source_timestamp"] for c in api.index.chunks.values()} == {"2026-09-11"}
+
+
+def test_the_demo_pdf_is_indexed_with_single_spaced_words(api):
+    """pypdf returns this PDF's words separated by two spaces; quotes must read as written."""
+    from pathlib import Path
+
+    pdf = Path(__file__).resolve().parents[3] / "demo/documents/workspace-a/project-brief-v1.pdf"
+    ws = api.new_workspace()
+    doc = api.upload(ws, "project-brief-v1.pdf", pdf.read_bytes())
+    document = api.store.get_document(ws, doc)
+    assert document.status is DocumentStatus.READY, document.error
+    text = " ".join(c["text"] for c in api.index.chunks.values())
+    assert "still run on paper forms and group-chat polls" in text
+    assert "  " not in text
