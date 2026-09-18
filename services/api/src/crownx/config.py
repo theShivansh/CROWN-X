@@ -112,8 +112,8 @@ class Settings(BaseSettings):
         if self.answer_provider == "groq":
             if not self.groq_model_id:
                 raise ValueError("the groq answer provider needs GROQ_MODEL_ID")
-            has_key = self.groq_api_key is not None or bool(self.groq_api_key_parameter)
-            if self.groq_transport == "http" and not has_key:
+            configured = self.groq_api_key is not None or bool(self.groq_api_key_parameter)
+            if self.groq_transport == "http" and not configured:
                 raise ValueError(
                     "the groq answer provider needs GROQ_API_KEY or GROQ_API_KEY_PARAMETER"
                 )

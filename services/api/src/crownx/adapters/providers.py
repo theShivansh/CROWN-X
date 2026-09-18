@@ -156,8 +156,7 @@ def _groq_key(settings: Settings, session: Any) -> str:
     """The environment's key for local runs; otherwise the SecureString named by the stack."""
     if settings.groq_api_key is not None:
         return settings.groq_api_key.get_secret_value()
-    assert settings.groq_api_key_parameter  # checked by Settings
-    response = session.client("ssm").get_parameter(
-        Name=settings.groq_api_key_parameter, WithDecryption=True
-    )
+    parameter = settings.groq_api_key_parameter
+    assert parameter  # checked by Settings
+    response = session.client("ssm").get_parameter(Name=parameter, WithDecryption=True)
     return response["Parameter"]["Value"]

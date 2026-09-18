@@ -216,7 +216,8 @@ def test_production_groq_reads_its_key_from_ssm_once_and_never_describes_it():
         settings(**GROQ, embedding_provider="bedrock", groq_fallback_model_id="openai/gpt-oss-20b"),
         session,
     )
-    assert session.ssm.requests == [{"Name": "/crownx/groq-api-key", "WithDecryption": True}]
+    parameter = GROQ["groq_api_key_parameter"]
+    assert session.ssm.requests == [{"Name": parameter, "WithDecryption": True}]
     assert isinstance(providers.answerer, GroqAnswerer)
     assert providers.answerer._api_key == "gsk_from_ssm"
     described = providers.describe()

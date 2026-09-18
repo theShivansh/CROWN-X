@@ -58,7 +58,7 @@ least 3 different steps was added after the first run of our own synthetic bench
 alternating ask/read fragments outranking the planted workflow (precision 0.33). The benchmark is
 synthetic and written by us, so its 1.0 shows that the rules do what they say, not that the
 suggestions are useful.
-**Verify / revisit if:** `tests/test_workflow.py` (normalization, support, near misses, duplicates,
+**Verify / revisit if:** `services/api/tests/test_workflow.py` (normalization, support, near misses, duplicates,
 determinism, trace links, scoping, non-blocking writes) and `evals/workflow_eval.py` pass; revisit in
 M5 with client events and real usage.
 
