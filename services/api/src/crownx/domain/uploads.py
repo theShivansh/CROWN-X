@@ -9,8 +9,11 @@ from pathlib import PurePosixPath
 
 from crownx.domain.errors import InvalidRequest, TooLarge, UnsupportedType
 
-# `.pdf` joins in M2, with the empty-extraction error.
-SUPPORTED_TYPES: dict[str, str] = {".md": "text/markdown", ".txt": "text/plain"}
+SUPPORTED_TYPES: dict[str, str] = {
+    ".md": "text/markdown",
+    ".txt": "text/plain",
+    ".pdf": "application/pdf",
+}
 _MAX_FILENAME_CHARS = 120
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -35,7 +38,7 @@ def sanitize_filename(name: str) -> str:
 
 def validate_upload(filename: str, size_bytes: int, max_bytes: int) -> UploadSpec:
     if not filename.strip():
-        raise InvalidRequest("A filename is required. Choose a .md or .txt file and try again.")
+        raise InvalidRequest("A filename is required. Choose a .md, .txt or .pdf file and try again.")
     supported = ", ".join(SUPPORTED_TYPES)
     suffix = PurePosixPath(filename.replace("\\", "/")).suffix.lower()
     if suffix not in SUPPORTED_TYPES:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from crownx.domain.chunking import chunk_text, normalize_text
+from crownx.domain.chunking import chunk_pages, chunk_text, normalize_text
 
 SCENARIO = Path(__file__).resolve().parents[3] / "demo" / "SCENARIO.md"
 
@@ -90,3 +90,13 @@ def test_normalize_text_uses_one_newline_convention(raw):
 def test_overlap_must_be_smaller_than_target():
     with pytest.raises(ValueError):
         chunk_text("text", target_chars=100, overlap_chars=100)
+
+
+def test_pages_chunk_separately_with_page_sections_and_true_offsets():
+    pages = ["# Brief\n\nFirst page text.", "", "Third page.\n\nMore of page three."]
+    text, chunks = chunk_pages(pages, target_chars=200, overlap_chars=20)
+    assert text == "\n\n".join(pages)
+    assert [c.section for c in chunks] == ["Page 1", "Page 3"]
+    assert [c.ordinal for c in chunks] == [0, 1]
+    for chunk in chunks:
+        assert text[chunk.char_start : chunk.char_end] == chunk.text

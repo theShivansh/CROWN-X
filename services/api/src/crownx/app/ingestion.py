@@ -8,12 +8,19 @@ from __future__ import annotations
 
 import logging
 
+from crownx.adapters.pdf import UnreadablePdf, read_pdf_pages
 from crownx.adapters.ports import Embedder, MetadataStore, ObjectStore, SearchIndex
-from crownx.domain.chunking import chunk_text, normalize_text
+from crownx.domain.chunking import Chunk, chunk_pages, chunk_text, normalize_text
+from crownx.domain.metadata import extract_metadata
 from crownx.domain.models import Document, DocumentStatus
 from crownx.domain.retrieval import index_body
 
 log = logging.getLogger(__name__)
+
+PDF = "application/pdf"
+NO_TEXT_IN_PDF = (
+    "No text found; upload a text PDF. This one has no text layer, as happens with scanned pages."
+)
 
 PROCESSABLE = {
     DocumentStatus.QUEUED,
@@ -53,19 +60,25 @@ class IngestionWorker:
             return None  # another run moved it first
         try:
             raw = self._objects.read_bytes(document.object_key)
-            try:
-                text = normalize_text(raw.decode("utf-8"))
-            except UnicodeDecodeError:
-                return self._fail(
-                    document, "The file isn't UTF-8 text. Save it as UTF-8 and upload it again."
-                )
-            chunks = chunk_text(text, self._target_chars, self._overlap_chars)
+            parsed = self._parse(document, raw)
+            if isinstance(parsed, str):
+                return self._fail(document, parsed)
+            text, chunks = parsed
             if not chunks:
                 return self._fail(
-                    document, "No text found in the file. Upload a file with some text in it."
+                    document,
+                    NO_TEXT_IN_PDF
+                    if document.content_type == PDF
+                    else "No text found in the file. Upload a file with some text in it.",
                 )
 
-            document = self._advance(document, DocumentStatus.INDEXING)
+            metadata = extract_metadata(text)
+            document = self._advance(
+                document,
+                DocumentStatus.INDEXING,
+                version_label=metadata.version_label,
+                source_timestamp=metadata.source_timestamp,
+            )
             if document is None:
                 return None
             self._index.ensure_index(index_body(self._embedder.dimensions))
@@ -97,6 +110,20 @@ class IngestionWorker:
                 "the logs have the details under this document ID.",
             )
             raise  # let Lambda's async retry run the (idempotent) worker again
+
+    def _parse(self, document: Document, raw: bytes) -> tuple[str, list[Chunk]] | str:
+        """The text and its chunks, or the failure reason the user sees."""
+        if document.content_type == PDF:
+            try:
+                pages = read_pdf_pages(raw)
+            except UnreadablePdf:
+                return "The PDF couldn't be read. Export it again as a standard PDF and upload it."
+            return chunk_pages(pages, self._target_chars, self._overlap_chars)
+        try:
+            text = normalize_text(raw.decode("utf-8"))
+        except UnicodeDecodeError:
+            return "The file isn't UTF-8 text. Save it as UTF-8 and upload it again."
+        return text, chunk_text(text, self._target_chars, self._overlap_chars)
 
     def _advance(
         self, document: Document, status: DocumentStatus, **changes: object

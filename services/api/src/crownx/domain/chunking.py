@@ -115,3 +115,32 @@ def _overlap_start(
         if not text[index].isspace() and text[index - 1].isspace():
             return index
     return next_start
+
+
+PAGE_SEPARATOR = "\n\n"
+
+
+def chunk_pages(
+    pages: list[str], target_chars: int = 1000, overlap_chars: int = 120
+) -> tuple[str, list[Chunk]]:
+    """Chunk a paged document (a PDF) page by page, so no chunk spans two pages.
+
+    Returns the document text (pages joined by a blank line) and chunks whose offsets point into it,
+    with `section` set to "Page N" (1-based) for citations.
+    """
+    texts = [normalize_text(page) for page in pages]
+    chunks: list[Chunk] = []
+    offset = 0
+    for number, page in enumerate(texts, start=1):
+        for chunk in chunk_text(page, target_chars, overlap_chars):
+            chunks.append(
+                Chunk(
+                    ordinal=len(chunks),
+                    text=chunk.text,
+                    char_start=offset + chunk.char_start,
+                    char_end=offset + chunk.char_end,
+                    section=f"Page {number}",
+                )
+            )
+        offset += len(page) + len(PAGE_SEPARATOR)
+    return PAGE_SEPARATOR.join(texts), chunks
