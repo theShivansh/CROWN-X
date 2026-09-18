@@ -50,3 +50,15 @@ class LimitReached(DomainError):
 class RetrievalUnavailable(DomainError):
     status = 503
     code = "retrieval_unavailable"
+
+
+class AnswerUnavailable(DomainError):
+    """The answer model can't be called (not configured, refused, or failing). No answer is made up."""
+
+    status = 503
+    code = "answer_unavailable"
+
+
+class ModelTimeout(DomainError):
+    status = 504
+    code = "model_timeout"

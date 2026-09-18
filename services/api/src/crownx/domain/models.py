@@ -53,3 +53,21 @@ class Document(BaseModel):
     def public(self) -> dict:
         """The API view: storage keys stay server-side."""
         return self.model_dump(mode="json", exclude={"object_key"})
+
+
+class QueryRecord(BaseModel):
+    """Stage 1 of a question (ADR-009): the evidence exactly as the user was shown it.
+
+    Written once and never updated, so stage 2 can only cite what stage 1 returned.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    query_id: str
+    workspace_id: str
+    question: str
+    status: str  # "retrieved" or "insufficient_evidence"
+    evidence: list[dict]
+    created_at: str
+    request_id: str | None = None
+    retrieval_ms: int = Field(default=0, ge=0)

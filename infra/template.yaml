@@ -330,6 +330,12 @@ Resources:
             ApiId: !Ref HttpApi
             Method: POST
             Path: /workspaces/{workspace_id}/query
+        Answer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /workspaces/{workspace_id}/queries/{query_id}/answer
 
   IngestFunction:
     Type: AWS::Serverless::Function

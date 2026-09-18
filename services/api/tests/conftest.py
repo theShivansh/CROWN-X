@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from fakes import FakeEmbedder, FakeIndex, FakeIngest, FakeObjects, FakeStore
+from fakes import FakeAnswerer, FakeEmbedder, FakeIndex, FakeIngest, FakeObjects, FakeStore
 
 from crownx.app.api import build_resolver
 from crownx.app.ingestion import IngestionWorker
@@ -26,6 +26,7 @@ class ApiHarness:
     embedder: FakeEmbedder
     service: CrownService
     worker: IngestionWorker
+    answerer: FakeAnswerer
 
     def call(
         self,
@@ -95,7 +96,7 @@ class ApiHarness:
 @pytest.fixture
 def api() -> ApiHarness:
     store, objects, ingest = FakeStore(), FakeObjects(), FakeIngest()
-    index, embedder = FakeIndex(), FakeEmbedder()
+    index, embedder, answerer = FakeIndex(), FakeEmbedder(), FakeAnswerer()
     service = CrownService(
         store=store,
         objects=objects,
@@ -108,6 +109,7 @@ def api() -> ApiHarness:
             upload_url_expiry_seconds=300,
             retrieval_top_k=TOP_K,
         ),
+        answerer=answerer,
     )
     worker = IngestionWorker(store=store, objects=objects, embedder=embedder, index=index)
-    return ApiHarness(store, objects, ingest, index, embedder, service, worker)
+    return ApiHarness(store, objects, ingest, index, embedder, service, worker, answerer)

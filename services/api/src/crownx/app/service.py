@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 
 from crownx.adapters.ports import (
+    Answerer,
     Embedder,
     IngestQueue,
     MetadataStore,
@@ -13,7 +15,9 @@ from crownx.adapters.ports import (
     SearchHit,
     SearchIndex,
 )
+from crownx.domain.answering import FinalAnswer, finalize, insufficient
 from crownx.domain.errors import (
+    AnswerUnavailable,
     InvalidRequest,
     LimitReached,
     NotFound,
@@ -22,8 +26,15 @@ from crownx.domain.errors import (
     UploadIncomplete,
 )
 from crownx.domain.fusion import reciprocal_rank_fusion
-from crownx.domain.ids import is_document_id, is_workspace_id, new_document_id, new_workspace_id
-from crownx.domain.models import Document, DocumentStatus, Workspace, utc_now
+from crownx.domain.ids import (
+    is_document_id,
+    is_query_id,
+    is_workspace_id,
+    new_document_id,
+    new_query_id,
+    new_workspace_id,
+)
+from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 from crownx.domain.retrieval import lexical_query, semantic_query
 from crownx.domain.uploads import object_key, validate_upload
 
@@ -39,12 +50,24 @@ class Limits:
     max_documents_per_workspace: int
     upload_url_expiry_seconds: int
     retrieval_top_k: int = 8
+    # Fused-score floor below which a passage isn't evidence. 0 keeps everything; calibrated on the
+    # golden set once live embeddings run (docs/EVALUATION.md).
+    retrieval_score_floor: float = 0.0
 
 
 @dataclass(frozen=True)
 class QueryResult:
+    query_id: str
     status: str  # "retrieved" or "insufficient_evidence" (SRS §3, stage 1)
     evidence: list[dict]
+
+
+@dataclass(frozen=True)
+class AnswerOutcome:
+    query_id: str
+    final: FinalAnswer
+    provider: str | None  # None when no model was called
+    model_id: str | None
 
 
 @dataclass(frozen=True)
@@ -69,6 +92,7 @@ class CrownService:
         index: SearchIndex,
         embedder: Embedder,
         limits: Limits,
+        answerer: Answerer | None = None,
     ) -> None:
         self._store = store
         self._objects = objects
@@ -76,6 +100,7 @@ class CrownService:
         self._index = index
         self._embedder = embedder
         self._limits = limits
+        self._answerer = answerer
 
     # Workspaces ---------------------------------------------------------------------------------
 
@@ -186,7 +211,7 @@ class CrownService:
 
     # Retrieval ----------------------------------------------------------------------------------
 
-    def query(self, workspace_id: str, question: str) -> QueryResult:
+    def query(self, workspace_id: str, question: str, request_id: str | None = None) -> QueryResult:
         """Stage 1 of a question (ADR-009): BM25 and k-NN, each filtered by workspace, fused by RRF."""
         self.require_workspace(workspace_id)
         question = question.strip()
@@ -195,6 +220,7 @@ class CrownService:
 
         top_k = self._limits.retrieval_top_k
         pool = top_k * 2
+        started = time.perf_counter()
         try:
             vector = self._embedder.embed([question])[0]
             lexical = self._index.search(lexical_query(question, workspace_id, pool))
@@ -211,9 +237,15 @@ class CrownService:
             # The filter is inside both queries, so this can't happen; if it does, fail closed.
             raise RuntimeError("search returned a chunk from another workspace")
 
-        fused = reciprocal_rank_fusion(
-            [[h.chunk_id for h in lexical], [h.chunk_id for h in semantic]], k=RRF_K, top_k=top_k
-        )
+        fused = [
+            hit
+            for hit in reciprocal_rank_fusion(
+                [[h.chunk_id for h in lexical], [h.chunk_id for h in semantic]],
+                k=RRF_K,
+                top_k=top_k,
+            )
+            if hit.score >= self._limits.retrieval_score_floor
+        ]
         filenames: dict[str, str | None] = {}
         for doc_id in {hits[f.chunk_id].source["document_id"] for f in fused}:
             doc = self._store.get_document(workspace_id, doc_id)
@@ -237,9 +269,84 @@ class CrownService:
                     "retrieval_score": round(hit.score, 6),
                 }
             )
-        return QueryResult(
-            status="retrieved" if evidence else "insufficient_evidence", evidence=evidence
+        record = QueryRecord(
+            query_id=new_query_id(),
+            workspace_id=workspace_id,
+            question=question,
+            status="retrieved" if evidence else "insufficient_evidence",
+            evidence=evidence,
+            created_at=utc_now(),
+            request_id=request_id,
+            retrieval_ms=round((time.perf_counter() - started) * 1000),
         )
+        self._store.put_query(record)
+        return QueryResult(query_id=record.query_id, status=record.status, evidence=evidence)
+
+    def answer(
+        self, workspace_id: str, query_id: str, request_id: str | None = None
+    ) -> AnswerOutcome:
+        """Stage 2 (ADR-009): one model call over exactly the stored evidence, or none at all."""
+        self.require_workspace(workspace_id)
+        record = self._store.get_query(workspace_id, query_id) if is_query_id(query_id) else None
+        if record is None:
+            raise NotFound("Question not found in this workspace. Ask it again.")
+
+        audit = {
+            "event_type": "answer",
+            "request_id": request_id or "unknown",
+            "query_id": query_id,
+            "timestamp": utc_now(),
+            "evidence_ids": [e["evidence_id"] for e in record.evidence],
+        }
+        if not record.evidence:
+            # The zero-model-call path (CLAUDE.md rule 1): nothing to ground an answer in.
+            self._store.put_audit(workspace_id, {**audit, "outcome": "insufficient_evidence"})
+            return AnswerOutcome(query_id, insufficient(), provider=None, model_id=None)
+        if self._answerer is None:
+            raise AnswerUnavailable(
+                "Answering isn't configured for this deployment, so no answer was written. "
+                "The evidence panel still shows every retrieved passage."
+            )
+
+        answerer = self._answerer
+        try:
+            result = answerer.answer(record.question, record.evidence)
+        except Exception as error:
+            self._store.put_audit(
+                workspace_id,
+                {
+                    **audit,
+                    "outcome": "error",
+                    "error": type(error).__name__,
+                    "provider": answerer.provider,
+                    "model_id": answerer.model_id,
+                },
+            )
+            raise
+        final = finalize(result.draft, {e["evidence_id"] for e in record.evidence})
+        if final.dropped:
+            log.warning(
+                "dropped %d claim(s) citing unknown or no evidence (request %s, query %s)",
+                len(final.dropped),
+                request_id,
+                query_id,
+            )
+        self._store.put_audit(
+            workspace_id,
+            {
+                **audit,
+                "outcome": final.status,
+                "provider": result.provider,
+                "model_id": result.model_id,
+                "model_invocation_id": result.invocation_id,
+                "latency_ms": result.latency_ms,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
+                "claims_kept": len(final.claims),
+                "claims_dropped": len(final.dropped),
+            },
+        )
+        return AnswerOutcome(query_id, final, provider=result.provider, model_id=result.model_id)
 
     def _settled(self, document: Document) -> Completion:
         if document.status is DocumentStatus.DUPLICATE and document.duplicate_of:

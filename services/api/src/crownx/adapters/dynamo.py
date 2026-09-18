@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from boto3.dynamodb.conditions import Attr
 
-from crownx.domain.models import Document, DocumentStatus, Workspace, utc_now
+from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 
 
 def _ws(workspace_id: str) -> str:
@@ -70,6 +71,41 @@ class DynamoMetadataStore:
             item = self._table.get_item(Key=key, ConsistentRead=True)["Item"]
             return str(item["document_id"])
         return document_id
+
+    def put_query(self, record: QueryRecord) -> None:
+        # The evidence snapshot is stored as JSON text: it keeps float scores exact (DynamoDB would
+        # need Decimals) and makes the record's immutability obvious.
+        fields = record.model_dump(mode="json", exclude={"evidence"})
+        self._table.put_item(
+            Item={
+                "PK": _ws(record.workspace_id),
+                "SK": f"QUERY#{record.query_id}",
+                **{k: v for k, v in fields.items() if v is not None},
+                "evidence_json": json.dumps(record.evidence, ensure_ascii=False),
+            },
+            ConditionExpression=Attr("PK").not_exists(),
+        )
+
+    def get_query(self, workspace_id: str, query_id: str) -> QueryRecord | None:
+        item = self._table.get_item(
+            Key={"PK": _ws(workspace_id), "SK": f"QUERY#{query_id}"}, ConsistentRead=True
+        ).get("Item")
+        if not item:
+            return None
+        fields = _strip_keys(item)
+        fields["evidence"] = json.loads(fields.pop("evidence_json"))
+        fields["retrieval_ms"] = int(fields.get("retrieval_ms", 0))
+        return QueryRecord.model_validate(fields)
+
+    def put_audit(self, workspace_id: str, event: dict) -> None:
+        self._table.put_item(
+            Item={
+                "PK": _ws(workspace_id),
+                "SK": f"AUDIT#{event['timestamp']}#{event['request_id']}",
+                "event_json": json.dumps(event),
+                "event_type": event["event_type"],
+            }
+        )
 
 
 def _document_item(document: Document) -> dict:

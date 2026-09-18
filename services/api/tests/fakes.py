@@ -6,8 +6,9 @@ import hashlib
 import math
 import re
 
-from crownx.adapters.ports import ObjectInfo, SearchHit
-from crownx.domain.models import Document, DocumentStatus, Workspace
+from crownx.adapters.ports import AnswerResult, ObjectInfo, SearchHit
+from crownx.domain.answering import AnswerDraft
+from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace
 
 
 class FakeStore:
@@ -15,6 +16,8 @@ class FakeStore:
         self.workspaces: dict[str, Workspace] = {}
         self.documents: dict[tuple[str, str], Document] = {}
         self.checksums: dict[tuple[str, str], str] = {}
+        self.queries: dict[tuple[str, str], QueryRecord] = {}
+        self.audit: list[tuple[str, dict]] = []
         self.fail = False
 
     def _check(self) -> None:
@@ -49,6 +52,17 @@ class FakeStore:
 
     def claim_checksum(self, workspace_id: str, checksum: str, document_id: str) -> str:
         return self.checksums.setdefault((workspace_id, checksum), document_id)
+
+    def put_query(self, record: QueryRecord) -> None:
+        key = (record.workspace_id, record.query_id)
+        assert key not in self.queries, "query records are written once"
+        self.queries[key] = record
+
+    def get_query(self, workspace_id: str, query_id: str) -> QueryRecord | None:
+        return self.queries.get((workspace_id, query_id))
+
+    def put_audit(self, workspace_id: str, event: dict) -> None:
+        self.audit.append((workspace_id, dict(event)))
 
 
 class FakeObjects:
@@ -186,3 +200,29 @@ class FakeIndex:
         return [
             c for c in self.chunks.values() if workspace is None or c["workspace_id"] == workspace
         ]
+
+
+class FakeAnswerer:
+    """Records every call. By default it cites the first evidence item; tests set `draft` or `error`."""
+
+    provider = "fake"
+    model_id = "fake-answer-model"
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, list[dict]]] = []
+        self.draft: AnswerDraft | None = None
+        self.error: Exception | None = None
+
+    def answer(self, question: str, evidence: list[dict]) -> AnswerResult:
+        self.calls.append((question, [dict(e) for e in evidence]))
+        if self.error:
+            raise self.error
+        draft = self.draft or AnswerDraft(
+            answer=evidence[0]["quoted_span"],
+            claims=[
+                {"text": evidence[0]["quoted_span"], "evidence_ids": [evidence[0]["evidence_id"]]}
+            ],
+        )
+        return AnswerResult(
+            draft=draft, provider=self.provider, model_id=self.model_id, latency_ms=1
+        )

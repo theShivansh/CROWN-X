@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from conftest import TOP_K
 
+from crownx.domain.ids import is_query_id
+
 REQUEST_ID = "req_Tst123abc="
 
 BRIEF = b"""# FestPass project brief
@@ -91,6 +93,7 @@ def test_nothing_relevant_is_insufficient_evidence(api):
     ws = api.new_workspace()
     status, body, _ = ask(api, ws, "What is the URL of the team's GitHub repository?")
     assert status == 200
+    assert is_query_id(body.pop("query_id"))
     assert body == {
         "status": "insufficient_evidence",
         "evidence": [],

@@ -70,3 +70,47 @@ def test_read_bytes_returns_the_whole_object():
     store = S3ObjectStore(client, "crownx-docs-test")
     assert store.read_bytes("ws/x/doc/brief.md") == client._data
     assert client.closed
+
+
+class _Table:
+    """Just enough of a boto3 Table for put/get by key; the condition is checked by hand."""
+
+    name = "crownx-test"
+
+    def __init__(self) -> None:
+        self.items: dict[tuple[str, str], dict] = {}
+        self.meta = type("Meta", (), {"client": object()})()
+
+    def put_item(self, Item: dict, ConditionExpression=None) -> None:  # noqa: N803
+        key = (Item["PK"], Item["SK"])
+        if ConditionExpression is not None and key in self.items:
+            raise AssertionError("conditional put on an existing key")
+        self.items[key] = Item
+
+    def get_item(self, Key: dict, ConsistentRead: bool = False) -> dict:  # noqa: N803
+        item = self.items.get((Key["PK"], Key["SK"]))
+        return {"Item": item} if item else {}
+
+
+def test_query_records_round_trip_through_dynamodb_with_exact_scores():
+    from crownx.adapters.dynamo import DynamoMetadataStore
+    from crownx.domain.models import QueryRecord
+
+    table = _Table()
+    store = DynamoMetadataStore(table)
+    record = QueryRecord(
+        query_id="qry_AAAAAAAAAAAAAAAAAAAAAA",
+        workspace_id="ws_BBBBBBBBBBBBBBBBBBBBBB",
+        question="When do submissions close?",
+        status="retrieved",
+        evidence=[{"evidence_id": "ev_1", "quoted_span": "₹50,000", "retrieval_score": 0.032787}],
+        created_at="2026-09-18T10:00:00.000000Z",
+        request_id="req_x",
+        retrieval_ms=42,
+    )
+    store.put_query(record)
+
+    [(pk, sk)] = table.items
+    assert (pk, sk) == ("WS#ws_BBBBBBBBBBBBBBBBBBBBBB", f"QUERY#{record.query_id}")
+    assert store.get_query(record.workspace_id, record.query_id) == record
+    assert store.get_query("ws_CCCCCCCCCCCCCCCCCCCCCC", record.query_id) is None

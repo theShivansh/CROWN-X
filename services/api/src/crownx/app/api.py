@@ -134,9 +134,30 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
     @app.post("/workspaces/<workspace_id>/query")
     def query(workspace_id: str) -> Response:
         request = body_as(QueryRequest)
-        result = service().query(workspace_id, request.question)
+        result = service().query(workspace_id, request.question, request_id=rid())
         # `conflicts` is part of the stage-1 contract; M3 fills it.
-        return reply({"status": result.status, "evidence": result.evidence, "conflicts": []})
+        return reply(
+            {
+                "query_id": result.query_id,
+                "status": result.status,
+                "evidence": result.evidence,
+                "conflicts": [],
+            }
+        )
+
+    @app.post("/workspaces/<workspace_id>/queries/<query_id>/answer")
+    def answer(workspace_id: str, query_id: str) -> Response:
+        outcome = service().answer(workspace_id, query_id, request_id=rid())
+        return reply(
+            {
+                "query_id": outcome.query_id,
+                "status": outcome.final.status,
+                "answer": outcome.final.answer,
+                "claims": outcome.final.claims,
+                "answer_provider": outcome.provider,
+                "model_id": outcome.model_id,
+            }
+        )
 
     return app
 

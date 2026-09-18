@@ -8,6 +8,7 @@ import secrets
 _TOKEN = r"[A-Za-z0-9_-]{22}"
 _WORKSPACE_ID = re.compile(rf"ws_{_TOKEN}")
 _DOCUMENT_ID = re.compile(rf"doc_{_TOKEN}")
+_QUERY_ID = re.compile(rf"qry_{_TOKEN}")
 
 
 def _token() -> str:
@@ -29,3 +30,11 @@ def is_workspace_id(value: str) -> bool:
 
 def is_document_id(value: str) -> bool:
     return _DOCUMENT_ID.fullmatch(value) is not None
+
+
+def new_query_id() -> str:
+    return f"qry_{_token()}"
+
+
+def is_query_id(value: str) -> bool:
+    return _QUERY_ID.fullmatch(value) is not None
