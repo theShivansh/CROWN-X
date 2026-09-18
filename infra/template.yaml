@@ -16,7 +16,33 @@ Parameters:
   AnswerModelId:
     Type: String
     Default: ""
-    Description: Bedrock answer model or inference profile, used from M2 (ADR-013).
+    Description: >-
+      Bedrock answer model ID, a foundation model in this Region (ADR-013 candidates, still proposed).
+      Empty means answering is off and /answer returns 503 answer_unavailable.
+  AnswerForceTool:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Force the submit_answer tool; "false" for models that only accept toolChoice auto.
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [production, offline-demo]
+    Description: >-
+      ADR-016. production allows only Bedrock; offline-demo runs the mock providers and must be chosen
+      explicitly. development and test are for local runs, never deployed.
+  AnswerProvider:
+    Type: String
+    Default: bedrock
+    AllowedValues: [bedrock, mock]
+  EmbeddingProvider:
+    Type: String
+    Default: bedrock
+    AllowedValues: [bedrock, mock]
+  EmbeddingVersion:
+    Type: String
+    Default: "1"
+    Description: Bump when chunking or embedding parameters change, so old vectors stay out of queries.
   SearchDomainName:
     Type: String
     Default: crownx-search
@@ -56,10 +82,18 @@ Globals:
         INGEST_FUNCTION_NAME: !Sub "${AWS::StackName}-ingest"
         BEDROCK_EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
         BEDROCK_ANSWER_MODEL_ID: !Ref AnswerModelId
+        BEDROCK_ANSWER_FORCE_TOOL: !Ref AnswerForceTool
+        ENVIRONMENT: !Ref Environment
+        ANSWER_PROVIDER: !Ref AnswerProvider
+        EMBEDDING_PROVIDER: !Ref EmbeddingProvider
+        EMBEDDING_VERSION: !Ref EmbeddingVersion
         MAX_UPLOAD_BYTES: !Ref MaxUploadBytes
         MAX_DOCUMENTS_PER_WORKSPACE: !Ref MaxDocumentsPerWorkspace
         RETRIEVAL_TOP_K: !Ref RetrievalTopK
         POWERTOOLS_LOG_LEVEL: INFO
+
+Conditions:
+  HasAnswerModel: !Not [!Equals [!Ref AnswerModelId, ""]]
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -227,6 +261,14 @@ Resources:
                 Effect: Allow
                 Action: bedrock:InvokeModel
                 Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}"
+              # Converse is authorized by bedrock:InvokeModel, scoped to the one configured model.
+              - !If
+                - HasAnswerModel
+                - Sid: AnswerQuestions
+                  Effect: Allow
+                  Action: bedrock:InvokeModel
+                  Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${AnswerModelId}"
+                - !Ref AWS::NoValue
 
   IngestRole:
     Type: AWS::IAM::Role

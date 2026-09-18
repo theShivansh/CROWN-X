@@ -35,7 +35,7 @@ from crownx.domain.ids import (
     new_workspace_id,
 )
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
-from crownx.domain.retrieval import lexical_query, semantic_query
+from crownx.domain.retrieval import EmbeddingNamespace, lexical_query, semantic_query
 from crownx.domain.uploads import object_key, validate_upload
 
 log = logging.getLogger(__name__)
@@ -92,7 +92,9 @@ class CrownService:
         index: SearchIndex,
         embedder: Embedder,
         limits: Limits,
+        namespace: EmbeddingNamespace,
         answerer: Answerer | None = None,
+        providers: dict | None = None,
     ) -> None:
         self._store = store
         self._objects = objects
@@ -101,6 +103,8 @@ class CrownService:
         self._embedder = embedder
         self._limits = limits
         self._answerer = answerer
+        self._namespace = namespace
+        self._providers = providers or {}
 
     # Workspaces ---------------------------------------------------------------------------------
 
@@ -223,8 +227,12 @@ class CrownService:
         started = time.perf_counter()
         try:
             vector = self._embedder.embed([question])[0]
-            lexical = self._index.search(lexical_query(question, workspace_id, pool))
-            semantic = self._index.search(semantic_query(vector, workspace_id, pool))
+            lexical = self._index.search(
+                lexical_query(question, workspace_id, pool, self._namespace)
+            )
+            semantic = self._index.search(
+                semantic_query(vector, workspace_id, pool, self._namespace)
+            )
         except Exception as exc:
             log.exception("retrieval failed")
             raise RetrievalUnavailable(
@@ -233,9 +241,9 @@ class CrownService:
             ) from exc
 
         hits: dict[str, SearchHit] = {hit.chunk_id: hit for hit in [*semantic, *lexical]}
-        if any(hit.source.get("workspace_id") != workspace_id for hit in hits.values()):
-            # The filter is inside both queries, so this can't happen; if it does, fail closed.
-            raise RuntimeError("search returned a chunk from another workspace")
+        if any(not self._in_scope(hit.source, workspace_id) for hit in hits.values()):
+            # The filters are inside both queries, so this can't happen; if it does, fail closed.
+            raise RuntimeError("search returned a chunk from another workspace or namespace")
 
         fused = [
             hit
@@ -347,6 +355,17 @@ class CrownService:
             },
         )
         return AnswerOutcome(query_id, final, provider=result.provider, model_id=result.model_id)
+
+    def _in_scope(self, source: dict, workspace_id: str) -> bool:
+        return source.get("workspace_id") == workspace_id and all(
+            source.get(field) == value
+            for field, value in self._namespace.fields().items()
+            if field != "vector_dim"
+        )
+
+    def providers(self) -> dict:
+        """Which environment and providers are active (ADR-016); shown by /health and the UI."""
+        return dict(self._providers)
 
     def _settled(self, document: Document) -> Completion:
         if document.status is DocumentStatus.DUPLICATE and document.duplicate_of:

@@ -4,6 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-016 · 2026-09-18 · M2 architecture lock: providers behind one router, one namespaced index · accepted
 - ADR-015 · 2026-09-17 · M1's Thursday-evening kill criterion deferred while AWS verifies the account · accepted
 - ADR-014 · 2026-09-17 · Web hosting: Amplify Hosting connected to GitHub · proposed
 - ADR-013 · 2026-09-17 · Answer and embedding models without Anthropic's use-case form · proposed
@@ -21,6 +22,36 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-016 · 2026-09-18 · M2 architecture lock: providers behind one router, one namespaced index
+Status: accepted (the user set it on 2026-09-18 as "ADR-014"; that number was already Amplify hosting)
+
+**Context:** Bedrock inference is refused until AWS verifies the account (B4), but M2 has to be built
+and proven today, and nothing built for the blocked path may leak into production. The rules had to
+make "switching providers" a configuration change and keep test answers out of real metrics.
+**Decision:**
+- `ProviderRouter` (`adapters/providers.py`) is the only place configuration becomes an `Embedder` and
+  an `Answerer`: `BedrockProvider` (TitanEmbedder, unchanged, plus `ConverseAnswerer`), `MockProvider`
+  (`MockEmbedder`, deterministic extractive `MockAnswerer`) and `GroqProvider` (answers only).
+- `config.py` refuses to start with a provider the environment doesn't allow: production is Bedrock
+  only; `offline-demo` is mock only and must be chosen explicitly; development and test allow all.
+  The SAM stack defaults to production and Bedrock, and never allows development or test.
+- One OpenSearch index. Every chunk carries `embedding_provider`, `embedding_model`,
+  `embedding_version` and `vector_dim`; both retrieval clauses filter on workspace plus namespace, so
+  mock and Bedrock vectors never meet. The mock embeds at 1,024 dimensions to share the mapping.
+- `/health` returns `providers` (environment, answer and embedding provider and model); the UI shows it.
+- `MockAnswerer` cites only the evidence it's given, skips text addressed to an assistant, and says
+  "insufficient" when nothing overlaps. The zero-model-call path doesn't depend on the provider.
+- Evaluation keeps offline (mock) metrics and live Bedrock metrics apart, and never reports mock
+  retrieval or answers as semantic quality. M3 contradiction cases are excluded from M2's headline.
+**Rejected:** a mock path hidden in production code behind a flag (anyone could flip it silently); a
+second index for mock vectors (doubles the mapping and the cost for no isolation gain).
+**Consequences:** M2's offline gate can be green without Bedrock; the Bedrock gate stays open until
+B4 closes. Switching an environment's provider hides chunks embedded by the other one until the
+documents are re-ingested. ADR-013 stays proposed: `AnswerModelId` is empty by default, so answering
+is off (503 `answer_unavailable`) until a measured model is configured.
+**Verify / revisit if:** `test_providers.py` (environment rules, router, configuration-only switching,
+namespace isolation) passes; revisit when Bedrock is live and the first real benchmark runs.
 
 ### ADR-015 · 2026-09-17 · M1's Thursday-evening kill criterion deferred while AWS verifies the account
 Status: accepted

@@ -174,17 +174,18 @@ class FakeIndex:
         query = body["query"]
         if "knn" in query:
             clause = query["knn"]["embedding"]
-            workspace = (clause.get("filter") or {}).get("term", {}).get("workspace_id")
+            candidates = [c for c in self.chunks.values() if _matches(clause.get("filter"), c)]
             scored = [
                 (sum(a * b for a, b in zip(clause["vector"], c["embedding"], strict=True)), c)
-                for c in self._in(workspace)
+                for c in candidates
+                if len(c["embedding"]) == len(clause["vector"])
             ]
             scored = [(s, c) for s, c in scored if s > 0]
         else:
-            filters = query["bool"].get("filter", [])
-            workspace = next((f["term"]["workspace_id"] for f in filters if "term" in f), None)
+            filters = {"bool": {"filter": query["bool"].get("filter", [])}}
+            candidates = [c for c in self.chunks.values() if _matches(filters, c)]
             words = set(_tokens(query["bool"]["must"][0]["match"]["text"]["query"]))
-            scored = [(float(len(words & set(_tokens(c["text"])))), c) for c in self._in(workspace)]
+            scored = [(float(len(words & set(_tokens(c["text"])))), c) for c in candidates]
             scored = [(s, c) for s, c in scored if s > 0]
         scored.sort(key=lambda pair: (-pair[0], pair[1]["chunk_id"]))
         return [
@@ -196,10 +197,17 @@ class FakeIndex:
             for s, c in scored[: body["size"]]
         ]
 
-    def _in(self, workspace: str | None) -> list[dict]:
-        return [
-            c for c in self.chunks.values() if workspace is None or c["workspace_id"] == workspace
-        ]
+
+def _matches(clause: dict | None, chunk: dict) -> bool:
+    """`term` and `bool.filter` exactly as written; no clause means no filtering at all."""
+    if not clause:
+        return True
+    if "term" in clause:
+        [(field, value)] = clause["term"].items()
+        return chunk.get(field) == value
+    if "bool" in clause:
+        return all(_matches(inner, chunk) for inner in clause["bool"].get("filter", []))
+    raise AssertionError(f"FakeIndex doesn't understand {clause}")
 
 
 class FakeAnswerer:

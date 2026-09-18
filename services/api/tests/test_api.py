@@ -209,6 +209,18 @@ def test_health_is_green_when_every_dependency_answers(api):
     assert body["dependencies"] == {"config": "ok", "table": "ok", "bucket": "ok", "index": "ok"}
 
 
+def test_health_names_the_environment_and_active_providers(api):
+    _, body, _ = api.call("GET", "/health")
+    assert body["providers"] == {
+        "environment": "test",
+        "answer_provider": "fake",
+        "answer_model": "fake-answer-model",
+        "embedding_provider": "fake",
+        "embedding_model": "fake-embedder",
+        "embedding_version": "1",
+    }
+
+
 def test_health_reports_each_failing_dependency_without_details(api):
     api.index.error = ConnectionError("https://search-crownx.example: timeout")
     api.objects.fail_ping = True

@@ -39,6 +39,11 @@ class OpenSearchIndex:
 
     def ensure_index(self, body: dict) -> bool:
         if self.index_exists():
+            # Adds fields introduced since the index was created (the ADR-016 namespace). Re-sending
+            # an unchanged field is a no-op, and a changed one is rejected loudly by OpenSearch.
+            self._client.indices.put_mapping(
+                index=self._index, body={"properties": body["mappings"]["properties"]}
+            )
             return False
         try:
             self._client.indices.create(index=self._index, body=body)

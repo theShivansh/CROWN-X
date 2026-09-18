@@ -35,22 +35,23 @@ def handle(event: dict[str, Any], worker: IngestionWorker) -> dict[str, Any]:
 def _live_worker() -> IngestionWorker:
     import boto3
 
-    from crownx.adapters.bedrock import TitanEmbedder
     from crownx.adapters.dynamo import DynamoMetadataStore
     from crownx.adapters.opensearch import OpenSearchIndex, build_client
+    from crownx.adapters.providers import ProviderRouter
     from crownx.adapters.s3 import S3_CLIENT_CONFIG, S3ObjectStore
     from crownx.config import get_settings
 
     settings = get_settings()
     session = boto3.Session(region_name=settings.aws_region)
+    providers = ProviderRouter.build(settings, session)
+    logger.append_keys(**providers.describe())
     return IngestionWorker(
         store=DynamoMetadataStore(session.resource("dynamodb").Table(settings.table_name)),
         objects=S3ObjectStore(
             session.client("s3", config=S3_CLIENT_CONFIG), settings.documents_bucket
         ),
-        embedder=TitanEmbedder(
-            session.client("bedrock-runtime"), settings.bedrock_embedding_model_id
-        ),
+        embedder=providers.embedder,
+        namespace=providers.namespace,
         index=OpenSearchIndex(
             build_client(
                 settings.opensearch_endpoint,

@@ -99,7 +99,11 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
         checks = live.health()
         healthy = all(value == "ok" for value in checks.values())
         return reply(
-            {"status": "ok" if healthy else "degraded", "dependencies": checks},
+            {
+                "status": "ok" if healthy else "degraded",
+                "dependencies": checks,
+                "providers": live.providers(),
+            },
             200 if healthy else 503,
         )
 
@@ -167,16 +171,17 @@ def _live_service() -> CrownService:
     """Built once per cold start from the environment, so tests never touch AWS."""
     import boto3
 
-    from crownx.adapters.bedrock import TitanEmbedder
     from crownx.adapters.dynamo import DynamoMetadataStore
     from crownx.adapters.ingest_queue import LambdaIngestQueue
     from crownx.adapters.opensearch import OpenSearchIndex, build_client
+    from crownx.adapters.providers import ProviderRouter
     from crownx.adapters.s3 import S3_CLIENT_CONFIG, S3ObjectStore
     from crownx.app.service import Limits
     from crownx.config import get_settings
 
     settings = get_settings()
     session = boto3.Session(region_name=settings.aws_region)
+    providers = ProviderRouter.build(settings, session)
     return CrownService(
         store=DynamoMetadataStore(session.resource("dynamodb").Table(settings.table_name)),
         objects=S3ObjectStore(
@@ -189,14 +194,16 @@ def _live_service() -> CrownService:
             ),
             settings.opensearch_index,
         ),
-        embedder=TitanEmbedder(
-            session.client("bedrock-runtime"), settings.bedrock_embedding_model_id
-        ),
+        embedder=providers.embedder,
+        namespace=providers.namespace,
+        answerer=providers.answerer,
+        providers=providers.describe(),
         limits=Limits(
             max_upload_bytes=settings.max_upload_bytes,
             max_documents_per_workspace=settings.max_documents_per_workspace,
             upload_url_expiry_seconds=settings.upload_url_expiry_seconds,
             retrieval_top_k=settings.retrieval_top_k,
+            retrieval_score_floor=settings.retrieval_score_floor,
         ),
     )
 

@@ -126,6 +126,12 @@ Names only; values live in the environment, SAM parameters or SSM, never in the 
 | `DOCUMENTS_BUCKET` | API, ingestion | Raw document bucket |
 | `TABLE_NAME` | API, ingestion | DynamoDB single table |
 | `MAX_UPLOAD_BYTES`, `MAX_DOCUMENTS_PER_WORKSPACE`, `RETRIEVAL_TOP_K` | API | Limits |
+| `ENVIRONMENT` | ingestion, API | `production` (default), `development`, `test` or `offline-demo` (ADR-016) |
+| `ANSWER_PROVIDER`, `EMBEDDING_PROVIDER` | ingestion, API | `bedrock` (production), `mock`, `groq` (answers, development only); ADR-016 |
+| `EMBEDDING_VERSION` | ingestion, API | Namespace version on every chunk; bump when chunking or embeddings change |
+| `BEDROCK_ANSWER_FORCE_TOOL` | API | `true` forces `submit_answer`; `false` for models that accept only `auto` |
+| `GROQ_API_KEY`, `GROQ_MODEL_ID` | API (development only) | Groq answer provider; the key only ever comes from the environment |
+| `RETRIEVAL_SCORE_FLOOR` | API | Fused-score floor for evidence; 0 until calibrated on the golden set |
 | `NEXT_PUBLIC_API_URL` | web | API Gateway base URL (public, not a secret) |
 | `NEXT_PUBLIC_DEMO_WORKSPACE_ID` | web | Optional: the workspace behind "Open demo workspace" on `/` |
 

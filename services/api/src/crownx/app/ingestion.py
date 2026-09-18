@@ -13,7 +13,7 @@ from crownx.adapters.ports import Embedder, MetadataStore, ObjectStore, SearchIn
 from crownx.domain.chunking import Chunk, chunk_pages, chunk_text, normalize_text
 from crownx.domain.metadata import extract_metadata
 from crownx.domain.models import Document, DocumentStatus
-from crownx.domain.retrieval import index_body
+from crownx.domain.retrieval import EmbeddingNamespace, index_body
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ class IngestionWorker:
         objects: ObjectStore,
         embedder: Embedder,
         index: SearchIndex,
+        namespace: EmbeddingNamespace,
         target_chars: int = 1000,
         overlap_chars: int = 120,
     ) -> None:
@@ -44,6 +45,7 @@ class IngestionWorker:
         self._objects = objects
         self._embedder = embedder
         self._index = index
+        self._namespace = namespace
         self._target_chars = target_chars
         self._overlap_chars = overlap_chars
 
@@ -97,6 +99,7 @@ class IngestionWorker:
                         "source_timestamp": document.source_timestamp,
                         "uploaded_at": document.uploaded_at,
                         "embedding": vector,
+                        **self._namespace.fields(),
                     }
                     for chunk, vector in zip(chunks, vectors, strict=True)
                 ]

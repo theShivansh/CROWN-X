@@ -70,8 +70,14 @@ def test_both_retrieval_requests_carry_the_workspace_filter(api):
     api.index.bodies.clear()
     ask(api, ws, "submission deadline")
     lexical, semantic = api.index.bodies
-    assert lexical["query"]["bool"]["filter"] == [{"term": {"workspace_id": ws}}]
-    assert semantic["query"]["knn"]["embedding"]["filter"] == {"term": {"workspace_id": ws}}
+    scope = [
+        {"term": {"workspace_id": ws}},
+        {"term": {"embedding_provider": "fake"}},
+        {"term": {"embedding_model": "fake-embedder"}},
+        {"term": {"embedding_version": "1"}},
+    ]
+    assert lexical["query"]["bool"]["filter"] == scope
+    assert semantic["query"]["knn"]["embedding"]["filter"] == {"bool": {"filter": scope}}
     assert lexical["size"] == semantic["size"] == TOP_K * 2
 
 

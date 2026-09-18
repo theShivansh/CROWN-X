@@ -40,8 +40,31 @@ def _allow_statements(template: dict):
             documents.append(properties["AccessPolicies"])
         for document in documents:
             for statement in document["Statement"]:
-                if statement["Effect"] == "Allow":
-                    yield name, statement
+                for branch in _branches(statement):
+                    if branch["Effect"] == "Allow":
+                        yield name, branch
+
+
+def _branches(statement: object) -> list[dict]:
+    """A plain statement, or both branches of `!If [condition, then, else]` minus AWS::NoValue."""
+    if isinstance(statement, list):  # the loader reads `!If` as [condition, then, else]
+        _, *choices = statement
+        return [c for c in choices if isinstance(c, dict)]
+    return [statement]  # type: ignore[list-item]
+
+
+def test_the_answer_model_permission_exists_only_when_a_model_is_configured(template):
+    assert "AnswerModelId" in str(template["Conditions"]["HasAnswerModel"])
+    [policy] = template["Resources"]["ApiRole"]["Properties"]["Policies"]
+    conditional = [s for s in policy["PolicyDocument"]["Statement"] if isinstance(s, list)]
+    assert [c[0] for c in conditional] == ["HasAnswerModel"]
+    statements = {
+        (name, statement.get("Sid")): statement for name, statement in _allow_statements(template)
+    }
+    answer = statements[("ApiRole", "AnswerQuestions")]
+    assert answer["Action"] == "bedrock:InvokeModel"
+    assert answer["Resource"].endswith("foundation-model/${AnswerModelId}")
+    assert ("IngestRole", "AnswerQuestions") not in statements
 
 
 def _as_list(value: object) -> list:

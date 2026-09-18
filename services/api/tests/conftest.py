@@ -11,7 +11,17 @@ from fakes import FakeAnswerer, FakeEmbedder, FakeIndex, FakeIngest, FakeObjects
 from crownx.app.api import build_resolver
 from crownx.app.ingestion import IngestionWorker
 from crownx.app.service import CrownService, Limits
+from crownx.domain.retrieval import EmbeddingNamespace
 
+NAMESPACE = EmbeddingNamespace(provider="fake", model="fake-embedder", version="1", dimensions=32)
+PROVIDERS = {
+    "environment": "test",
+    "answer_provider": "fake",
+    "answer_model": "fake-answer-model",
+    "embedding_provider": "fake",
+    "embedding_model": "fake-embedder",
+    "embedding_version": "1",
+}
 MAX_BYTES = 64 * 1024
 MAX_DOCS = 3
 TOP_K = 4
@@ -110,6 +120,10 @@ def api() -> ApiHarness:
             retrieval_top_k=TOP_K,
         ),
         answerer=answerer,
+        namespace=NAMESPACE,
+        providers=PROVIDERS,
     )
-    worker = IngestionWorker(store=store, objects=objects, embedder=embedder, index=index)
+    worker = IngestionWorker(
+        store=store, objects=objects, embedder=embedder, index=index, namespace=NAMESPACE
+    )
     return ApiHarness(store, objects, ingest, index, embedder, service, worker, answerer)
