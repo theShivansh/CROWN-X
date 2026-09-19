@@ -50,8 +50,9 @@ def test_query_returns_ranked_evidence_that_resolves_to_uploaded_chunks(api):
     # Expo's 21 Sept is another key and never joins it.
     [conflict] = body["conflicts"]
     assert conflict["key"] == "submission/deadline" and len(conflict["pairs"]) == 1
-    assert conflict["selected_value"] == "2026-09-22"
-    assert conflict["selection_rule"] == "latest_upload"  # the .md brief here has no header date
+    # Selection isn't asserted here: this brief has no header date, so the rule is upload time, and
+    # two uploads can share a timestamp on a coarse clock (a tie selects nothing, by design).
+    # test_claims.py covers every selection rule deterministically.
     assert body["request_id"] == REQUEST_ID == headers["x-request-id"]
     evidence = body["evidence"]
     assert 1 <= len(evidence) <= TOP_K

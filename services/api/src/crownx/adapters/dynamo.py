@@ -170,14 +170,11 @@ class DynamoMetadataStore:
         pages = paginator.paginate(
             TableName=self._table.name,
             KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
-            ExpressionAttributeValues={":pk": {"S": _ws(workspace_id)}, ":prefix": {"S": prefix}},
+            # A resource's client serializes plain values, as in `list_documents`.
+            ExpressionAttributeValues={":pk": _ws(workspace_id), ":prefix": prefix},
             ConsistentRead=True,
         )
-        return [
-            {key: next(iter(value.values())) for key, value in item.items()}
-            for page in pages
-            for item in page["Items"]
-        ]
+        return [item for page in pages for item in page["Items"]]
 
 
 def _document_item(document: Document) -> dict:

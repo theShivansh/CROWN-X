@@ -117,7 +117,9 @@ def test_query_records_round_trip_through_dynamodb_with_exact_scores():
 
 
 class _ClaimTable(_Table):
-    """Adds the low-level paginated query and the batch writer that claim replacement uses."""
+    """Adds the paginated query and the batch writer that claim replacement uses. Like a boto3
+    resource's `meta.client`, the query takes and returns plain Python values; a low-level
+    `{"S": ...}` value is refused here as DynamoDB refused it in the first M3 deploy."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -130,10 +132,12 @@ class _ClaimTable(_Table):
                 class Pages:
                     def paginate(self, **kwargs):
                         values = kwargs["ExpressionAttributeValues"]
-                        pk, prefix = values[":pk"]["S"], values[":prefix"]["S"]
+                        pk, prefix = values[":pk"], values[":prefix"]
+                        if not (isinstance(pk, str) and isinstance(prefix, str)):
+                            raise AssertionError("operand type M: pass plain values")
                         assert kwargs["ConsistentRead"] is True
                         items = [
-                            {k: {"S": v} for k, v in item.items()}
+                            dict(item)
                             for (p, s), item in sorted(table.items.items())
                             if p == pk and s.startswith(prefix)
                         ]
