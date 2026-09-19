@@ -69,6 +69,12 @@ class FakeStore:
     def put_audit(self, workspace_id: str, event: dict) -> None:
         self.audit.append((workspace_id, dict(event)))
 
+    def count_usage(self, workspace_id: str, kind: str, window: str, expires_at: int) -> int:
+        usage = self.__dict__.setdefault("usage", {})
+        slot = (workspace_id, kind, window)
+        usage[slot] = usage.get(slot, 0) + 1
+        return usage[slot]
+
     def put_event(self, event: WorkflowEvent) -> None:
         if self.event_error:
             raise self.event_error

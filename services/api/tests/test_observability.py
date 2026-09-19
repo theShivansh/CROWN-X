@@ -96,3 +96,35 @@ def test_an_unavailable_answer_logs_its_attempts(api, caplog):
     assert status == 503
     [logged] = [r for r in caplog.records if r.getMessage() == "answer not written"]
     assert [a["outcome"] for a in logged.attempts] == ["rate_limited", "http_500"]
+
+
+def _finished(caplog) -> list:
+    return [r for r in caplog.records if r.getMessage() == "request finished"]
+
+
+def test_every_request_logs_its_route_status_latency_and_stages(api, caplog):
+    ws, status, _ = _ask_and_answer(api)
+    assert status == 200
+    by_route = {r.route.split("/")[-1]: r for r in _finished(caplog)}
+    query, answer = by_route["query"], by_route["answer"]
+    assert query.status_code == 200 and isinstance(query.latency_ms, int)
+    assert {"embed", "search", "compare"} <= set(query.stage_ms)
+    assert set(answer.stage_ms) == {"answer_call"}
+    upload = by_route["upload-url"]
+    assert set(upload.stage_ms) == {"upload_url"}
+    assert "Final submissions" not in str([r.__dict__ for r in _finished(caplog)])
+
+
+def test_a_failed_request_logs_its_status_code(api, caplog):
+    status, _, _ = api.call("GET", "/workspaces/ws_doesnotexist000000000/documents")
+    assert status == 404
+    [finished] = _finished(caplog)
+    assert finished.status_code == 404 and finished.stage_ms == {}
+
+
+def test_ingestion_logs_the_time_of_each_stage(api, caplog):
+    ws = api.new_workspace()
+    api.upload(ws, "brief.md", BRIEF)
+    [stages] = [r for r in caplog.records if r.getMessage() == "ingestion stages"]
+    assert set(stages.stage_ms) == {"read", "parse", "embed", "index", "claims"}
+    assert stages.latency_ms == sum(stages.stage_ms.values())

@@ -192,3 +192,37 @@ def test_claims_are_replaced_per_document_and_listed_per_workspace():
     assert set(got) == {"cl_2", "cl_3"}  # doc_1's old claim is gone; doc_2's is untouched
     assert got["cl_3"].confidence == {"extraction": 1.0}
     assert store.list_claims("ws_B") == []
+
+
+def test_usage_is_counted_by_an_atomic_add_with_a_ttl_through_the_real_serializer():
+    """The resource Table takes plain values and serializes them itself (the first M3 deploy failed
+    on typed ones), so this runs a real boto3 Table against a stubbed client: the stub sees the
+    plain values, and the real serializer then has to accept them."""
+    from botocore.stub import Stubber
+
+    from crownx.adapters.dynamo import DynamoMetadataStore
+
+    table = boto3.resource(
+        "dynamodb", region_name="ap-south-1", aws_access_key_id="x", aws_secret_access_key="x"
+    ).Table("crownx-test")
+    with Stubber(table.meta.client) as stub:
+        stub.add_response(
+            "update_item",
+            {"Attributes": {"count": {"N": "3"}}},
+            {
+                "TableName": "crownx-test",
+                "Key": {
+                    "PK": "WS#ws_AAAAAAAAAAAAAAAAAAAAAA",
+                    "SK": "QUOTA#questions#2026-09-19T20",
+                },
+                "UpdateExpression": "ADD #n :one SET expires_at = if_not_exists(expires_at, :exp)",
+                "ExpressionAttributeNames": {"#n": "count"},
+                "ExpressionAttributeValues": {":one": 1, ":exp": 1790000000},
+                "ReturnValues": "UPDATED_NEW",
+            },
+        )
+        store = DynamoMetadataStore(table)
+        count = store.count_usage(
+            "ws_AAAAAAAAAAAAAAAAAAAAAA", "questions", "2026-09-19T20", 1790000000
+        )
+    assert count == 3

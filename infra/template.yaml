@@ -100,6 +100,11 @@ Parameters:
     Type: Number
     Default: 20
     MinValue: 1
+  QuestionsPerWorkspacePerHour:
+    Type: Number
+    Default: 60
+    MinValue: 1
+    Description: Questions, and model-backed answers, per workspace per clock hour (SECURITY T7)
   RetrievalTopK:
     Type: Number
     Default: 8
@@ -137,6 +142,7 @@ Globals:
         RERANKER_MODEL_SHA256: !Ref RerankerModelSha256
         MAX_UPLOAD_BYTES: !Ref MaxUploadBytes
         MAX_DOCUMENTS_PER_WORKSPACE: !Ref MaxDocumentsPerWorkspace
+        QUESTIONS_PER_WORKSPACE_PER_HOUR: !Ref QuestionsPerWorkspacePerHour
         RETRIEVAL_TOP_K: !Ref RetrievalTopK
         POWERTOOLS_LOG_LEVEL: INFO
 
@@ -211,6 +217,10 @@ Resources:
           KeyType: RANGE
       SSESpecification:
         SSEEnabled: true
+      # Usage counters (QUOTA#) expire on their own an hour after their window closes.
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
 
   SearchDomain:
     Type: AWS::OpenSearchService::Domain
@@ -291,7 +301,7 @@ Resources:
                 Resource: !GetAtt ApiLogGroup.Arn
               - Sid: Metadata
                 Effect: Allow
-                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:Query]
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:Query, dynamodb:UpdateItem]
                 Resource: !GetAtt MetadataTable.Arn
               - Sid: HealthAndMissingObjectsAs404
                 Effect: Allow
@@ -395,6 +405,15 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 10
+      # The routes that spend compute and model quota are tighter (ADR-021). With an account cap of
+      # 10 concurrent Lambdas, reserved concurrency can't be set, so throttling is the bound.
+      RouteSettings:
+        "POST /workspaces/{workspace_id}/query":
+          ThrottlingBurstLimit: 10
+          ThrottlingRateLimit: 3
+        "POST /workspaces/{workspace_id}/queries/{query_id}/answer":
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 1
       AccessLogSettings:
         DestinationArn: !GetAtt HttpApiAccessLogGroup.Arn
         Format: >-

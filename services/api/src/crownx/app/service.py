@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from crownx.adapters.ports import (
     Answerer,
@@ -70,6 +71,8 @@ class Limits:
     # How many fused candidates the cross-encoder re-scores; the rest keep their fused order after
     # them. Its cost grows linearly with this number (docs/BENCHMARKS.md).
     rerank_candidates: int = 8
+    # Questions (and model-backed answers) per workspace per clock hour, counted in DynamoDB (T7).
+    questions_per_hour: int = 60
 
 
 @dataclass(frozen=True)
@@ -260,6 +263,8 @@ class CrownService:
         question = question.strip()
         if not question or len(question) > MAX_QUESTION_CHARS:
             raise InvalidRequest(f"Ask a question between 1 and {MAX_QUESTION_CHARS} characters.")
+        # Counted before any embedding, search or model call, so going over costs nothing (T7).
+        self._spend(workspace_id, "questions")
 
         self._event(workspace_id, EventType.QUESTION_ASKED, question_chars=len(question))
         limits = self._limits
@@ -387,6 +392,19 @@ class CrownService:
         self.require_workspace(workspace_id)
         return [group_view(g) for g in detect(self._store.list_claims(workspace_id))]
 
+    def _spend(self, workspace_id: str, kind: str) -> None:
+        now = datetime.now(UTC)
+        window = now.strftime("%Y-%m-%dT%H")
+        expires_at = int(now.replace(minute=0, second=0, microsecond=0).timestamp()) + 2 * 3600
+        used = self._store.count_usage(workspace_id, kind, window, expires_at)
+        limit = self._limits.questions_per_hour
+        if used > limit:
+            minutes = 60 - now.minute
+            raise LimitReached(
+                f"This workspace has used its {limit} {kind} for this hour. "
+                f"Try again in {minutes} minute{'s' if minutes != 1 else ''}."
+            )
+
     def timeline(self, workspace_id: str, subject: str, attribute: str) -> dict:
         """One fact's value history, ordered by the selection rule's own signals (FR-09)."""
         key = f"{subject}/{attribute}"
@@ -454,6 +472,7 @@ class CrownService:
             )
 
         answerer = self._answerer
+        self._spend(workspace_id, "answers")  # a retried answer is another model call
         try:
             result = answerer.answer(record.question, record.evidence, record.conflicts)
         except Exception as error:

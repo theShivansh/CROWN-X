@@ -6,8 +6,10 @@ ready document is left alone, and every status change is conditional on the stat
 
 from __future__ import annotations
 
-import logging
+import time
 from collections import Counter
+
+from aws_lambda_powertools import Logger
 
 from crownx.adapters.pdf import UnreadablePdf, read_pdf_pages
 from crownx.adapters.ports import Embedder, MetadataStore, ObjectStore, SearchIndex
@@ -19,7 +21,9 @@ from crownx.domain.metadata import extract_metadata
 from crownx.domain.models import Document, DocumentStatus
 from crownx.domain.retrieval import EmbeddingNamespace, index_body
 
-log = logging.getLogger(__name__)
+# A child of the ingest Lambda's Powertools logger: a stdlib logger is filtered at WARNING by the
+# Lambda runtime, so its INFO lines never reached CloudWatch.
+log = Logger(service="crownx-ingest", child=True)
 
 PDF = "application/pdf"
 NO_TEXT_IN_PDF = (
@@ -64,9 +68,20 @@ class IngestionWorker:
         document = self._advance(document, DocumentStatus.PARSING)
         if document is None:
             return None  # another run moved it first
+        stage_ms: dict[str, int] = {}
+        clock = time.perf_counter()
+
+        def lap(stage: str) -> None:
+            nonlocal clock
+            now = time.perf_counter()
+            stage_ms[stage] = round((now - clock) * 1000)
+            clock = now
+
         try:
             raw = self._objects.read_bytes(document.object_key)
+            lap("read")
             parsed = self._parse(document, raw)
+            lap("parse")
             if isinstance(parsed, str):
                 return self._fail(document, parsed)
             text, chunks = parsed
@@ -89,6 +104,7 @@ class IngestionWorker:
                 return None
             self._index.ensure_index(index_body(self._embedder.dimensions))
             vectors = self._embedder.embed([chunk.text for chunk in chunks], kind="passage")
+            lap("embed")
             self._index.index_chunks(
                 [
                     {
@@ -108,6 +124,7 @@ class IngestionWorker:
                     for chunk, vector in zip(chunks, vectors, strict=True)
                 ]
             )
+            lap("index")
             claims = extract_claims(
                 workspace_id=document.workspace_id,
                 document_id=document.document_id,
@@ -119,6 +136,7 @@ class IngestionWorker:
                 version_label=document.version_label,
             )
             self._store.replace_claims(document.workspace_id, document.document_id, claims)
+            lap("claims")
             log.info(
                 "claims extracted",
                 extra={
@@ -130,6 +148,15 @@ class IngestionWorker:
                 },
             )
             ready = self._advance(document, DocumentStatus.READY, chunk_count=len(chunks))
+            log.info(
+                "ingestion stages",
+                extra={
+                    "document_id": document.document_id,
+                    "chunk_count": len(chunks),
+                    "stage_ms": stage_ms,
+                    "latency_ms": sum(stage_ms.values()),
+                },
+            )
             if ready is not None:
                 record_event(
                     self._store,
@@ -141,7 +168,7 @@ class IngestionWorker:
                 )
             return ready
         except Exception:
-            log.exception("ingestion failed at stage %s", document.status)
+            log.exception("ingestion failed", extra={"stage": str(document.status)})
             self._fail(
                 document,
                 "Indexing failed on our side. Upload the file again; if it keeps failing, "

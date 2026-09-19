@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, Response, content_types
+from aws_lambda_powertools.event_handler.middlewares import NextMiddleware
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from crownx.app.service import CrownService
@@ -37,6 +39,34 @@ def request_id_of(event: dict[str, Any]) -> str:
 
 def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolver:
     app = APIGatewayHttpResolver()
+    stages: dict[str, int] = {}  # per request: reset by `timed`, filled by the routes
+
+    def timed(app: APIGatewayHttpResolver, next_middleware: NextMiddleware) -> Response:
+        """One `request finished` line per request: route, status, end-to-end and per-stage
+        latency (ARCHITECTURE §6 has the Logs Insights queries that read it)."""
+        stages.clear()
+        started = time.perf_counter()
+        status = 500
+        try:
+            response = next_middleware(app)
+            status = response.status_code
+            return response
+        except DomainError as exc:
+            status = exc.status
+            raise
+        finally:
+            logger.info(
+                "request finished",
+                extra={
+                    "route": f"{app.current_event.http_method} {app.current_event.path}",
+                    "route_key": app.current_event.raw_event.get("routeKey"),
+                    "status_code": status,
+                    "latency_ms": round((time.perf_counter() - started) * 1000),
+                    "stage_ms": dict(stages),
+                },
+            )
+
+    app.use(middlewares=[timed])
 
     def rid() -> str:
         return request_id_of(app.current_event.raw_event)
@@ -116,7 +146,9 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
     @app.post("/workspaces/<workspace_id>/documents/upload-url")
     def upload_url(workspace_id: str) -> Response:
         request = body_as(UploadUrlRequest)
+        started = time.perf_counter()
         ticket = service().create_upload(workspace_id, request.filename, request.size_bytes)
+        stages["upload_url"] = round((time.perf_counter() - started) * 1000)
         return reply(
             {
                 "document": ticket.document.public(),
@@ -140,6 +172,7 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
     def query(workspace_id: str) -> Response:
         request = body_as(QueryRequest)
         result = service().query(workspace_id, request.question, request_id=rid())
+        stages.update(result.timings_ms or {})
         return reply(
             {
                 "query_id": result.query_id,
@@ -176,9 +209,11 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
 
     @app.post("/workspaces/<workspace_id>/queries/<query_id>/answer")
     def answer(workspace_id: str, query_id: str) -> Response:
+        started = time.perf_counter()
         try:
             outcome = service().answer(workspace_id, query_id, request_id=rid())
         except DomainError as error:
+            stages["answer_call"] = round((time.perf_counter() - started) * 1000)
             # Each model call and its outcome (for example http_429 then http_500), so a failed
             # answer can be diagnosed from the logs as well as the audit record.
             logger.warning(
@@ -186,6 +221,7 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
                 extra={"error_code": error.code, "attempts": list(getattr(error, "attempts", ()))},
             )
             raise
+        stages["answer_call"] = round((time.perf_counter() - started) * 1000)
         logger.info(
             "answer written",
             extra={
@@ -265,6 +301,7 @@ def _live_service() -> CrownService:
             upload_url_expiry_seconds=settings.upload_url_expiry_seconds,
             retrieval_top_k=settings.retrieval_top_k,
             retrieval_score_floor=settings.retrieval_score_floor,
+            questions_per_hour=settings.questions_per_workspace_per_hour,
         ),
     )
 

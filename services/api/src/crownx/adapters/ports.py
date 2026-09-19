@@ -50,6 +50,11 @@ class MetadataStore(Protocol):
         """IDs, stages, timings and outcomes only: never document text or model output."""
         ...
 
+    def count_usage(self, workspace_id: str, kind: str, window: str, expires_at: int) -> int:
+        """Add one to the workspace's `kind` counter for `window` atomically and return the new
+        count. The item expires at `expires_at` (epoch seconds, DynamoDB TTL)."""
+        ...
+
     def put_event(self, event: WorkflowEvent) -> None:
         """Append to the workspace's event stream; idempotent by `event_id` (FR-WL-01)."""
         ...

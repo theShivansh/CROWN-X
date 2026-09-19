@@ -112,6 +112,16 @@ class DynamoMetadataStore:
             }
         )
 
+    def count_usage(self, workspace_id: str, kind: str, window: str, expires_at: int) -> int:
+        response = self._table.update_item(
+            Key={"PK": _ws(workspace_id), "SK": f"QUOTA#{kind}#{window}"},
+            UpdateExpression="ADD #n :one SET expires_at = if_not_exists(expires_at, :exp)",
+            ExpressionAttributeNames={"#n": "count"},
+            ExpressionAttributeValues={":one": 1, ":exp": expires_at},
+            ReturnValues="UPDATED_NEW",
+        )
+        return int(response["Attributes"]["count"])
+
     def put_event(self, event: WorkflowEvent) -> None:
         """Append-only and idempotent: writing the same event twice leaves one item."""
         try:
