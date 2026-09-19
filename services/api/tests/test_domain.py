@@ -92,3 +92,11 @@ def test_oversize_declaration_states_the_limit():
 def test_empty_or_nameless_uploads_are_invalid(name, size):
     with pytest.raises(InvalidRequest):
         validate_upload(name, size, max_bytes=1024)
+
+
+def test_utc_now_strictly_increases_even_on_a_coarse_clock():
+    """Upload order is a selection signal (ADR-020): two uploads never share a timestamp."""
+    from crownx.domain.models import utc_now
+
+    stamps = [utc_now() for _ in range(2000)]
+    assert stamps == sorted(stamps) and len(set(stamps)) == len(stamps)

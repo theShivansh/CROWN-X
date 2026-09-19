@@ -2,15 +2,29 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import threading
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+_last_now: datetime | None = None
+_now_lock = threading.Lock()
+
 
 def utc_now() -> str:
-    """ISO 8601 in UTC with a `Z`, sortable as a string."""
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    """ISO 8601 in UTC with a `Z`, sortable as a string, and strictly increasing within a process.
+
+    Upload order is a selection signal (`latest_upload`, ADR-020): two uploads must never share a
+    timestamp just because the clock ticks coarsely (Windows ticks in milliseconds), or a tie would
+    leave a conflict with no current value."""
+    global _last_now
+    with _now_lock:
+        now = datetime.now(UTC)
+        if _last_now is not None and now <= _last_now:
+            now = _last_now + timedelta(microseconds=1)
+        _last_now = now
+    return now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 class DocumentStatus(StrEnum):
