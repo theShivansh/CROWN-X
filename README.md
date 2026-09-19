@@ -2,7 +2,7 @@
 
 <img src="docs/media/banner.svg" alt="CROWN-X: ask your project documents a question, and see where they disagree" width="100%">
 
-# 👑 CROWN-X
+# CROWN-X: Contextual Reasoning & Workflow Nexus 
 
 **Evidence-first answers over evolving project documents: every sentence cites its passage, and
 when sources disagree, you see both, which one is current, and the rule that decided it.**
@@ -29,7 +29,7 @@ AWS First Commit 2026 · Ship It track · built solo, 17-20 September 2026
 
 ---
 
-## 🎬 See it in action
+## See it in action
 
 <p align="center">
   <img src="docs/media/demo-hero.gif" alt="Recorded on the deployed app: Ctrl+K, ask 'What is the current submission deadline?', the answer arrives with citations and 'Sources disagree', a citation opens its passage, the conflict inspector explains the flag, the timeline shows 20 Sep to 22 Sep, and the workflow detail shows the repeated routine" width="100%">
@@ -49,7 +49,7 @@ Recorded with Playwright on the <a href="https://main.d1jy52bqj8dt1h.amplifyapp.
   </tr>
 </table>
 
-### ⚡ The 30-second demo
+### The 30-second demo
 1. **Upload** Markdown, text or PDF files: a brief, an organiser email, meeting notes. Or open the
    [demo workspace](https://main.d1jy52bqj8dt1h.amplifyapp.com/app/?ws=ws_KFdHFNj0IPUoOs4pQDcMUQ),
    which already has six documents indexed.
@@ -60,7 +60,7 @@ Recorded with Playwright on the <a href="https://main.d1jy52bqj8dt1h.amplifyapp.
 
 ---
 
-## 🧭 Why CROWN-X exists
+## Why CROWN-X exists
 Project facts change across versions. The brief says submissions close on **20 September**. The
 organiser's email moves it to **22 September**. The meeting notes confirm 22. A normal document
 chatbot answers from whichever passage it happens to retrieve, and never says that another source
@@ -76,7 +76,7 @@ disagrees. Teams find out when it's too late.
 | Text in a document that says "ignore previous instructions" | may be followed | treated as data: it can't change instructions, and a claim supported only by it is dropped |
 | Change over time | not modelled | a value timeline ordered by each document's own date |
 
-## ✨ Features
+## Features
 
 <table>
   <tr>
@@ -91,7 +91,7 @@ disagrees. Teams find out when it's too late.
   </tr>
 </table>
 
-## 🚶 Product walkthrough
+## Product walkthrough
 
 <details open>
 <summary><b>Step 1: Upload and ingest</b></summary>
@@ -160,7 +160,7 @@ that matched.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 <img src="docs/media/architecture-overview.svg" alt="Architecture: browser on Amplify, API Gateway, two Lambdas, S3, OpenSearch, DynamoDB, Groq, CloudWatch" width="100%">
 
@@ -208,7 +208,7 @@ sequenceDiagram
 ```
 </details>
 
-## 🧠 AI pipeline deep dive
+## AI pipeline deep dive
 
 <img src="docs/media/retrieval-pipeline.svg" alt="Evidence pipeline: ingest, retrieve, answer" width="100%">
 
@@ -233,7 +233,7 @@ sequenceDiagram
 > ([`adapters/bedrock_answer.py`](services/api/src/crownx/adapters/bedrock_answer.py), ADR-013 and
 > ADR-017). The fallback is `gpt-oss-20b`, tried once when the primary is rate-limited.
 
-## 🔁 Workflow Learning Engine
+## Workflow Learning Engine
 
 ```mermaid
 flowchart LR
@@ -266,7 +266,7 @@ false suggestion reviewed by hand in [BENCHMARKS](docs/BENCHMARKS.md).
   </tr>
 </table>
 
-## ⚖️ Conflict Detection Engine
+## Conflict Detection Engine
 
 <img src="docs/media/conflict-inspector.png" alt="Conflict inspector" width="100%">
 
@@ -287,7 +287,7 @@ the question to name the fact. So a conflict can be missed, but one is never inv
 
 ---
 
-## 📊 Benchmarks (measured only)
+## Benchmarks (measured only)
 
 > [!IMPORTANT]
 > Every number here is copied from [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), where each one has its
@@ -341,7 +341,7 @@ lost 19 of 63 queries to our own rate limits. Its numbers were thrown away, the 
 fail on any error, and the clean rerun is the one reported. The full story is in BENCHMARKS.
 </details>
 
-## 🛡️ Security and reliability
+## Security and reliability
 
 | Concern | What CROWN-X does | Proof |
 |---|---|---|
@@ -357,7 +357,7 @@ fail on any error, and the clean rerun is the one reported. The full story is in
 
 Threat model and acceptance tests: [`docs/SECURITY.md`](docs/SECURITY.md).
 
-## ☁️ AWS architecture and cost
+## AWS architecture and cost
 
 <img src="docs/media/aws-architecture-poster.svg" alt="AWS architecture poster: nine services, measured stats, cost guardrails" width="100%">
 
@@ -387,7 +387,7 @@ September:
 Groq is billed outside AWS and isn't included. The priced alternative for OpenSearch Serverless was
 at least five times the cost (ADR-011). Everything is torn down after judging.
 
-## 🗂️ Folder structure
+## Folder structure
 
 ```text
 CROWN-X/
@@ -410,7 +410,7 @@ CROWN-X/
                                  writeup, progress log, media/
 ```
 
-## 💻 Local development
+## Local development
 You'll need Node 22 with pnpm 10, and Python 3.12 through [uv](https://docs.astral.sh/uv/). Deploying
 also needs the AWS CLI and the SAM CLI. These are the exact commands from [`CLAUDE.md`](CLAUDE.md):
 
@@ -442,7 +442,7 @@ cd services/api && uv run python ../../evals/run.py --offline
 The full stack needs OpenSearch and a Groq key, so there's no complete local run. That's why this is
 a Ship It submission.
 
-## 🧪 Evaluation framework
+## Evaluation framework
 
 | Gate | Command | What it proves |
 |---|---|---|
@@ -453,7 +453,7 @@ a Ship It submission.
 | **Workflow benchmark** | `uv run python ../../evals/workflows/run.py` | 20 seeded scenarios with planted workflows, near misses, retries and noise. The output is byte-identical on every run. |
 | **Tests** | CI on every push | 343 API tests, 28 web unit tests, 7 Playwright end-to-end tests, lint, typecheck, and a gitleaks secret scan |
 
-## 🖼️ Screenshots gallery
+## Screenshots gallery
 All of these were captured from the deployed app with Playwright: no mockups. How to recapture them:
 [`docs/media/README_ASSETS.md`](docs/media/README_ASSETS.md).
 
@@ -464,7 +464,7 @@ All of these were captured from the deployed app with Playwright: no mockups. Ho
 | <img src="docs/media/conflict-inspector.png" alt="Conflict inspector"> | <img src="docs/media/error-request-id.png" alt="Error card with request ID"> |
 | The conflict inspector | Every error carries a request ID |
 
-## 🎥 Video demo
+## Video demo
 > **YouTube link: to be added after recording** (3 minutes or less). It will be recorded from
 > [`docs/VIDEO_TAKE_SHEET.md`](docs/VIDEO_TAKE_SHEET.md).
 
@@ -480,7 +480,7 @@ All of these were captured from the deployed app with Playwright: no mockups. Ho
 | 2:30 | Live diagnosis: a request ID from the UI, found in CloudWatch |
 | 2:45 | Measured results, cost bounds, and what I learned |
 
-## 🗺️ Roadmap
+## Roadmap
 
 | Status | Item |
 |---|---|
@@ -490,7 +490,7 @@ All of these were captured from the deployed app with Playwright: no mockups. Ho
 
 LangGraph is on the roadmap only: the shipped pipeline is plain, deterministic Python.
 
-## 📚 Lessons learned
+## Lessons learned
 From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGRESS.md):
 - **Check model access with one real call on day one.** Listing Bedrock models proved nothing. The
   provider interface built that day is why the product shipped on time (ADR-017).
@@ -505,7 +505,7 @@ From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGR
 - **Measure before switching something on.** The reranker improves MRR, and it stays off because it
   misses its latency gate without changing what the model reads.
 
-## 🎯 AI engineering highlights
+## AI engineering highlights
 
 | Feature | AI engineering skill it shows |
 |---|---|
@@ -522,7 +522,7 @@ From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGR
 | Request IDs + per-stage latency | LLM observability: finding any failure on screen in the logs in seconds |
 | Quotas before work, throttles per route | Cost engineering for LLM products |
 
-## 🤖 AI tools disclosure
+## AI tools disclosure
 - **Claude Code (Claude Opus 5)** planned, implemented, tested, reviewed and verified every
   milestone. The working method is in `CLAUDE.md` and `.claude/`: skills, hooks, subagents, and plan
   mode for each milestone.
@@ -543,7 +543,7 @@ From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGR
 | Plan mode | Each milestone is planned and approved before building | Scope is agreed before code |
 </details>
 
-## 🙏 Credits and license
+## Credits and license
 Models, components, fonts and their licences are listed in [`CREDITS.md`](CREDITS.md):
 - the models: BAAI `bge-small-en-v1.5` (MIT), `ms-marco-MiniLM-L-6-v2` (Apache-2.0), OpenAI
   `gpt-oss` (Apache-2.0) served by Groq;
