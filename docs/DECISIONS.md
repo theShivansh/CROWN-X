@@ -4,6 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack · proposed
 - ADR-020 · 2026-09-19 · M3 claims by rule, extraction confidence defined, conflicts derived on read and scoped to the question · accepted
 - ADR-019 · 2026-09-19 · Release gates from the first live runs · proposed
 - ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only · accepted
@@ -26,6 +27,37 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack
+Status: proposed (accepted once T7 passes on the deployed stack)
+
+**Context:** M4 asks for reserved concurrency on the query and answer functions. `aws lambda
+get-account-settings` in ap-south-1 reports a concurrency limit of 10 with 10 unreserved, and AWS keeps
+10 unreserved at all times, so any reservation is refused on this account. M4 also asks for the answer
+model's timeout to be exercised on a dev stack; a second stack means a second OpenSearch domain
+(about 20 minutes to create, and credits).
+**Decision:**
+- Cost is bounded by three layers instead:
+  - API Gateway throttling per route: the default 10 rps (burst 20); `POST .../query` 3 rps (burst 10);
+    `POST .../answer` 1 rps (burst 5).
+  - A per-workspace quota, `QuestionsPerWorkspacePerHour` (default 60). Questions and model-backed
+    answers are counted separately, each by an atomic DynamoDB `ADD` on `QUOTA#{kind}#{hour}` with a
+    TTL. Going over is a 429 `limit_reached` raised before any embedding, search or model call.
+  - The account cap of 10 concurrent executions.
+- The timeout path is tested by the scripted Groq transport (unit) and a recorded 504 in the
+  `@critical` Playwright tests. The deployed stack's timeout isn't shortened.
+**Rejected:**
+- Reserved concurrency: refused by AWS at this account limit.
+- A dev stack for the timeout drill: time and credits for a path the transport already scripts.
+- Counting in memory: Lambda instances don't share memory, so the count would be wrong.
+**Consequences:**
+- A spike can still use all 10 executions, and ingestion would then queue behind queries. At demo
+  scale that's acceptable.
+- Request a concurrency quota raise after the event, then add reservations.
+**Verify / revisit if:**
+- `test_t7_over_the_hourly_question_limit_is_429_before_any_model_call` passes against the deployed
+  stack, and `test_limits.py` passes.
+- Revisit if the account limit rises, or a throttled 429 appears in a demo run.
 
 ### ADR-020 · 2026-09-19 · M3 claims by rule, extraction confidence defined, conflicts derived on read and scoped to the question
 Status: accepted (verified offline and live, 2026-09-19; `docs/BENCHMARKS.md` M3)

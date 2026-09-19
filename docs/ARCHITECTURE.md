@@ -95,6 +95,62 @@ As built in M3 (ADR-020):
 | Malformed upload | Rejected with an actionable message |
 | Ingestion failure | Document status `failed` with reason; retry action |
 
+### Latency and diagnosis (M4)
+Every API request writes one `request finished` line with:
+- `route_key`, `status_code`;
+- `latency_ms`, the end-to-end time inside the Lambda;
+- `stage_ms`, the stages that ran: `upload_url`; `embed`, `search` and `compare` for a query;
+  `answer_call` for an answer.
+
+Ingestion writes one `ingestion stages` line per document with `stage_ms` (`read`, `parse`,
+`embed`, `index`, `claims`) and `latency_ms`. Both come from the Powertools loggers, so the fields
+are queryable. Run these in CloudWatch Logs Insights over `/aws/lambda/crownx-api` and
+`/aws/lambda/crownx-ingest`.
+
+p50 and p95 per API stage:
+```text
+filter message = "request finished" and status_code = 200
+| stats count(*) as n,
+        pct(latency_ms, 50) as p50_total, pct(latency_ms, 95) as p95_total,
+        pct(stage_ms.embed, 50) as p50_embed, pct(stage_ms.embed, 95) as p95_embed,
+        pct(stage_ms.search, 50) as p50_search, pct(stage_ms.search, 95) as p95_search,
+        pct(stage_ms.answer_call, 50) as p50_answer, pct(stage_ms.answer_call, 95) as p95_answer,
+        pct(stage_ms.upload_url, 50) as p50_upload_url, pct(stage_ms.upload_url, 95) as p95_upload_url
+  by route_key
+```
+
+p50 and p95 per ingestion stage:
+```text
+filter message = "ingestion stages"
+| stats count(*) as n, pct(latency_ms, 50) as p50_total, pct(latency_ms, 95) as p95_total,
+        pct(stage_ms.parse, 95) as p95_parse, pct(stage_ms.embed, 95) as p95_embed,
+        pct(stage_ms.index, 95) as p95_index, pct(stage_ms.claims, 95) as p95_claims
+```
+
+One request, by the ID the UI shows:
+```text
+fields @timestamp, @log, message, status_code, error_code, route_key, stage_ms, attempts
+| filter @message like "req_<id from the UI>"
+| sort @timestamp asc
+```
+
+Errors by code, for the last hour:
+```text
+filter message in ["answer not written", "request finished"] and status_code >= 400
+| stats count(*) by status_code, error_code, route_key
+```
+
+**Diagnosis drill** (the video uses it):
+1. Trigger an error in the UI. The error card shows `Request ID req_...` in mono, and the ID is
+   selectable.
+2. Copy it, open Logs Insights in ap-south-1, and pick both log groups.
+3. Run "One request" with that ID. The lines show:
+   - the route, and the status code with its error code;
+   - each stage's time;
+   - for an answer, each model attempt and its outcome (for example `rate_limited` then `ok`).
+4. The API Gateway access log (`HttpApiAccessLogGroup`) has the same `request_id`, with its
+   integration error when the Lambda itself failed.
+
 ## 7. Retrieval store choice (decide in M1 with today's prices, record as an ADR)
 | Option | For | Against |
 |---|---|---|

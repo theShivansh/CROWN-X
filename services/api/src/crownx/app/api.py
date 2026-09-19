@@ -46,13 +46,13 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
         latency (ARCHITECTURE §6 has the Logs Insights queries that read it)."""
         stages.clear()
         started = time.perf_counter()
-        status = 500
+        status, error_code = 500, "internal_error"
         try:
             response = next_middleware(app)
-            status = response.status_code
+            status, error_code = response.status_code, None
             return response
         except DomainError as exc:
-            status = exc.status
+            status, error_code = exc.status, exc.code
             raise
         finally:
             logger.info(
@@ -61,6 +61,7 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
                     "route": f"{app.current_event.http_method} {app.current_event.path}",
                     "route_key": app.current_event.raw_event.get("routeKey"),
                     "status_code": status,
+                    "error_code": error_code,
                     "latency_ms": round((time.perf_counter() - started) * 1000),
                     "stage_ms": dict(stages),
                 },

@@ -120,6 +120,7 @@ def test_a_failed_request_logs_its_status_code(api, caplog):
     assert status == 404
     [finished] = _finished(caplog)
     assert finished.status_code == 404 and finished.stage_ms == {}
+    assert finished.error_code == "not_found"
 
 
 def test_ingestion_logs_the_time_of_each_stage(api, caplog):
