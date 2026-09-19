@@ -9,8 +9,8 @@ Two sections, never mixed (ADR-016, ADR-017):
 - `live`: recall@8, MRR, evidence hit rate, answer value match, groundedness and latency, reported only
   for a deployed run with real providers (no mock anywhere). Otherwise every value is "not measured".
 
-M3 cases (contradictions, format-equal, missing timestamps) are scored separately as expected-fail and
-never enter the M2 headline.
+M3 cases (contradictions, format-equal, missing timestamps) are scored in their own `m3` section, and
+`contradiction_metrics` scores the conflicts and claims themselves (deterministic code, no model).
 """
 
 from __future__ import annotations
@@ -265,16 +265,14 @@ def summarize(
         if is_live
         else NOT_MEASURED,
     }
+    m3_ok = [(c, r) for c, r in m3 if "error" not in r]
     m3_summary = {
         "cases": len(m3),
-        "note": "expected to fail until M3 ships claims and conflicts; excluded from M2 scores",
-        "passing": sum(
-            1
-            for c, r in m3
-            if r.get("passed")
-            and "conflict" in c["expected_statuses"]
-            and c["category"] != "format_equal"
-        ),
+        "errors": len(m3) - len(m3_ok),
+        # Answer-level: the status and values of the answers to conflict questions. Offline the
+        # answer text is scripted, so only `status_accuracy` there says something about the code.
+        "status_accuracy": rate(m3_ok, "status_ok"),
+        "case_pass_rate": rate(m3, "passed"),
     }
     security_gate = (
         offline["workspace_isolation_pass_rate"] == 1.0
@@ -292,7 +290,111 @@ def summarize(
         "providers": providers,
         "offline": offline,
         "live": live_section,
-        "m3_expected_fail": m3_summary,
+        "m3": m3_summary,
         "security_gate_passed": security_gate,
         "m2_failures": failures,
+    }
+
+
+def _band(confidence: float | None) -> str:
+    if confidence is None:
+        return "missing"
+    if confidence == 0:
+        return "0 (unnormalized)"
+    if confidence >= 1.0:
+        return "1.0"
+    if confidence >= 0.9:
+        return "0.90-0.99"
+    if confidence >= 0.8:
+        return "0.80-0.89"
+    return "below 0.80"
+
+
+def contradiction_metrics(
+    cases: list[dict],
+    conflicts: dict[str, list[dict]],
+    claims: dict[str, list[dict]] | None,
+    expected_claims: list[dict],
+) -> dict:
+    """M3 (docs/EVALUATION.md §4): conflicts are scored as pairs `(key, {file, file})` against
+    SCENARIO §3 (the union of the M3 cases' `pairs`), plus the format-equal `not_pairs` that must
+    never appear. Selection is scored per key: the selected normalized value and the rule.
+
+    `conflicts` and `claims` map a workspace name ("A", "B", ...) to what the API returned. When
+    `claims` is None (a deployed run: no claims endpoint), extraction is scored over the claims
+    that appear in conflicts only, and labelled so."""
+    expected: set[tuple[str, frozenset[str]]] = set()
+    forbidden: set[tuple[str, frozenset[str]]] = set()
+    selections: dict[str, tuple[str, str]] = {}
+    for case in cases:
+        spec = case.get("expected_conflict")
+        if not spec:
+            continue
+        for a, b in spec.get("pairs", []):
+            expected.add((spec["key"], frozenset((a, b))))
+        for a, b in spec.get("not_pairs", []):
+            forbidden.add((spec["key"], frozenset((a, b))))
+        if "selected_normalized" in spec:
+            selections[spec["key"]] = (spec["selected_normalized"], spec["rule"])
+
+    found: set[tuple[str, str, frozenset[str]]] = set()
+    chosen: dict[str, tuple[str | None, str | None]] = {}
+    for workspace, groups in conflicts.items():
+        for group in groups:
+            files = {c["claim_id"]: c["filename"] for c in group["claims"]}
+            for pair in group["pairs"]:
+                found.add(
+                    (workspace, group["key"], frozenset((files[pair["claim_a"]], files[pair["claim_b"]])))
+                )
+            if workspace == "A":
+                chosen[group["key"]] = (group["selected_value"], group["selection_rule"])
+    in_a = {(key, files) for workspace, key, files in found if workspace == "A"}
+    true_positive = in_a & expected
+    false_positive = len(found) - len(true_positive)  # anything in B or EMPTY is wrong too
+    precision = _rate(len(true_positive), len(found)) if found else NOT_MEASURED
+    selection_correct = sum(1 for key, want in selections.items() if chosen.get(key) == want)
+
+    if claims is None:
+        scope = "claims in conflicts only (deployed run)"
+        extracted = [
+            (workspace, c) for workspace, groups in conflicts.items() for g in groups for c in g["claims"]
+        ]
+    else:
+        scope = "every claim extracted"
+        extracted = [(workspace, c) for workspace, found_claims in claims.items() for c in found_claims]
+    truth = {(e["workspace"], e["file"], e["key"], e["normalized_value"]) for e in expected_claims}
+    bands: dict[str, dict] = {}
+    for workspace, claim in extracted:
+        band = bands.setdefault(
+            _band((claim.get("confidence") or {}).get("extraction")), {"claims": 0, "correct": 0}
+        )
+        band["claims"] += 1
+        key = f"{claim['subject']}/{claim['attribute']}"
+        band["correct"] += (workspace, claim["filename"], key, claim["normalized_value"]) in truth
+    for band in bands.values():
+        band["precision"] = _rate(band["correct"], band["claims"])
+    extracted_keys = {
+        (w, c["filename"], f"{c['subject']}/{c['attribute']}", c["normalized_value"])
+        for w, c in extracted
+    }
+    return {
+        "expected_pairs": len(expected),
+        "found_pairs": len(found),
+        "true_positives": len(true_positive),
+        "false_positives": false_positive,
+        "contradiction_precision": precision,
+        "contradiction_recall": _rate(len(true_positive), len(expected)),
+        "format_equal_flagged": len(in_a & forbidden),
+        "selection_accuracy": _rate(selection_correct, len(selections)),
+        "selection_by_key": {
+            key: {"expected": list(want), "got": list(chosen.get(key, (None, None)))}
+            for key, want in selections.items()
+        },
+        "extraction": {
+            "scope": scope,
+            "claims": len(extracted),
+            "recall": _rate(len(truth & extracted_keys), len(truth)) if claims is not None
+            else NOT_MEASURED,
+            "precision_by_confidence": dict(sorted(bands.items())),
+        },
     }

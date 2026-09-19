@@ -64,22 +64,29 @@ def test_conflicts_list_both_claims_the_selection_and_extraction_confidence(api)
     assert conflicts(api, ws) == [group]  # derived again: the same IDs
 
 
-def test_a_query_carries_only_conflicts_whose_chunks_were_retrieved(api):
+def test_a_query_carries_a_conflict_only_when_its_chunk_was_retrieved_and_it_was_asked(api):
+    """ADR-020: chunks hold several facts, so the ID intersection alone would show "Sources
+    disagree" for unrelated questions; the question must also name the fact."""
     ws = api.new_workspace()
     brief = api.upload(ws, "project-brief-v1.md", BRIEF)
     api.upload(ws, "organiser-update-3.txt", UPDATE)
     roles = api.upload(ws, "team-roles.md", UNRELATED)
+    asked = "When do submissions close?"
 
-    unrelated = [{"chunk_id": f"{roles}:0"}]
-    assert api.service._conflicts_touching(ws, unrelated) == []
-    [group] = api.service._conflicts_touching(ws, [{"chunk_id": f"{brief}:1"}])
+    assert api.service._conflicts_touching(ws, asked, [{"chunk_id": f"{roles}:0"}]) == []
+    [group] = api.service._conflicts_touching(ws, asked, [{"chunk_id": f"{brief}:1"}])
     assert group.key == "submission/deadline"
+    retrieved = [{"chunk_id": f"{brief}:1"}]
+    assert api.service._conflicts_touching(ws, "Who works on the frontend?", retrieved) == []
+    assert api.service._conflicts_touching(ws, "When do expo entries close?", retrieved) == []
 
-    status, body, _ = api.call(
-        "POST", f"/workspaces/{ws}/query", {"question": "When do submissions close?"}
-    )
+    status, body, _ = api.call("POST", f"/workspaces/{ws}/query", {"question": asked})
     assert status == 200
     assert [c["key"] for c in body["conflicts"]] == ["submission/deadline"]
+    status, body, _ = api.call(
+        "POST", f"/workspaces/{ws}/query", {"question": "Who works on the frontend?"}
+    )
+    assert status == 200 and body["conflicts"] == []
 
 
 def test_the_answer_status_is_conflict_and_the_model_gets_the_conflicts_as_data(api):

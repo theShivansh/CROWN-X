@@ -42,11 +42,19 @@ PARAPHRASE = EVALS / "golden" / "paraphrase-v1.jsonl"
 RETRIEVAL_V2 = EVALS / "golden" / "retrieval-v2.jsonl"
 RETRIEVAL_V2_CORPUS = EVALS / "corpus" / "retrieval-v2"
 RETRIEVAL_V2_PASSAGES = 60
+# The claims SCENARIO §§2-7 says the demo corpus states: extraction precision and recall (M3).
+CLAIMS = EVALS / "golden" / "claims-v1.jsonl"
 RESULTS = EVALS / "results"
 MODELS = ROOT / "services" / "api" / ".models"
 sys.path[:0] = [str(EVALS), str(ROOT / "demo"), str(ROOT / "services" / "api" / "src")]
 
-from metrics import passage_key, passage_metrics, retrieval_metrics, summarize  # noqa: E402
+from metrics import (  # noqa: E402
+    contradiction_metrics,
+    passage_key,
+    passage_metrics,
+    retrieval_metrics,
+    summarize,
+)
 
 CORPUS = {
     "A": ROOT / "demo" / "documents" / "workspace-a",
@@ -138,6 +146,7 @@ class InProcessClient:
         }
         self._objects = FakeObjects()
         store, index = FakeStore(), LocalHybridIndex()
+        self._store = store
         self._queued: list[tuple[str, str]] = []
         worker = IngestionWorker(
             store, self._objects, providers.embedder, index, providers.namespace
@@ -189,6 +198,10 @@ class InProcessClient:
         }
         response = self._resolver.resolve(event, object())
         return response["statusCode"], json.loads(response["body"])
+
+    def claims(self, workspace_id: str) -> list[dict]:
+        """Every claim extracted in a workspace (in process only: the API has no claims route)."""
+        return [c.model_dump() for c in self._store.list_claims(workspace_id)]
 
     def put_object(self, upload: dict, filename: str, content: bytes) -> None:
         self._objects.objects[upload["fields"]["key"]] = content
@@ -366,8 +379,21 @@ def evaluate(client: Client, mode: str, timeout_s: int = 180) -> dict:
     providers = health.get("providers") or {}
     cases = load_cases()
     workspaces = seed(client, timeout_s)
+    conflicts = {}
+    for name, workspace in workspaces.items():
+        status, body = client.call("GET", f"/workspaces/{workspace['workspace_id']}/conflicts")
+        assert status == 200, body
+        conflicts[name] = body["conflicts"]
+    claims = (
+        {name: client.claims(w["workspace_id"]) for name, w in workspaces.items()}
+        if hasattr(client, "claims")
+        else None
+    )
     outcomes = {c["id"]: run_case(client, c, workspaces[c["workspace"]]) for c in cases}
     summary = summarize(cases, outcomes, providers, live=mode == "live")
+    summary["contradictions"] = contradiction_metrics(
+        cases, conflicts, claims, load_cases(CLAIMS)
+    )
     return {
         "dataset": DATASET.name.removesuffix(".jsonl"),
         "mode": mode,
@@ -651,8 +677,15 @@ def print_summary(report: dict) -> None:
     print("\nLive metrics (live gate: deployed stack, real providers)")
     for key, value in live.items():
         print(f"  {key:36} {value}")
-    m3 = report["m3_expected_fail"]
-    print(f"\nM3 cases: {m3['cases']} ({m3['note']})")
+    m3 = report["m3"]
+    print(
+        f"\nM3 answers: {m3['cases']} cases, status accuracy {m3['status_accuracy']}, "
+        f"pass rate {m3['case_pass_rate']}"
+    )
+    contradictions = report["contradictions"]
+    print("\nContradictions (M3; deterministic, no model)")
+    for key, value in contradictions.items():
+        print(f"  {key:36} {json.dumps(value, ensure_ascii=False)}")
     print(f"\nsecurity gate passed: {report['security_gate_passed']}")
     worst = report["m2_failures"][:3]
     if worst:
@@ -742,7 +775,9 @@ def main() -> None:
     if not args.no_write:
         _write(report, mode)
     print_summary(report)
-    sys.exit(0 if report["security_gate_passed"] else 1)
+    # Gates (ADR-019, M3): the security gate, and no false conflict on the demo corpus.
+    precision = report["contradictions"]["contradiction_precision"]
+    sys.exit(0 if report["security_gate_passed"] and precision == 1.0 else 1)
 
 
 if __name__ == "__main__":

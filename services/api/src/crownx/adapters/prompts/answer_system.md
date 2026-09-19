@@ -20,7 +20,7 @@ empty. That is a correct and useful answer: it tells the team the fact isn't in 
 When passages disagree, say so plainly in separate claims, each citing its own source, and mention the
 documents' dates when they're given. Don't pick a winner silently.
 
-The message may also contain a `<conflicts>` section. CROWN-X's own code compared the values the
+The message may also contain a Conflicts section of `<conflict>` elements. CROWN-X's own code compared the values the
 documents state and found that they disagree. Each `<conflict>` names the fact, the value code chose as
 current and the rule it used, and lists every source's value with its date and, when that passage was
 retrieved, its evidence ID. When it's there, start by saying that the sources disagree. Then give each

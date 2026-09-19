@@ -110,7 +110,7 @@ def test_zero_model_call_cases_need_no_provider_and_insufficient():
     assert not case_checks(case, {**no_call, "answer_provider": "mock"})["zero_model_call_ok"]
 
 
-def test_mock_runs_never_report_live_metrics_and_m3_is_excluded():
+def test_mock_runs_never_report_live_metrics_and_m3_is_scored_apart():
     m3 = {
         **CASE,
         "id": "m3",
@@ -124,7 +124,7 @@ def test_mock_runs_never_report_live_metrics_and_m3_is_excluded():
         {"answer_provider": "mock", "embedding_provider": "mock"},
     )
     assert summary["offline"]["m2_cases"] == 1 and summary["offline"]["m2_case_pass_rate"] == 1.0
-    assert summary["m3_expected_fail"]["cases"] == 1
+    assert summary["m3"]["cases"] == 1
     assert summary["offline"]["retrieval"]["semantic"] is False
     assert all(value == NOT_MEASURED for value in summary["live"].values())
 
@@ -239,4 +239,54 @@ def test_the_offline_run_holds_every_security_property():
         "zero_model_call_pass_rate",
     ):
         assert offline[key] == 1.0, key
-    assert report["m3_expected_fail"]["cases"] >= 5
+    assert report["m3"]["cases"] >= 5
+    # M3: exactly SCENARIO §3's six conflicts, no false one, and the right value and rule per key.
+    contradictions = report["contradictions"]
+    assert contradictions["contradiction_precision"] == 1.0
+    assert contradictions["contradiction_recall"] == 1.0
+    assert contradictions["format_equal_flagged"] == 0
+    assert contradictions["selection_accuracy"] == 1.0
+    assert contradictions["extraction"]["recall"] == 1.0
+
+
+def test_contradiction_metrics_count_pairs_selection_and_extraction_bands():
+    from metrics import contradiction_metrics
+
+    cases = [
+        {
+            "expected_conflict": {
+                "key": "k/a",
+                "pairs": [["x.md", "y.md"]],
+                "not_pairs": [["y.md", "z.md"]],
+                "selected_normalized": "2",
+                "rule": "newest_source_timestamp",
+            }
+        }
+    ]
+
+    def claim(cid, filename, value, confidence):
+        return {"claim_id": cid, "filename": filename, "subject": "k", "attribute": "a",
+                "normalized_value": value, "confidence": {"extraction": confidence}}  # fmt: skip
+
+    group = {
+        "key": "k/a",
+        "selected_value": "2",
+        "selection_rule": "newest_source_timestamp",
+        "claims": [
+            claim("c1", "x.md", "1", 1.0),
+            claim("c2", "y.md", "2", 0.81),
+            claim("c3", "z.md", "3", 0.9),
+        ],  # fmt: skip
+        "pairs": [
+            {"claim_a": "c1", "claim_b": "c2"},
+            {"claim_a": "c2", "claim_b": "c3"},  # a format-equal pair wrongly flagged
+        ],
+    }
+    truth = [{"workspace": "A", "file": "x.md", "key": "k/a", "normalized_value": "1"},
+             {"workspace": "A", "file": "y.md", "key": "k/a", "normalized_value": "2"}]  # fmt: skip
+    got = contradiction_metrics(cases, {"A": [group]}, None, truth)
+    assert got["contradiction_precision"] == 0.5 and got["contradiction_recall"] == 1.0
+    assert got["format_equal_flagged"] == 1 and got["selection_accuracy"] == 1.0
+    bands = got["extraction"]["precision_by_confidence"]
+    assert bands["1.0"]["precision"] == 1.0 and bands["0.90-0.99"]["precision"] == 0.0
+    assert got["extraction"]["recall"] == "not measured"  # a deployed run sees conflict claims only

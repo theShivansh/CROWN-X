@@ -42,6 +42,7 @@ from crownx.domain.injection import instruction_like
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 from crownx.domain.retrieval import EmbeddingNamespace, lexical_query, semantic_query
 from crownx.domain.uploads import object_key, validate_upload
+from crownx.domain.vocabulary import asks_about
 from crownx.domain.workflow import DEFINITIONS, MinerConfig, WorkflowSuggestion, mine
 
 log = logging.getLogger(__name__)
@@ -348,7 +349,7 @@ class CrownService:
                 }
             )
         compare_started = time.perf_counter()
-        conflicts = self._conflicts_touching(workspace_id, evidence)
+        conflicts = self._conflicts_touching(workspace_id, question, evidence)
         timings["compare"] = _ms_since(compare_started)
         record = QueryRecord(
             query_id=new_query_id(),
@@ -384,16 +385,19 @@ class CrownService:
         self.require_workspace(workspace_id)
         return [group_view(g) for g in detect(self._store.list_claims(workspace_id))]
 
-    def _conflicts_touching(self, workspace_id: str, evidence: list[dict]) -> list[ConflictGroup]:
-        """The groups where a conflicting claim's chunk was retrieved. Relevance is this ID
-        intersection, decided by code, never by the model."""
+    def _conflicts_touching(
+        self, workspace_id: str, question: str, evidence: list[dict]
+    ) -> list[ConflictGroup]:
+        """The groups where a conflicting claim's chunk was retrieved and the question names the
+        fact (ADR-020). Both tests are code over IDs and the vocabulary, never the model."""
         if not evidence:
             return []
         retrieved = {e["chunk_id"] for e in evidence}
         return [
             group
             for group in detect(self._store.list_claims(workspace_id))
-            if any(
+            if asks_about(group.key, question)
+            and any(
                 claim.source_chunk_id in retrieved
                 for pair in group.pairs
                 for claim in (pair.older, pair.newer)

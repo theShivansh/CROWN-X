@@ -1,0 +1,12 @@
+{"workspace": "A", "file": "project-brief-v1.pdf", "key": "submission/deadline", "normalized_value": "2026-09-20"}
+{"workspace": "A", "file": "project-brief-v1.pdf", "key": "budget/cap", "normalized_value": "50000"}
+{"workspace": "A", "file": "api-limits-spec-v1.md", "key": "events_portal_api/rate_limit", "normalized_value": "100"}
+{"workspace": "A", "file": "team-roles.md", "key": "deployment/owner", "normalized_value": "rohan mehta"}
+{"workspace": "A", "file": "organiser-update-3.txt", "key": "submission/deadline", "normalized_value": "2026-09-22"}
+{"workspace": "A", "file": "organiser-update-3.txt", "key": "events_portal_api/rate_limit", "normalized_value": "60"}
+{"workspace": "A", "file": "organiser-update-3.txt", "key": "robotics_expo/entries_close", "normalized_value": "2026-09-21"}
+{"workspace": "A", "file": "meeting-notes-sync-5.md", "key": "submission/deadline", "normalized_value": "2026-09-22"}
+{"workspace": "A", "file": "meeting-notes-sync-5.md", "key": "events_portal_api/rate_limit", "normalized_value": "60"}
+{"workspace": "A", "file": "meeting-notes-sync-5.md", "key": "deployment/owner", "normalized_value": "ishita rao"}
+{"workspace": "A", "file": "budget-sheet-v2.md", "key": "budget/cap", "normalized_value": "45000"}
+{"workspace": "B", "file": "messmate-brief-v2.md", "key": "deployment/owner", "normalized_value": "kabir singh"}

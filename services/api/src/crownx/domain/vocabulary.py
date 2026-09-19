@@ -30,6 +30,10 @@ class KeySpec:
     value_type: ValueType
     value: re.Pattern[str]  # what a value looks like for this key
     triggers: tuple[Trigger, ...]
+    # A question is about this key only if it matches this (ADR-020). A retrieved chunk often holds
+    # several facts, so a conflict joins a query only when its chunk was retrieved AND the question
+    # names its fact: "Who is the faculty coordinator?" never shows the deadline conflict.
+    asks: re.Pattern[str]
     # The sentence must also name this, for keys whose trigger is a common word ("limit").
     requires: re.Pattern[str] | None = None
 
@@ -40,6 +44,10 @@ class KeySpec:
 
 def _t(pattern: str, label: bool = False) -> Trigger:
     return Trigger(re.compile(pattern, re.IGNORECASE), label)
+
+
+def _asks(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern, re.IGNORECASE)
 
 
 VOCABULARY: tuple[KeySpec, ...] = (
@@ -54,6 +62,7 @@ VOCABULARY: tuple[KeySpec, ...] = (
             _t(r"\bdeadline\s+confirmed\s+as\b"),
             _t(r"\bsubmission\s+deadline\s*:", label=True),
         ),
+        asks=_asks(r"\b(?:deadline|due date|submissions?|submit)\b"),
     ),
     KeySpec(
         "events_portal_api",
@@ -65,6 +74,9 @@ VOCABULARY: tuple[KeySpec, ...] = (
             _t(r"\brate\s+limit\b"),
             _t(r"\blimited\b"),
             _t(r"\blimit\s+is\s+now\b"),
+        ),
+        asks=_asks(
+            r"\b(?:rate[- ]?limits?|limit\w*|rpm|requests per minute|throttl\w*|restriction\w*)\b"
         ),
         requires=re.compile(r"\bportal\b", re.IGNORECASE),
     ),
@@ -78,6 +90,8 @@ VOCABULARY: tuple[KeySpec, ...] = (
             _t(r"\brevised\s+cap\s*:", label=True),
             _t(r"\bbudget\s+cap\b"),
         ),
+        # Not bare "budget": "How much is budgeted for printing?" asks about a line item.
+        asks=_asks(r"\b(?:budget cap|cap|total budget|overall budget|grant)\b"),
     ),
     KeySpec(
         "deployment",
@@ -88,6 +102,7 @@ VOCABULARY: tuple[KeySpec, ...] = (
             _t(r"\bdeployment\s+owner\s*:", label=True),
             _t(r"\bdeployment\s+and\s+AWS\s+account\s*:", label=True),
         ),
+        asks=_asks(r"\b(?:deploy\w*|release to production|aws account)\b"),
     ),
     # Kept apart on purpose (SCENARIO §5): a date one day from the deadline, for another event.
     KeySpec(
@@ -96,8 +111,17 @@ VOCABULARY: tuple[KeySpec, ...] = (
         "date",
         DATE,
         (_t(r"\bexpo\s+entries\s+close\b"),),
+        asks=_asks(r"\b(?:expo|robotics)\b"),
     ),
 )
+
+_BY_KEY = {spec.key: spec for spec in VOCABULARY}
+
+
+def asks_about(key: str, question: str) -> bool:
+    spec = _BY_KEY.get(key)
+    return bool(spec and spec.asks.search(question))
+
 
 # Dates and numbers on these attributes are high severity; everything else is medium.
 CRITICAL_ATTRIBUTES = frozenset({"deadline", "cap", "rate_limit"})
