@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="584" viewBox="0 0 1180 584" role="img" aria-label="CROWN-X evidence pipeline">
+<title>CROWN-X evidence pipeline</title>
+<defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#8b8b93'/></marker><marker id='arrowA' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#6e9bff'/></marker></defs>
+<rect x="0.5" y="0.5" width="1179" height="583" rx="14" fill="#0a0a0b" stroke="#26262b"/>
+<text x="32" y="44" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="20" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">The evidence pipeline</text>
+<text x="32" y="68" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">Code decides what counts as evidence and what conflicts. The model only writes sentences over stored passages.</text>
+<text x="32" y="112" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="600" fill="#6e9bff" text-anchor="start" opacity="1.0">INGEST</text>
+<rect x="32" y="124" width="172" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="46" y="150" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Upload</text>
+<text x="46" y="170" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">pre-signed POST</text>
+<line x1="204" y1="159" x2="222" y2="159" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="222" y="124" width="172" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="236" y="150" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Parse</text>
+<text x="236" y="170" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">MD · TXT · PDF</text>
+<line x1="394" y1="159" x2="412" y2="159" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="412" y="124" width="172" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="426" y="150" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Chunk</text>
+<text x="426" y="170" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">char offsets</text>
+<line x1="584" y1="159" x2="602" y2="159" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="602" y="124" width="172" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="616" y="150" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Embed</text>
+<text x="616" y="170" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">ONNX bge-small int8</text>
+<line x1="774" y1="159" x2="792" y2="159" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="792" y="124" width="172" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="806" y="150" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Index</text>
+<text x="806" y="170" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">BM25 + k-NN</text>
+<line x1="964" y1="159" x2="982" y2="159" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="982" y="124" width="172" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="996" y="150" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Claims</text>
+<text x="996" y="170" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">rules, typed, normalized</text>
+<text x="32" y="240" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="600" fill="#6e9bff" text-anchor="start" opacity="1.0">RETRIEVE  ·  POST /query</text>
+<rect x="32" y="252" width="206" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="46" y="278" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Quota</text>
+<text x="46" y="298" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">DynamoDB ADD, before work</text>
+<line x1="238" y1="287" x2="258" y2="287" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="258" y="252" width="206" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="272" y="278" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Embed</text>
+<text x="272" y="298" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">question, ONNX</text>
+<line x1="464" y1="287" x2="484" y2="287" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="484" y="252" width="206" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="498" y="278" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">BM25 ‖ k-NN</text>
+<text x="498" y="298" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">workspace filter inside</text>
+<line x1="690" y1="287" x2="710" y2="287" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="710" y="252" width="206" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="724" y="278" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">RRF fusion</text>
+<text x="724" y="298" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">top 8 stored</text>
+<line x1="916" y1="287" x2="936" y2="287" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="936" y="252" width="206" height="70" rx="10" fill="#111113" stroke="#f5a524"/>
+<text x="950" y="278" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Conflict compare</text>
+<text x="950" y="298" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">deterministic predicate</text>
+<rect x="484" y="334" width="206" height="56" rx="10" fill="#18181b" stroke="#34343a"/>
+<text x="498" y="360" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Cross-encoder rerank</text>
+<text x="498" y="380" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">built + measured, off (ADR-017)</text>
+<rect x="484" y="334" width="206" height="56" rx="10" fill="none" stroke="#8b8b93" stroke-dasharray="4 4"/>
+<text x="32" y="436" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="600" fill="#6e9bff" text-anchor="start" opacity="1.0">ANSWER  ·  POST /answer  (one model call; none without evidence)</text>
+<rect x="32" y="448" width="360" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="46" y="474" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Answer</text>
+<text x="46" y="494" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">gpt-oss-120b over an escaped data block</text>
+<line x1="392" y1="483" x2="410" y2="483" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="410" y="448" width="360" height="70" rx="10" fill="#111113" stroke="#34343a"/>
+<text x="424" y="474" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Citation validator</text>
+<text x="424" y="494" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">drops uncited sentences</text>
+<line x1="770" y1="483" x2="788" y2="483" stroke="#8b8b93" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="788" y="448" width="360" height="70" rx="10" fill="#111113" stroke="#3dd68c"/>
+<text x="802" y="474" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Status by code</text>
+<text x="802" y="494" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">grounded · partial · conflict · insufficient</text>
+<text x="32" y="560" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">Measured on the deployed stack: query 39 / 65 ms and answer call 731 / 1153 ms (p50 / p95, inside Lambda).</text>
+</svg>

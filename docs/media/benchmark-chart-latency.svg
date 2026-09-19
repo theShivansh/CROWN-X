@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="516" viewBox="0 0 1100 516" role="img" aria-label="Latency per stage on the deployed stack">
+<title>Latency per stage on the deployed stack</title>
+<defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#8b8b93'/></marker><marker id='arrowA' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#6e9bff'/></marker></defs>
+<rect x="0.5" y="0.5" width="1099" height="515" rx="14" fill="#0a0a0b" stroke="#26262b"/>
+<text x="32" y="44" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="20" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Latency per stage · deployed stack, inside Lambda</text>
+<text x="32" y="68" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">p50 (solid) and p95 (outline), from the `request finished` and `ingestion stages` log lines.</text>
+<line x1="300.0" y1="100" x2="300.0" y2="446" stroke="#26262b"/>
+<text x="300.0" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">0 ms</text>
+<line x1="398.57142857142856" y1="100" x2="398.57142857142856" y2="446" stroke="#26262b"/>
+<text x="398.57142857142856" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">200 ms</text>
+<line x1="497.14285714285717" y1="100" x2="497.14285714285717" y2="446" stroke="#26262b"/>
+<text x="497.14285714285717" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">400 ms</text>
+<line x1="595.7142857142858" y1="100" x2="595.7142857142858" y2="446" stroke="#26262b"/>
+<text x="595.7142857142858" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">600 ms</text>
+<line x1="694.2857142857143" y1="100" x2="694.2857142857143" y2="446" stroke="#26262b"/>
+<text x="694.2857142857143" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">800 ms</text>
+<line x1="792.8571428571429" y1="100" x2="792.8571428571429" y2="446" stroke="#26262b"/>
+<text x="792.8571428571429" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">1000 ms</text>
+<line x1="891.4285714285714" y1="100" x2="891.4285714285714" y2="446" stroke="#26262b"/>
+<text x="891.4285714285714" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">1200 ms</text>
+<line x1="990.0" y1="100" x2="990.0" y2="446" stroke="#26262b"/>
+<text x="990.0" y="464" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="middle" opacity="1.0">1400 ms</text>
+<text x="32" y="130" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">Query, end to end</text>
+<text x="288" y="130" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=68</text>
+<rect x="300" y="116" width="32.035714285714285" height="20" rx="4" fill="none" stroke="#6e9bff" opacity="0.7"/>
+<rect x="300" y="116" width="19.22142857142857" height="20" rx="4" fill="#6e9bff"/>
+<text x="342.0357142857143" y="131" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">39 / 65 ms</text>
+<text x="48" y="172" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">question embedding (ONNX)</text>
+<text x="288" y="172" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=68</text>
+<rect x="300" y="158" width="2.4642857142857144" height="20" rx="4" fill="none" stroke="#6e9bff" opacity="0.7"/>
+<rect x="300" y="158" width="2" height="20" rx="4" fill="#6e9bff"/>
+<text x="312.4642857142857" y="173" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">4 / 5 ms</text>
+<text x="48" y="214" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">BM25 + k-NN search</text>
+<text x="288" y="214" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=68</text>
+<rect x="300" y="200" width="16.264285714285716" height="20" rx="4" fill="none" stroke="#6e9bff" opacity="0.7"/>
+<rect x="300" y="200" width="6.4071428571428575" height="20" rx="4" fill="#6e9bff"/>
+<text x="326.26428571428573" y="215" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">13 / 33 ms</text>
+<text x="48" y="256" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">conflict compare</text>
+<text x="288" y="256" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=68</text>
+<rect x="300" y="242" width="2" height="20" rx="4" fill="none" stroke="#6e9bff" opacity="0.7"/>
+<rect x="300" y="242" width="2" height="20" rx="4" fill="#6e9bff"/>
+<text x="312" y="257" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">0 / 3 ms</text>
+<text x="32" y="298" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">Answer call (Groq, incl. retries)</text>
+<text x="288" y="298" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=6</text>
+<rect x="300" y="284" width="568.2642857142857" height="20" rx="4" fill="none" stroke="#f5a524" opacity="0.7"/>
+<rect x="300" y="284" width="360.27857142857147" height="20" rx="4" fill="#f5a524"/>
+<text x="878.2642857142857" y="299" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">731 / 1153 ms</text>
+<text x="32" y="340" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">Ingestion, end to end</text>
+<text x="288" y="340" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=10</text>
+<rect x="300" y="326" width="673.7357142857143" height="20" rx="4" fill="none" stroke="#f5a524" opacity="0.7"/>
+<rect x="300" y="326" width="456.87857142857143" height="20" rx="4" fill="#f5a524"/>
+<text x="983.7357142857143" y="341" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">927 / 1367 ms</text>
+<text x="48" y="382" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">index write (refresh)</text>
+<text x="288" y="382" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=10</text>
+<rect x="300" y="368" width="614.1" height="20" rx="4" fill="none" stroke="#f5a524" opacity="0.7"/>
+<rect x="300" y="368" width="397.2428571428572" height="20" rx="4" fill="#f5a524"/>
+<text x="924.1" y="383" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">806 / 1246 ms</text>
+<text x="32" y="424" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">Documents list</text>
+<text x="288" y="424" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">n=98</text>
+<rect x="300" y="410" width="4.928571428571429" height="20" rx="4" fill="none" stroke="#6e9bff" opacity="0.7"/>
+<rect x="300" y="410" width="3.45" height="20" rx="4" fill="#6e9bff"/>
+<text x="314.92857142857144" y="425" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="500" fill="#ededef" text-anchor="start" opacity="1.0">7 / 10 ms</text>
+<text x="32" y="496" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">Source: docs/BENCHMARKS.md, 'M4 latency per stage'. Small samples, so p95 is close to the max. The browser adds the network round trip.</text>
+</svg>

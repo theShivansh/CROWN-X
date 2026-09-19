@@ -219,6 +219,12 @@ with the date: what, and where it showed up.
   occurrences of its own.
 
 ## Post-freeze fixes (M6; each small, with its reason)
+- 2026-09-19 22:30 IST, docs and media only, no product code: the README was rebuilt as a landing page
+  (the demo GIF and screenshots first, then features, architecture, the pipeline, benchmarks, security,
+  cost). All media is captured from the deployed app (`apps/web/e2e/capture-media.mjs`, one Groq
+  call in workspace A, so its workflow card now says "3 of the 12 times") or generated from BENCHMARKS
+  (`scripts/readme_media.py`); see `docs/media/README_ASSETS.md`. The measured AWS cost for 17-19 Sep is
+  $1.86 before credits (Cost Explorer). `docs/BLOG_DRAFT.md` drafted for Builder Center; not published.
 - 2026-09-19 `evals/run.py`: the live retrieval benchmark was sending queries faster than the
   deployed `/query` throttle and more than the hourly quota, so 19 of 63 queries were scored as
   errors, and the printed table didn't show it. The live client now paces queries at 0.4 s and times

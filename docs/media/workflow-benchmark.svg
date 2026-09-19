@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="490" viewBox="0 0 1100 490" role="img" aria-label="Workflow miner · labelled synthetic traces (20 scenarios)">
+<title>Workflow miner · labelled synthetic traces (20 scenarios)</title>
+<defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#8b8b93'/></marker><marker id='arrowA' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#6e9bff'/></marker></defs>
+<rect x="0.5" y="0.5" width="1099" height="489" rx="14" fill="#0a0a0b" stroke="#26262b"/>
+<text x="32" y="44" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="20" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Workflow miner · labelled synthetic traces (20 scenarios)</text>
+<text x="32" y="68" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">The first run suggested workflow fragments; the fragment rule (ADR-022) removed every false suggestion.</text>
+<line x1="70" y1="410.0" x2="1070" y2="410.0" stroke="#26262b"/>
+<text x="60" y="414.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">0.0</text>
+<line x1="70" y1="352.0" x2="1070" y2="352.0" stroke="#26262b"/>
+<text x="60" y="356.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">0.2</text>
+<line x1="70" y1="294.0" x2="1070" y2="294.0" stroke="#26262b"/>
+<text x="60" y="298.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">0.4</text>
+<line x1="70" y1="236.0" x2="1070" y2="236.0" stroke="#26262b"/>
+<text x="60" y="240.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">0.6</text>
+<line x1="70" y1="178.0" x2="1070" y2="178.0" stroke="#26262b"/>
+<text x="60" y="182.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">0.8</text>
+<line x1="70" y1="120.0" x2="1070" y2="120.0" stroke="#26262b"/>
+<text x="60" y="124.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="end" opacity="1.0">1.0</text>
+<rect x="150.0" y="294.0" width="42" height="116.0" rx="4" fill="#8b8b93"/>
+<text x="171.0" y="288.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">0.4</text>
+<rect x="198.0" y="120.0" width="42" height="290.0" rx="4" fill="#3dd68c"/>
+<text x="219.0" y="114.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">1.0</text>
+<text x="195.0" y="432" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">Pattern precision</text>
+<rect x="400.0" y="120.0" width="42" height="290.0" rx="4" fill="#8b8b93"/>
+<text x="421.0" y="114.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">1.0</text>
+<rect x="448.0" y="120.0" width="42" height="290.0" rx="4" fill="#3dd68c"/>
+<text x="469.0" y="114.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">1.0</text>
+<text x="445.0" y="432" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">Pattern recall</text>
+<rect x="650.0" y="236.0" width="42" height="174.0" rx="4" fill="#8b8b93"/>
+<text x="671.0" y="230.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">0.6</text>
+<rect x="698.0" y="410.0" width="42" height="0.0" rx="4" fill="#3dd68c"/>
+<text x="719.0" y="404.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">0.0</text>
+<text x="695.0" y="432" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">False-suggestion rate</text>
+<rect x="900.0" y="120.0" width="42" height="290.0" rx="4" fill="#8b8b93"/>
+<text x="921.0" y="114.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">1.0</text>
+<rect x="948.0" y="120.0" width="42" height="290.0" rx="4" fill="#3dd68c"/>
+<text x="969.0" y="114.0" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="11" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">1.0</text>
+<text x="945.0" y="432" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#ededef" text-anchor="middle" opacity="1.0">Support-count accuracy</text>
+<rect x="812" y="80" width="12" height="12" rx="3" fill="#3dd68c"/>
+<text x="830" y="90" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">With the fragment rule (ADR-022)</text>
+<rect x="610" y="80" width="12" height="12" rx="3" fill="#8b8b93"/>
+<text x="628" y="90" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">First run (ADR-018 rule)</text>
+<text x="32" y="472" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="11" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">Source: docs/BENCHMARKS.md, 'Workflow Learning Lite, M5'. Deterministic: identical output on repeat runs. Our own synthetic benchmark.</text>
+</svg>

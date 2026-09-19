@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1000" viewBox="0 0 1200 1000" role="img" aria-label="CROWN-X AWS architecture poster">
+<title>CROWN-X AWS architecture poster</title>
+<defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#8b8b93'/></marker><marker id='arrowA' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#6e9bff'/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="999" rx="14" fill="#0a0a0b" stroke="#26262b"/>
+<text x="40" y="58" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="26" font-weight="700" fill="#ededef" text-anchor="start" opacity="1.0">CROWN-X · AWS architecture poster</text>
+<text x="40" y="86" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">AWS First Commit 2026 · Ship It · ap-south-1 · one SAM template · measured, not estimated</text>
+<rect x="40" y="120" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="40" y="120" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="60" y="154" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Amplify Hosting</text>
+<text x="60" y="184" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">Next.js static export, rebuilt on every push</text>
+<text x="60" y="224" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: no server to run (ADR-014)</text>
+<rect x="418" y="120" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="418" y="120" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="438" y="154" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">API Gateway · HTTP API</text>
+<text x="438" y="184" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">CORS + throttles: /query 3 rps, /answer 1 rps</text>
+<text x="438" y="224" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: a cost control at the edge (ADR-021)</text>
+<rect x="796" y="120" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="796" y="120" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="816" y="154" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">AWS Lambda × 2</text>
+<text x="816" y="184" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">API and ingestion; ONNX embeddings inside</text>
+<text x="816" y="224" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: scales to zero; no per-call embedding cost</text>
+<rect x="40" y="270" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="40" y="270" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="60" y="304" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Amazon S3</text>
+<text x="60" y="334" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">browser uploads via size-limited pre-signed POST</text>
+<text x="60" y="374" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: no file bytes pass through Lambda</text>
+<rect x="418" y="270" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="418" y="270" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="438" y="304" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">OpenSearch Service</text>
+<text x="438" y="334" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">BM25 + k-NN in one index, workspace-filtered</text>
+<text x="438" y="374" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: hybrid retrieval in one store (ADR-011)</text>
+<rect x="796" y="270" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="796" y="270" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="816" y="304" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">Amazon DynamoDB</text>
+<text x="816" y="334" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">claims, audit, events, templates, hourly quotas (TTL)</text>
+<text x="816" y="374" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: keyed by workspace; on demand</text>
+<rect x="40" y="420" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="40" y="420" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="60" y="454" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">CloudWatch Logs</text>
+<text x="60" y="484" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">request_id + per-stage latency on every line</text>
+<text x="60" y="524" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: any error on screen found in seconds</text>
+<rect x="418" y="420" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="418" y="420" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="438" y="454" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">SSM Parameter Store</text>
+<text x="438" y="484" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">Groq key as a SecureString, read at cold start</text>
+<text x="438" y="524" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: the key never enters repo or logs</text>
+<rect x="796" y="420" width="358" height="132" rx="12" fill="#111113" stroke="#34343a"/>
+<rect x="796" y="420" width="4" height="132" rx="2" fill="#6e9bff"/>
+<text x="816" y="454" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="17" font-weight="600" fill="#ededef" text-anchor="start" opacity="1.0">IAM + CloudFormation</text>
+<text x="816" y="484" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12.5" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">one least-privilege role per function</text>
+<text x="816" y="524" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">why: reviewable, repeatable deploys</text>
+<text x="40" y="590" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="600" fill="#6e9bff" text-anchor="start" opacity="1.0">MEASURED ON THE DEPLOYED STACK</text>
+<rect x="40" y="606" width="210" height="100" rx="12" fill="#111113" stroke="#26262b"/>
+<text x="58" y="654" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="28" font-weight="700" fill="#3dd68c" text-anchor="start" opacity="1.0">1.0 / 1.0</text>
+<text x="58" y="684" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">contradiction precision / recall</text>
+<rect x="266" y="606" width="210" height="100" rx="12" fill="#111113" stroke="#26262b"/>
+<text x="284" y="654" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="28" font-weight="700" fill="#3dd68c" text-anchor="start" opacity="1.0">0.95</text>
+<text x="284" y="684" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">recall@8, retrieval v2 (live)</text>
+<rect x="492" y="606" width="210" height="100" rx="12" fill="#111113" stroke="#26262b"/>
+<text x="510" y="654" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="28" font-weight="700" fill="#ededef" text-anchor="start" opacity="1.0">39 ms</text>
+<text x="510" y="684" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">query p50 inside Lambda</text>
+<rect x="718" y="606" width="210" height="100" rx="12" fill="#111113" stroke="#26262b"/>
+<text x="736" y="654" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="28" font-weight="700" fill="#ededef" text-anchor="start" opacity="1.0">731 ms</text>
+<text x="736" y="684" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">answer call p50 (Groq)</text>
+<rect x="944" y="606" width="210" height="100" rx="12" fill="#111113" stroke="#26262b"/>
+<text x="962" y="654" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="28" font-weight="700" fill="#ededef" text-anchor="start" opacity="1.0">$1.86</text>
+<text x="962" y="684" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#a1a1aa" text-anchor="start" opacity="1.0">AWS usage, 17-19 Sep</text>
+<text x="40" y="760" font-family="'Geist Mono', ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="600" fill="#f5a524" text-anchor="start" opacity="1.0">COST GUARDRAILS</text>
+<text x="40" y="794" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#ededef" text-anchor="start" opacity="1.0">›  One model call per question, none without evidence</text>
+<text x="600" y="794" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#ededef" text-anchor="start" opacity="1.0">›  Local ONNX embeddings: indexing makes no model calls</text>
+<text x="40" y="822" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#ededef" text-anchor="start" opacity="1.0">›  60 questions / workspace / hour, counted in DynamoDB before any work</text>
+<text x="600" y="822" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#ededef" text-anchor="start" opacity="1.0">›  Per-route API throttles; single-node OpenSearch</text>
+<text x="40" y="850" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#ededef" text-anchor="start" opacity="1.0">›  Upload size and per-workspace document limits</text>
+<text x="600" y="850" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#ededef" text-anchor="start" opacity="1.0">›  Teardown after judging (/aws-ship teardown)</text>
+<text x="40" y="940" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">Cost is AWS Cost Explorer usage for 17-19 Sep 2026 (before credits): OpenSearch $1.75, Amplify $0.10, the rest under $0.01 each.</text>
+<text x="40" y="962" font-family="Geist, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="400" fill="#8b8b93" text-anchor="start" opacity="1.0">Groq is billed outside AWS and is not included. Numbers: docs/BENCHMARKS.md.</text>
+</svg>
