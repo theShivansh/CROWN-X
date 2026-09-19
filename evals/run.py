@@ -567,9 +567,10 @@ def benchmark_v2(embedders: list[str], timeout_s: int = 180, repeats: int = 3) -
     }
 
 
-def live_retrieval_v2(client: Client, timeout_s: int = 180, repeats: int = 3) -> dict:
+def live_retrieval_v2(client: Client, timeout_s: int = 180, repeats: int = 2) -> dict:
     """Benchmark v2 on a deployed stack as its /health describes it. Latency is measured by this
-    client, so it includes the network round trip to ap-south-1."""
+    client, so it includes the network round trip to ap-south-1. Two repeats of 30 questions stay
+    within the stack's 60 questions per workspace per hour (ADR-021); a third would be refused."""
     _, health = client.call("GET", "/health")
     cases = load_cases(RETRIEVAL_V2)
     workspaces = {"R": seed_retrieval_v2(client, timeout_s)["R"]}
