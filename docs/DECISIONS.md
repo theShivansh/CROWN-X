@@ -4,7 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
-- ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack · proposed
+- ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack · accepted
 - ADR-020 · 2026-09-19 · M3 claims by rule, extraction confidence defined, conflicts derived on read and scoped to the question · accepted
 - ADR-019 · 2026-09-19 · Release gates from the first live runs · proposed
 - ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only · accepted
@@ -29,7 +29,7 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 ---
 
 ### ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack
-Status: proposed (accepted once T7 passes on the deployed stack)
+Status: accepted (T7 passed on the deployed stack, 2026-09-19: the 61st question in an hour was a 429 whose request log shows no stage ran)
 
 **Context:** M4 asks for reserved concurrency on the query and answer functions. `aws lambda
 get-account-settings` in ap-south-1 reports a concurrency limit of 10 with 10 unreserved, and AWS keeps

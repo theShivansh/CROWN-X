@@ -162,11 +162,12 @@ dates and numbers for the demo, and list the rest as a limitation.
 **Out of scope:** new features beyond the golden path.
 
 **Done means:**
-- [ ] Timeline shows the value change with the conflict marked (live)
-- [ ] ANTI_SLOP.md checklist passes at 1440 and 1024, keyboard-only and with reduced motion (live)
-- [ ] A failed request is traceable in CloudWatch by request ID (integration)
-- [ ] Security acceptance tests T1-T3, T5-T7 pass (integration)
-- [ ] Golden path runs start to finish without a manual rescue step (live)
+- [x] Timeline shows the value change with the conflict marked (live, Amplify, 2026-09-19)
+- [x] ANTI_SLOP.md checklist passes at 1440 and 1024, keyboard-only and with reduced motion (live;
+      reduced motion at 1024 on the deployed site, and in the `@critical` suite)
+- [x] A failed request is traceable in CloudWatch by request ID (integration: the UI's ID found in 5 s)
+- [x] Security acceptance tests T1-T3, T5-T7 pass (integration, deployed stack); T4 reviewed
+- [x] Golden path runs start to finish without a manual rescue step (live: `@critical` against Amplify)
 
 **Kill criteria:** any polish item threatening the golden path after saturday 23:00 → drop it.
 

@@ -100,6 +100,11 @@ starts it on port 3000. Deployment steps are in the S1 runbook in [`docs/PROGRES
   - A question that doesn't name the fact shows no conflict card, so a conflict can be missed, but
     one is never invented.
   - See ADR-020.
+- A true fact that sits in the same passage as text addressed to an assistant ("ignore previous
+  instructions...") isn't used: code distrusts the whole passage, so the answer may say there isn't
+  enough evidence. An injection in its own passage or document changes nothing (SECURITY T1, ADR-017).
+- Each workspace can ask 60 questions, and get 60 model-written answers, per clock hour. Going over
+  returns "limit reached" with the minutes left (ADR-021).
 - Measured figures are in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), each labelled offline or live.
 
 ## Credits

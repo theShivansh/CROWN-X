@@ -6,6 +6,31 @@ averaged (ADR-016, ADR-017). Offline answers come from a scripted transport, so 
 properties, never model quality. Offline retrieval with a real local model is real retrieval
 measured on a laptop, labelled with its model.
 
+## M4 latency per stage (deployed stack, CloudWatch Logs Insights)
+Measured on 2026-09-19 from the `request finished` and `ingestion stages` log lines, over about three
+hours of traffic after deploying `62d5fca`: the security acceptance run, the `@critical` golden path
+against Amplify, and the browser walk. The queries are in ARCHITECTURE §6. The times are inside the
+Lambda; the browser adds the network round trip. The samples are small, so p95 is close to the max.
+
+| Stage | n | p50 ms | p95 ms |
+|---|---:|---:|---:|
+| Upload URL (`upload_url`) | 13 | 16 | 24 |
+| Upload complete (checksum, enqueue) | 12 | 97 | 132 |
+| Query, end to end | 68 | 39 | 65 |
+| - question embedding (ONNX bge-small) | 68 | 4 | 5 |
+| - BM25 + k-NN search (OpenSearch) | 68 | 13 | 33 |
+| - conflict compare | 68 | 0 | 3 |
+| Answer call (Groq gpt-oss-120b, incl. retries) | 6 | 731 | 1153 |
+| Timeline | 2 | 10 | 23 |
+| Documents list | 98 | 7 | 10 |
+| Ingestion, end to end | 10 | 927 | 1367 |
+| - passage embedding | 10 | 36 | 76 |
+| - index write (OpenSearch, refresh) | 10 | 806 | 1246 |
+| - claim extraction | 10 | not queried | 19 |
+
+Cold starts show in the small-n routes: `/health` at 2264 ms and one `/conflicts` at 2278 ms were each
+a container's first request (model load).
+
 ## M3 contradictions (deterministic code, no model; ADR-003, ADR-020)
 Measured on 2026-09-19, twice, over the demo corpus (SCENARIO §§2-7, both workspaces). No step makes a
 Groq call: `/conflicts` is derived from rule-extracted claims.

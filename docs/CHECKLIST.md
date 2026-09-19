@@ -52,6 +52,25 @@ Known and not part of this gate:
 - The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
+## M4 Timeline, polish, reliability: GREEN (2026-09-19 18:55 IST, deployed `62d5fca`)
+Verified with `/verify-stage M4`.
+
+| # | Gate / item | Result | Evidence |
+|---|---|---|---|
+| 1 | Scope | PASS | `9227742..bb6be5e` touch the timeline, limits, logs, the workspace UI, tests and docs only |
+| 2 | Timeline with the conflict marked (live) | PASS | `GET /timeline` on workspace A: brief v1 20 Sep, update 3 22 Sep (changed), Sync 5 (current, newest source date); the UI track with the dashed conflict segment at 1440 and 1024 on Amplify |
+| 3 | UI_UX §3 states, ANTI_SLOP §6 (live) | PASS | scripted keyboard-only walk on Amplify at 1440 and at 1024 with reduced motion: palette, conflict card, inspector, timeline by Tab and arrow keys, focus ring, no horizontal overflow, console clean. Error, insufficient, limit, failed-ingestion and reduced-motion states in the `@critical` suite |
+| 4 | Failed request traced by request ID (integration) | PASS | "Workspace not found" in the UI showed `req_D8q_fhV_hcwEPrw=`; Logs Insights found its `request finished` (404, `not_found`) and `request rejected` lines in 5 s |
+| 5 | Security T1-T3, T5-T7 (integration); T4 reviewed | PASS | integration suite against the deployed stack, all pass; T4 review in SECURITY §6. T1's first version found the same-passage refusal (README limitation) |
+| 6 | `@critical` Playwright in CI and once live | PASS | CI job green on `62d5fca` (6 tests); golden path against Amplify passed |
+| 7 | Golden path without a manual step (live) | PASS | the live `@critical` run and the walk |
+| 8 | p50 and p95 per stage in BENCHMARKS | PASS | BENCHMARKS "M4 latency per stage" |
+| 9 | Quality | PASS | API 322 passed, 5 integration skipped without `EVAL_API_URL`; ruff; web lint, typecheck, 24 unit tests, build; harness 39; `cfn-lint` |
+| 10 | Observability | PASS | every request logs route, status, error code and stage times; ingestion logs its stages (its INFO lines didn't reach CloudWatch before M4: fixed) |
+
+Deviations (ADR-021): no reserved concurrency (account limit 10); the model-timeout path is tested by
+the scripted transport and a recorded 504, not on a dev stack. Landing page not built (optional).
+
 ## M3 Contradictions: GREEN except the demo recording (2026-09-19 13:40 IST, deployed `09afe27`)
 Verified with `/verify-stage M3`. The one open item is the rough demo recording, which the user records
 (the script is in PROGRESS).

@@ -40,3 +40,10 @@ a limitation in the README. Cognito is post-hackathon unless it takes under an h
 - S3 buckets private; pre-signed URLs short-lived.
 - IAM statements reviewed against T4 (the `security` agent is available for an independent pass).
 - All acceptance tests above pass or are listed as limitations.
+
+**Status (M4, 2026-09-19):** T1-T3 and T5-T7 pass against the deployed stack
+(`services/api/tests/integration/test_security_acceptance.py`, run with `EVAL_API_URL`). T4 passes by
+review: the template's only `*` action is `s3:*` inside the Deny-insecure-transport statement, and every
+resource wildcard is a path under one bucket prefix or the one OpenSearch domain. T1 has a documented
+edge: a true fact in the same passage as an injected line is refused (README limitations). T8's CI
+secret scan runs on every push.

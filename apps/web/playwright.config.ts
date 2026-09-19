@@ -18,6 +18,8 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173",
     viewport: { width: 1440, height: 900 },
     trace: "retain-on-failure",
+    // A live run goes through the machine's proxy when one is set, as curl and git do.
+    proxy: live && process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: live
