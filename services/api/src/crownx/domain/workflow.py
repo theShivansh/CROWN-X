@@ -8,8 +8,10 @@ no clock, no randomness, so identical events and config always give identical su
 5. Count contiguous ordered step sequences of length `min_length`..`max_length`, non-overlapping
    within a session, scanning left to right.
 6. Keep sequences with support >= `min_support` and at least `min_distinct_steps` different steps
-   (going back and forth between asking and reading is usage, not a workflow), that aren't part of a
-   longer kept sequence with the same support (so "a b c" isn't also suggested as "a b").
+   (going back and forth between asking and reading is usage, not a workflow). A sequence inside a
+   longer candidate is kept only if it also occurred at least `min_support` times on its own, i.e.
+   its support exceeds the longer one's by that much (ADR-022). So "a b" isn't suggested beside
+   "a b c" because two near misses also began "a b"; with equal support it's always dropped.
 
 Suggestions only: nothing here executes or automates a workflow.
 """
@@ -116,7 +118,10 @@ def mine(
         key: found
         for key, found in candidates.items()
         if not any(
-            len(other) > len(key) and len(candidates[other]) == len(found) and _contains(other, key)
+            len(other) > len(key)
+            and _contains(other, key)
+            # Occurrences not explained by the longer workflow: too few to be a workflow of its own.
+            and len(found) - len(candidates[other]) < config.min_support
             for other in candidates
         )
     }

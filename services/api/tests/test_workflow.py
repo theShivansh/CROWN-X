@@ -309,3 +309,15 @@ def test_trace_sessions_and_times_are_deterministic_too():
     [top] = mine(stream)
     assert len(top.trace_times) == len(top.traces) == len(top.trace_sessions)
     assert all(len(times) == 4 for times in top.trace_times)
+
+
+def test_a_fragment_is_suggested_only_if_it_also_happened_often_enough_on_its_own():
+    full = [ASK, READ, OPEN_CONFLICT, OPEN_TIMELINE, COPY]
+    start = [ASK, READ, OPEN_CONFLICT]
+    fragment = ("ask_question", "read_answer", "inspect_conflict")
+    # Three full runs and two runs that stopped early: the start is explained by the workflow.
+    found = {tuple(s.steps) for s in mine(events(*[full] * 3, *[start] * 2))}
+    assert fragment not in found and len(found) == 1
+    # Three full runs and three that stopped early: the start is a workflow of its own too.
+    found = {tuple(s.steps): s.support for s in mine(events(*[full] * 3, *[start] * 3))}
+    assert found[fragment] == 6 and len(found) == 2
