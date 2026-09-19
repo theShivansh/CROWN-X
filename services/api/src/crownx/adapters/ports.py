@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from crownx.domain.answering import AnswerDraft
+from crownx.domain.claims import Claim
 from crownx.domain.events import WorkflowEvent
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace
 
@@ -18,7 +19,8 @@ class ObjectInfo:
 
 class MetadataStore(Protocol):
     """DynamoDB single table: `PK = WS#{ws}`; `SK` is `META`, `DOC#{doc}`, `CHECKSUM#{sha256}`,
-    `QUERY#{query_id}`, `AUDIT#{iso-ts}#{request_id}` or `EVENT#{iso-ts}#{event_id}`."""
+    `QUERY#{query_id}`, `AUDIT#{iso-ts}#{request_id}`, `EVENT#{iso-ts}#{event_id}` or
+    `CLAIM#{subject}#{attribute}#{claim_id}`."""
 
     def put_workspace(self, workspace: Workspace) -> None: ...
 
@@ -55,6 +57,13 @@ class MetadataStore(Protocol):
     def list_events(self, workspace_id: str, limit: int = 2000) -> list[WorkflowEvent]:
         """The newest `limit` events of one workspace, oldest first."""
         ...
+
+    def replace_claims(self, workspace_id: str, document_id: str, claims: list[Claim]) -> None:
+        """Delete the document's previous claims, then write these (M3, ADR-020): a re-ingested
+        document leaves nothing stale, and conflicts are derived from the claims when read."""
+        ...
+
+    def list_claims(self, workspace_id: str) -> list[Claim]: ...
 
 
 class ObjectStore(Protocol):
@@ -137,6 +146,9 @@ class Answerer(Protocol):
     provider: str
     model_id: str
 
-    def answer(self, question: str, evidence: list[dict]) -> AnswerResult:
-        """Raise `ModelTimeout` after its own bounded retry, `AnswerUnavailable` when refused."""
+    def answer(
+        self, question: str, evidence: list[dict], conflicts: list[dict] | None = None
+    ) -> AnswerResult:
+        """Raise `ModelTimeout` after its own bounded retry, `AnswerUnavailable` when refused.
+        `conflicts`: the groups code detected on the retrieved evidence (M3), passed as data."""
         ...

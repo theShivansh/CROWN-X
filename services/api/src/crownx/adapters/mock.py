@@ -70,7 +70,9 @@ class MockAnswerer:
     provider = "mock"
     model_id = MOCK_ANSWER_MODEL
 
-    def answer(self, question: str, evidence: list[dict]) -> AnswerResult:
+    def answer(
+        self, question: str, evidence: list[dict], conflicts: list[dict] | None = None
+    ) -> AnswerResult:
         started = time.perf_counter()
         asked = set(words(question))
         picked: list[tuple[int, int, str, str]] = []  # (-score, rank, sentence, evidence_id)

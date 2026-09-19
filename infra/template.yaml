@@ -356,9 +356,10 @@ Resources:
                 Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !GetAtt IngestLogGroup.Arn
-              - Sid: DocumentStatus
+              - Sid: DocumentStatusAndClaims
                 Effect: Allow
-                Action: [dynamodb:GetItem, dynamodb:PutItem]
+                # Query and BatchWriteItem replace a document's CLAIM# items (M3, ADR-020).
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:Query, dynamodb:BatchWriteItem]
                 Resource: !GetAtt MetadataTable.Arn
               - Sid: ReadUploads
                 Effect: Allow
@@ -459,6 +460,12 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /workspaces/{workspace_id}/workflow-suggestions
+        Conflicts:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /workspaces/{workspace_id}/conflicts
 
   IngestFunction:
     Type: AWS::Serverless::Function

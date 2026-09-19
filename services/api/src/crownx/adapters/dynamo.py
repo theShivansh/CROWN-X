@@ -8,6 +8,7 @@ from typing import Any
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
+from crownx.domain.claims import Claim
 from crownx.domain.events import WorkflowEvent
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 
@@ -77,13 +78,14 @@ class DynamoMetadataStore:
     def put_query(self, record: QueryRecord) -> None:
         # The evidence snapshot is stored as JSON text: it keeps float scores exact (DynamoDB would
         # need Decimals) and makes the record's immutability obvious.
-        fields = record.model_dump(mode="json", exclude={"evidence"})
+        fields = record.model_dump(mode="json", exclude={"evidence", "conflicts"})
         self._table.put_item(
             Item={
                 "PK": _ws(record.workspace_id),
                 "SK": f"QUERY#{record.query_id}",
                 **{k: v for k, v in fields.items() if v is not None},
                 "evidence_json": json.dumps(record.evidence, ensure_ascii=False),
+                "conflicts_json": json.dumps(record.conflicts, ensure_ascii=False),
             },
             ConditionExpression=Attr("PK").not_exists(),
         )
@@ -96,6 +98,7 @@ class DynamoMetadataStore:
             return None
         fields = _strip_keys(item)
         fields["evidence"] = json.loads(fields.pop("evidence_json"))
+        fields["conflicts"] = json.loads(fields.pop("conflicts_json", "[]"))
         fields["retrieval_ms"] = int(fields.get("retrieval_ms", 0))
         return QueryRecord.model_validate(fields)
 
@@ -135,6 +138,46 @@ class DynamoMetadataStore:
         )
         events = [WorkflowEvent.model_validate_json(i["event_json"]) for i in response["Items"]]
         return sorted(events, key=lambda e: (e.occurred_at, e.event_id))
+
+    def replace_claims(self, workspace_id: str, document_id: str, claims: list[Claim]) -> None:
+        stale = [
+            item["SK"]
+            for item in self._query_prefix(workspace_id, "CLAIM#")
+            if item.get("document_id") == document_id
+        ]
+        with self._table.batch_writer() as batch:
+            for sk in stale:
+                batch.delete_item(Key={"PK": _ws(workspace_id), "SK": sk})
+            for claim in claims:
+                batch.put_item(
+                    Item={
+                        "PK": _ws(workspace_id),
+                        "SK": f"CLAIM#{claim.subject}#{claim.attribute}#{claim.claim_id}",
+                        "document_id": claim.document_id,
+                        # JSON text keeps the confidence float exact (DynamoDB wants Decimals).
+                        "claim_json": claim.model_dump_json(),
+                    }
+                )
+
+    def list_claims(self, workspace_id: str) -> list[Claim]:
+        return [
+            Claim.model_validate_json(item["claim_json"])
+            for item in self._query_prefix(workspace_id, "CLAIM#")
+        ]
+
+    def _query_prefix(self, workspace_id: str, prefix: str) -> list[dict]:
+        paginator = self._client.get_paginator("query")
+        pages = paginator.paginate(
+            TableName=self._table.name,
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+            ExpressionAttributeValues={":pk": {"S": _ws(workspace_id)}, ":prefix": {"S": prefix}},
+            ConsistentRead=True,
+        )
+        return [
+            {key: next(iter(value.values())) for key, value in item.items()}
+            for page in pages
+            for item in page["Items"]
+        ]
 
 
 def _document_item(document: Document) -> dict:

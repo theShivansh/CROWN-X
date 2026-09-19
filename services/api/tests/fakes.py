@@ -8,6 +8,7 @@ import re
 
 from crownx.adapters.ports import AnswerResult, ObjectInfo, SearchHit
 from crownx.domain.answering import AnswerDraft
+from crownx.domain.claims import Claim
 from crownx.domain.events import WorkflowEvent
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace
 
@@ -20,6 +21,7 @@ class FakeStore:
         self.queries: dict[tuple[str, str], QueryRecord] = {}
         self.audit: list[tuple[str, dict]] = []
         self.events: dict[str, WorkflowEvent] = {}
+        self.claims: dict[tuple[str, str], list[Claim]] = {}  # (workspace, document) -> claims
         self.event_error: Exception | None = None
         self.fail = False
 
@@ -78,6 +80,14 @@ class FakeStore:
 
     def event_types(self, workspace_id: str) -> list[str]:
         return [e.event_type.value for e in self.list_events(workspace_id)]
+
+    def replace_claims(self, workspace_id: str, document_id: str, claims: list[Claim]) -> None:
+        self._check()
+        self.claims[(workspace_id, document_id)] = list(claims)
+
+    def list_claims(self, workspace_id: str) -> list[Claim]:
+        self._check()
+        return [c for (ws, _), found in self.claims.items() if ws == workspace_id for c in found]
 
 
 class FakeObjects:
@@ -235,11 +245,15 @@ class FakeAnswerer:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, list[dict]]] = []
+        self.conflicts: list[list[dict]] = []
         self.draft: AnswerDraft | None = None
         self.error: Exception | None = None
 
-    def answer(self, question: str, evidence: list[dict]) -> AnswerResult:
+    def answer(
+        self, question: str, evidence: list[dict], conflicts: list[dict] | None = None
+    ) -> AnswerResult:
         self.calls.append((question, [dict(e) for e in evidence]))
+        self.conflicts.append(list(conflicts or []))
         if self.error:
             raise self.error
         draft = self.draft or AnswerDraft(

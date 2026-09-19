@@ -71,3 +71,6 @@ class QueryRecord(BaseModel):
     created_at: str
     request_id: str | None = None
     retrieval_ms: int = Field(default=0, ge=0)
+    # The conflicts code found on this evidence (M3), frozen with it: stage 2 answers over exactly
+    # what stage 1 showed, conflicts included.
+    conflicts: list[dict] = Field(default_factory=list)

@@ -89,7 +89,13 @@ class GroqAnswerer:
         self._clock = clock
         self._deadline_s = deadline_s
 
-    def request(self, question: str, evidence: list[dict], model_id: str | None = None) -> dict:
+    def request(
+        self,
+        question: str,
+        evidence: list[dict],
+        model_id: str | None = None,
+        conflicts: list[dict] | None = None,
+    ) -> dict:
         model = model_id or self.model_id
         body: dict = {
             "model": model,
@@ -97,7 +103,7 @@ class GroqAnswerer:
             "max_completion_tokens": 2048,
             "messages": [
                 {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": user_message(question, evidence)},
+                {"role": "user", "content": user_message(question, evidence, conflicts)},
             ],
             "tools": [
                 {
@@ -116,7 +122,9 @@ class GroqAnswerer:
             body["reasoning_effort"] = "low"
         return body
 
-    def answer(self, question: str, evidence: list[dict]) -> AnswerResult:
+    def answer(
+        self, question: str, evidence: list[dict], conflicts: list[dict] | None = None
+    ) -> AnswerResult:
         started = self._clock()
         deadline = started + self._deadline_s
         attempts: list[dict] = []
@@ -128,7 +136,7 @@ class GroqAnswerer:
             retried = False
             while True:
                 try:
-                    response, draft = self._attempt(question, evidence, model, deadline)
+                    response, draft = self._attempt(question, evidence, model, deadline, conflicts)
                 except _Failed as failure:
                     attempts.append({"model_id": model, "outcome": failure.outcome})
                     if retried or failure.outcome == "deadline":
@@ -170,12 +178,17 @@ class GroqAnswerer:
         raise error
 
     def _attempt(
-        self, question: str, evidence: list[dict], model: str, deadline: float
+        self,
+        question: str,
+        evidence: list[dict],
+        model: str,
+        deadline: float,
+        conflicts: list[dict] | None = None,
     ) -> tuple[dict, AnswerDraft]:
         remaining = deadline - self._clock()
         if remaining < MIN_ATTEMPT_S:
             raise _Failed("deadline")
-        body = json.dumps(self.request(question, evidence, model)).encode()
+        body = json.dumps(self.request(question, evidence, model, conflicts)).encode()
         headers = {
             "content-type": "application/json",
             "accept": "application/json",

@@ -159,20 +159,23 @@ def group_view(group: ConflictGroup) -> dict:
     }
 
 
-def audit_view(group: ConflictGroup) -> list[dict]:
-    """What the audit record and the logs keep per conflict: no document text."""
-    selected = group.selection.selected
+def audit_record(view: dict) -> list[dict]:
+    """What the audit record and the logs keep per conflict, from a `group_view`: IDs, extraction
+    confidence and the selection rule (ADR-020). No document text."""
+    confidence = {
+        c["claim_id"]: (c.get("confidence") or {}).get("extraction") for c in view["claims"]
+    }
     return [
         {
-            "conflict_id": p.conflict_id,
-            "key": group.key,
-            "claim_ids": [p.older.claim_id, p.newer.claim_id],
+            "conflict_id": pair["conflict_id"],
+            "key": view["key"],
+            "claim_ids": [pair["claim_a"], pair["claim_b"]],
             "extraction_confidence": [
-                p.older.confidence.get("extraction"),
-                p.newer.confidence.get("extraction"),
+                confidence.get(pair["claim_a"]),
+                confidence.get(pair["claim_b"]),
             ],
-            "selected_claim_id": selected.claim_id if selected else None,
-            "selection_rule": group.selection.rule,
+            "selected_claim_id": view["selected_claim_id"],
+            "selection_rule": view["selection_rule"],
         }
-        for p in group.pairs
+        for pair in view["pairs"]
     ]

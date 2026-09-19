@@ -39,8 +39,10 @@ class ConverseAnswerer:
         self._force_tool = force_tool
         self._max_tokens = max_tokens
 
-    def request(self, question: str, evidence: list[dict]) -> dict:
-        text = user_message(question, evidence)
+    def request(
+        self, question: str, evidence: list[dict], conflicts: list[dict] | None = None
+    ) -> dict:
+        text = user_message(question, evidence, conflicts)
         if not self._force_tool:
             text = f"{text}\n\n{AUTO_TOOL_INSTRUCTION}"
         return {
@@ -62,8 +64,10 @@ class ConverseAnswerer:
             "inferenceConfig": {"maxTokens": self._max_tokens, "temperature": 0},
         }
 
-    def answer(self, question: str, evidence: list[dict]) -> AnswerResult:
-        request = self.request(question, evidence)
+    def answer(
+        self, question: str, evidence: list[dict], conflicts: list[dict] | None = None
+    ) -> AnswerResult:
+        request = self.request(question, evidence, conflicts)
         started = time.perf_counter()
         response = self._call_with_one_retry(request)
         latency_ms = round((time.perf_counter() - started) * 1000)

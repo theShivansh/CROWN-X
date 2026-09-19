@@ -44,7 +44,7 @@ class AnswerDraft(BaseModel):
 
 @dataclass(frozen=True)
 class FinalAnswer:
-    status: str  # "grounded" | "partial" | "insufficient_evidence"
+    status: str  # "grounded" | "partial" | "conflict" | "insufficient_evidence"
     answer: str
     claims: list[dict]
     dropped: list[dict] = field(default_factory=list)
@@ -55,9 +55,14 @@ def insufficient() -> FinalAnswer:
 
 
 def finalize(
-    draft: AnswerDraft, allowed_ids: set[str], instruction_ids: frozenset[str] = frozenset()
+    draft: AnswerDraft,
+    allowed_ids: set[str],
+    instruction_ids: frozenset[str] = frozenset(),
+    conflicted: bool = False,
 ) -> FinalAnswer:
-    """`instruction_ids`: evidence IDs whose passage contains text addressed to an assistant."""
+    """`instruction_ids`: evidence IDs whose passage contains text addressed to an assistant.
+    `conflicted`: code found conflicts on this evidence (M3). A supported answer is then `conflict`,
+    whatever the model wrote: the status and the conflict card come from data, never from prose."""
     kept: list[dict] = []
     dropped: list[dict] = []
     refused: list[dict] = []
@@ -78,7 +83,7 @@ def finalize(
             dropped=dropped + refused,
         )
     return FinalAnswer(
-        status="partial" if dropped else "grounded",
+        status="conflict" if conflicted else "partial" if dropped else "grounded",
         answer=" ".join(claim["text"] for claim in kept),
         claims=kept,
         dropped=dropped + refused,
@@ -107,3 +112,46 @@ def render_evidence(evidence: list[dict]) -> str:
             f"<evidence {rendered}>\n{escape(item['quoted_span'], quote=False)}\n</evidence>"
         )
     return "\n\n".join(blocks)
+
+
+RULE_WORDS = {
+    "newest_source_timestamp": "the newest source date",
+    "version_order": "the document version order",
+    "latest_upload": "the latest upload, the weakest rule: these sources have no dates",
+}
+
+
+def render_conflicts(conflicts: list[dict], evidence: list[dict]) -> str:
+    """The conflicts code found, for the user turn: data, escaped like the evidence. Each claim names
+    the evidence ID of its passage when that passage was retrieved, so the model can cite it."""
+    by_chunk = {item["chunk_id"]: item["evidence_id"] for item in evidence}
+    blocks = []
+    for group in conflicts:
+        rule = group.get("selection_rule")
+        head = {
+            "fact": group.get("label") or group["key"],
+            "current": _value(group.get("selected_value"), group.get("selected_unit")) or "none",
+            "rule": RULE_WORDS.get(rule or "", "none: no ordering signal, so don't pick a value"),
+        }
+        lines = []
+        for claim in group["claims"]:
+            attributes = {
+                "document": claim.get("filename") or "",
+                "date": claim.get("source_timestamp") or "undated",
+                "version": claim.get("version_label") or "",
+                "value": _value(claim.get("normalized_value"), claim.get("unit")),
+                "evidence": by_chunk.get(claim["source_chunk_id"], "not retrieved"),
+            }
+            rendered = " ".join(
+                f'{key}="{escape(str(value), quote=True)}"' for key, value in attributes.items()
+            )
+            lines.append(f"<claim {rendered}>{escape(claim['quote'], quote=False)}</claim>")
+        opening = " ".join(f'{k}="{escape(str(v), quote=True)}"' for k, v in head.items())
+        blocks.append(f"<conflict {opening}>\n" + "\n".join(lines) + "\n</conflict>")
+    return "\n\n".join(blocks)
+
+
+def _value(value: str | None, unit: str | None) -> str:
+    if value is None:
+        return ""
+    return f"{value} {unit}" if unit else value

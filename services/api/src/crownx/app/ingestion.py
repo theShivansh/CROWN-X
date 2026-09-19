@@ -7,11 +7,13 @@ ready document is left alone, and every status change is conditional on the stat
 from __future__ import annotations
 
 import logging
+from collections import Counter
 
 from crownx.adapters.pdf import UnreadablePdf, read_pdf_pages
 from crownx.adapters.ports import Embedder, MetadataStore, ObjectStore, SearchIndex
 from crownx.app.events import record_event
 from crownx.domain.chunking import Chunk, chunk_pages, chunk_text, normalize_text
+from crownx.domain.claims import extract_claims
 from crownx.domain.events import EventType
 from crownx.domain.metadata import extract_metadata
 from crownx.domain.models import Document, DocumentStatus
@@ -106,6 +108,27 @@ class IngestionWorker:
                     for chunk, vector in zip(chunks, vectors, strict=True)
                 ]
             )
+            claims = extract_claims(
+                workspace_id=document.workspace_id,
+                document_id=document.document_id,
+                filename=document.filename,
+                text=text,
+                chunks=chunks,
+                uploaded_at=document.uploaded_at,
+                source_timestamp=document.source_timestamp,
+                version_label=document.version_label,
+            )
+            self._store.replace_claims(document.workspace_id, document.document_id, claims)
+            log.info(
+                "claims extracted",
+                extra={
+                    "document_id": document.document_id,
+                    "claims_by_key": dict(Counter(c.key for c in claims)),
+                    "min_extraction_confidence": min(
+                        (c.confidence["extraction"] for c in claims), default=None
+                    ),
+                },
+            )
             ready = self._advance(document, DocumentStatus.READY, chunk_count=len(chunks))
             if ready is not None:
                 record_event(
@@ -114,6 +137,7 @@ class IngestionWorker:
                     EventType.DOCUMENT_INDEXED,
                     document_id=ready.document_id,
                     chunk_count=len(chunks),
+                    claim_count=len(claims),
                 )
             return ready
         except Exception:

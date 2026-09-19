@@ -18,6 +18,7 @@ from crownx.adapters.ports import (
 )
 from crownx.app.events import record_event
 from crownx.domain.answering import FinalAnswer, finalize, insufficient
+from crownx.domain.conflicts import ConflictGroup, audit_record, detect, group_view
 from crownx.domain.errors import (
     AnswerUnavailable,
     InvalidRequest,
@@ -74,6 +75,7 @@ class QueryResult:
     status: str  # "retrieved" or "insufficient_evidence" (SRS §3, stage 1)
     evidence: list[dict]
     timings_ms: dict[str, int] | None = None  # embed, search, rerank: for logs and the evaluation
+    conflicts: list[dict] | None = None  # the conflict groups touching this evidence (M3)
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,7 @@ class AnswerOutcome:
     provider: str | None  # None when no model was called
     model_id: str | None  # the model that answered, which is the fallback model after a fallback
     attempts: tuple[dict, ...] = ()
+    conflicts: tuple[dict, ...] = ()  # audit view: IDs, confidence, rule; no text
 
 
 @dataclass(frozen=True)
@@ -344,12 +347,16 @@ class CrownService:
                     "retrieval_score": round(hit.score, 6),
                 }
             )
+        compare_started = time.perf_counter()
+        conflicts = self._conflicts_touching(workspace_id, evidence)
+        timings["compare"] = _ms_since(compare_started)
         record = QueryRecord(
             query_id=new_query_id(),
             workspace_id=workspace_id,
             question=question,
             status="retrieved" if evidence else "insufficient_evidence",
             evidence=evidence,
+            conflicts=[group_view(g) for g in conflicts],
             created_at=utc_now(),
             request_id=request_id,
             retrieval_ms=round((time.perf_counter() - started) * 1000),
@@ -363,8 +370,35 @@ class CrownService:
             retrieval_ms=record.retrieval_ms,
         )
         return QueryResult(
-            query_id=record.query_id, status=record.status, evidence=evidence, timings_ms=timings
+            query_id=record.query_id,
+            status=record.status,
+            evidence=evidence,
+            timings_ms=timings,
+            conflicts=record.conflicts,
         )
+
+    # Conflicts (M3, ADR-003, ADR-020) -----------------------------------------------------------
+
+    def conflicts(self, workspace_id: str) -> list[dict]:
+        """Every conflict in the workspace, derived from its claims now: never stale."""
+        self.require_workspace(workspace_id)
+        return [group_view(g) for g in detect(self._store.list_claims(workspace_id))]
+
+    def _conflicts_touching(self, workspace_id: str, evidence: list[dict]) -> list[ConflictGroup]:
+        """The groups where a conflicting claim's chunk was retrieved. Relevance is this ID
+        intersection, decided by code, never by the model."""
+        if not evidence:
+            return []
+        retrieved = {e["chunk_id"] for e in evidence}
+        return [
+            group
+            for group in detect(self._store.list_claims(workspace_id))
+            if any(
+                claim.source_chunk_id in retrieved
+                for pair in group.pairs
+                for claim in (pair.older, pair.newer)
+            )
+        ]
 
     def answer(
         self, workspace_id: str, query_id: str, request_id: str | None = None
@@ -403,7 +437,7 @@ class CrownService:
 
         answerer = self._answerer
         try:
-            result = answerer.answer(record.question, record.evidence)
+            result = answerer.answer(record.question, record.evidence, record.conflicts)
         except Exception as error:
             self._store.put_audit(
                 workspace_id,
@@ -425,7 +459,9 @@ class CrownService:
             frozenset(
                 e["evidence_id"] for e in record.evidence if instruction_like(e["quoted_span"])
             ),
+            conflicted=bool(record.conflicts),
         )
+        conflict_audit = tuple(item for group in record.conflicts for item in audit_record(group))
         if final.dropped:
             log.warning(
                 "dropped %d claim(s) citing unknown or no evidence (request %s, query %s)",
@@ -448,6 +484,9 @@ class CrownService:
                 "output_tokens": result.output_tokens,
                 "claims_kept": len(final.claims),
                 "claims_dropped": len(final.dropped),
+                # Which conflicts the answer was written over: claim IDs, their extraction
+                # confidence and the selection rule (ADR-020). No document text.
+                "conflicts": list(conflict_audit),
             },
         )
         self._event(
@@ -465,6 +504,7 @@ class CrownService:
             provider=result.provider,
             model_id=result.model_id,
             attempts=result.attempts,
+            conflicts=conflict_audit,
         )
 
     # Workflow Learning Lite (ADR-018) ------------------------------------------------------------

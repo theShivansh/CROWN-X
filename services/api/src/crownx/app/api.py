@@ -12,6 +12,7 @@ from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from crownx.app.service import CrownService
+from crownx.domain.conflicts import audit_record
 from crownx.domain.errors import DomainError, InvalidRequest
 
 logger = Logger(service="crownx-api")
@@ -139,15 +140,23 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
     def query(workspace_id: str) -> Response:
         request = body_as(QueryRequest)
         result = service().query(workspace_id, request.question, request_id=rid())
-        # `conflicts` is part of the stage-1 contract; M3 fills it.
         return reply(
             {
                 "query_id": result.query_id,
                 "status": result.status,
                 "evidence": result.evidence,
-                "conflicts": [],
+                "conflicts": result.conflicts or [],
             }
         )
+
+    @app.get("/workspaces/<workspace_id>/conflicts")
+    def list_conflicts(workspace_id: str) -> Response:
+        groups = service().conflicts(workspace_id)
+        logger.info(
+            "conflicts listed",
+            extra={"conflicts": [item for group in groups for item in audit_record(group)]},
+        )
+        return reply({"conflicts": groups})
 
     @app.post("/workspaces/<workspace_id>/queries/<query_id>/answer")
     def answer(workspace_id: str, query_id: str) -> Response:
@@ -167,6 +176,7 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
                 "answer_status": outcome.final.status,
                 "answered_by_model": outcome.model_id,
                 "attempts": list(outcome.attempts),
+                "conflicts": list(outcome.conflicts),
             },
         )
         return reply(
