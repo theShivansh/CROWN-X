@@ -45,7 +45,7 @@ Status: accepted (verified offline and live, 2026-09-19; `docs/BENCHMARKS.md` M3
 - A paraphrased question that names none of a key's `asks` terms shows no conflict card. That is a missed conflict, never a false one.
 - Adding a key means adding its triggers and `asks` terms, with tests.
 **Verify / revisit if:**
-- `tests/test_claims.py`, `tests/test_conflicts_api.py` and the offline eval (contradiction precision 1.0 is a gate in `evals/run.py`) stay green.
+- `services/api/tests/test_claims.py`, `services/api/tests/test_conflicts_api.py` and the offline eval (contradiction precision 1.0 is a gate in `evals/run.py`) stay green.
 - Revisit when a real team's documents use wording the vocabulary misses, measured by extraction recall on a new corpus.
 
 ### ADR-019 · 2026-09-19 · Release gates from the first live runs

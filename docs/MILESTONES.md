@@ -134,7 +134,8 @@ a spec only).
       1.0 / 1.0; live `/conflicts` 6 of 6 pairs, 0 false)
 - [x] Seeded deadline conflict shown in the inspector with both passages on the deployed URL (live,
       Amplify, 2026-09-19)
-- [ ] Rough demo recording of the path so far (the user records it; script in PROGRESS)
+- [x] ~~Rough demo recording of the path so far~~ deferred to M6 by the user (2026-09-19): one
+      recording at the freeze instead of a rough one now; script in PROGRESS
 
 **Kill criteria:** free-text normalization unreliable by Saturday evening → restrict conflict types to
 dates and numbers for the demo, and list the rest as a limitation.
