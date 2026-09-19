@@ -21,14 +21,14 @@ applications:
         paths:
           - node_modules/**/*
     # A static export can't set headers, so Amplify does (M1 prompt, SECURITY §2).
-    # connect-src allows API Gateway and S3 in ap-south-1 by Region until the first deploy names the
-    # API and the bucket; S6 replaces both wildcards with the stack outputs.
+    # connect-src names this stack's outputs (S6): the API (ApiUrl) and the upload bucket
+    # (DocumentsBucketName, virtual-hosted, as the presigned POST uses it). A new stack changes both.
     # 'unsafe-inline' in script-src: the App Router's static HTML bootstraps with inline scripts.
     customHeaders:
       - pattern: "**/*"
         headers:
           - key: Content-Security-Policy
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.execute-api.ap-south-1.amazonaws.com https://*.s3.ap-south-1.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com https://crownx-documentsbucket-oyraa82bziwc.s3.ap-south-1.amazonaws.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
           - key: X-Content-Type-Options
             value: nosniff
           - key: Referrer-Policy
