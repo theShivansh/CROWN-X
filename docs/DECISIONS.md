@@ -4,6 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-020 · 2026-09-19 · M3 claims by rule, extraction confidence defined, conflicts derived on read and scoped to the question · accepted
 - ADR-019 · 2026-09-19 · Release gates from the first live runs · proposed
 - ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only · accepted
 - ADR-017 · 2026-09-18 · Production providers: Groq answers, local ONNX embeddings, OpenSearch kept · accepted
@@ -25,6 +26,27 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-020 · 2026-09-19 · M3 claims by rule, extraction confidence defined, conflicts derived on read and scoped to the question
+Status: accepted (verified offline and live, 2026-09-19; `docs/BENCHMARKS.md` M3)
+
+**Context:** The M3 stage prompt assumed one Bedrock extraction call per document. On Groq's free tier that call would compete with answers (429s while seeding 7 documents) and the ingest role would need the key, which it deliberately can't read. The user chose rules only. The first offline run then showed that attaching a conflict whenever its chunk is retrieved flags almost every question: workspace A has 17 chunks, top 8 is half of them, and the brief PDF is one chunk holding both the deadline and the budget cap. Status accuracy fell from 0.825 to 0.275, which is false "Sources disagree" on screen.
+**Decision:**
+- Claims come from `domain/vocabulary.py` triggers plus a typed value in the same sentence (`domain/claims.py`). Quotes are exact slices, so every claim is grounded by construction. Lines matching `instruction_like` are never sources.
+- `confidence.extraction` = trigger strength (1.0 label, 0.9 phrase ≤8 words away, 0.8 further) × value certainty (1.0 explicit, 0.9 year inferred from the document's date, 0.0 unnormalized). It is in `/conflicts`, `/query` and the audit, measured per band in BENCHMARKS, and never shown as a number in the UI (CLAUDE.md rule 10).
+- Claims are stored (`CLAIM#…`, replaced per document); conflicts and selection are derived by the pure predicate on each read, with IDs hashed from the sorted claim IDs.
+- A conflict joins a query only if a conflicting claim's chunk was retrieved AND the question matches that key's `asks` terms. Both tests are code.
+**Rejected:**
+- Groq extraction at ingestion: quota contention and key access for the ingest role.
+- Conflicts stored at ingestion: parallel ingest Lambdas would race, each missing the other's claims.
+- Chunk intersection alone (the stage prompt's rule): measured false conflicts on unrelated questions.
+**Consequences:**
+- Only mapped wording becomes a claim: 5 keys today, dates, numbers and owners. Free-text and requirement conflicts are a listed limitation.
+- A paraphrased question that names none of a key's `asks` terms shows no conflict card. That is a missed conflict, never a false one.
+- Adding a key means adding its triggers and `asks` terms, with tests.
+**Verify / revisit if:**
+- `tests/test_claims.py`, `tests/test_conflicts_api.py` and the offline eval (contradiction precision 1.0 is a gate in `evals/run.py`) stay green.
+- Revisit when a real team's documents use wording the vocabulary misses, measured by extraction recall on a new corpus.
 
 ### ADR-019 · 2026-09-19 · Release gates from the first live runs
 Status: proposed (from live runs 2 and 3 in `docs/BENCHMARKS.md`; confirm or change before M6)

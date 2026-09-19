@@ -6,6 +6,59 @@ averaged (ADR-016, ADR-017). Offline answers come from a scripted transport, so 
 properties, never model quality. Offline retrieval with a real local model is real retrieval
 measured on a laptop, labelled with its model.
 
+## M3 contradictions (deterministic code, no model; ADR-003, ADR-020)
+Measured on 2026-09-19, twice, over the demo corpus (SCENARIO §§2-7, both workspaces). No step makes a
+Groq call: `/conflicts` is derived from rule-extracted claims.
+
+**Offline.** Command: `cd services/api && uv run python ../../evals/run.py --offline`.
+- Results: `evals/results/2026-09-19T064821Z-offline.json`.
+- Code: `a996eec` plus the N3 changes committed as `130e8d2`.
+
+**Live on the deployed stack.**
+- `GET /workspaces/{ws}/conflicts` on workspaces seeded fresh by `demo/seed.py` after deploying
+  `c6f5702`.
+- Workspace A: `ws_KFdHFNj0IPUoOs4pQDcMUQ`. Workspace B: `ws_PHVNGHzyu0EFhrArwFiWvg`.
+
+| Metric | Offline | Live | What it means |
+|---|---:|---:|---|
+| Contradiction precision | 1.0 | 1.0 | 6 found, 6 expected, 0 false (workspace B: 0) |
+| Contradiction recall | 1.0 | 1.0 | every SCENARIO §3 pair |
+| Format-equal pairs flagged | 0 | 0 | "22 Sept" = "2026-09-22"; "60 requests per minute" = "60 rpm" |
+| Temporal selection accuracy | 1.0 | 1.0 | 4 keys: value and rule (three `newest_source_timestamp`, the owner `latest_upload`) |
+| Extraction recall | 1.0 | not measured | 12 of 12 expected claims (`evals/golden/claims-v1.jsonl`); the API has no claims route |
+| Extraction precision, confidence 1.0 | 1.0 (6 claims) | 1.0 (6 claims in conflicts) | label forms |
+| Extraction precision, 0.90-0.99 | 1.0 (4) | 1.0 (3) | phrases |
+| Extraction precision, 0.80-0.89 | 1.0 (2) | 1.0 (1) | a phrase with the year inferred from the document's date (0.81) |
+| M3 answers: status accuracy | 0.571 | not run | offline answers are scripted: the 3 misses are `insufficient_evidence` from the extractive mock |
+
+Extraction confidence (ADR-020) is defined as trigger strength × value certainty. The bands have 12
+claims between them: every claim in every band was correct, which is a small sample, not a
+calibration.
+
+**Change from the M2 baseline** (`2026-09-18T180136Z-offline.json`, same command):
+- Every M2 metric is unchanged:
+  - case pass rate 0.55; status accuracy 0.825; value match 0.4643; insufficient-evidence
+    correctness 0.8;
+  - citation validity, evidence integrity, isolation, injection and zero-model-call all 1.0;
+  - hit@8 1.0.
+- Mock-embedding MRR moved from 0.929 to 0.964. That's the known tie-breaking from random document
+  IDs, not an M3 effect.
+- Six M2 cases now also accept `conflict`: `synthesis-02`, `synthesis-03`, `distractor-03` and
+  `injection-01..03`. Each asks about a fact the sources disagree on, and SCENARIO §8 and §10 require
+  the conflict to show.
+
+**The finding that shaped the relevance rule (ADR-020).** The stage prompt attached a conflict whenever
+a conflicting claim's chunk was retrieved. On this corpus that flagged almost every question: 17
+chunks, top 8, and the brief PDF is one chunk holding two conflicting facts. M2 status accuracy fell
+from 0.825 to 0.275 in the first run. A conflict now also needs the question to name the fact, and
+status accuracy is back to 0.825.
+
+**Live answer** (one Groq call, in the browser on the Amplify URL):
+- The golden question returned `conflict`. The card says "Sources disagree" with 22 Sep 2026 chosen
+  by the newest source date.
+- The inspector opens on brief v1 against organiser update 3, marked "Newer · 10 Sep".
+- gpt-oss-120b cited D1, D3 and D4. Neither 1 October nor 21 September appeared.
+
 ## M2 offline gate, after ADR-017 (Groq adapter over the scripted transport; local index)
 Command: `cd services/api && uv run python ../../evals/run.py --offline [--embedding <model>]` ·
 dataset `evals/golden/v1.jsonl` (47 cases: 40 M2, 7 M3) · commit `fbe3dea` · 2026-09-18 18:01 UTC.

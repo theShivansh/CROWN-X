@@ -52,6 +52,33 @@ Known and not part of this gate:
 - The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
+## M3 Contradictions: GREEN except the demo recording (2026-09-19 13:40 IST, deployed `09afe27`)
+Verified with `/verify-stage M3`. The one open item is the rough demo recording, which the user records
+(the script is in PROGRESS).
+
+| # | Gate / item | Result | Evidence |
+|---|---|---|---|
+| 1 | Scope | PASS | `5d36e76..09afe27` touch only claims, conflicts, their API, the eval, the inspector UI, IAM for claim writes, the `/conflicts` route and docs |
+| 2 | Date, numeric and owner conflicts; format-only never (unit) | PASS | `test_claims.py` (30 tests): normalization ("22 Sept" = 2026-09-22, 60 rpm = 60 requests per minute, ₹50,000 = INR 50000, 09/10/2026 ambiguous), extraction on the six demo files, predicate, stable IDs, the injection line and the distractor |
+| 3 | Selection names the rule; no signal means no selection (unit) | PASS | `test_claims.py`: newest source date, version order within a family, latest upload, no upload time, a tie on the rule |
+| 4 | Exactly the scenario's conflicts (integration) | PASS | offline eval 6/6 pairs, 0 false, format-equal 0 (`2026-09-19T064821Z-offline.json`); live `GET /conflicts` on fresh workspace A: 4 groups, 6 pairs, every selection right; workspace B: 0 |
+| 5 | Contradiction precision and recall recorded (integration) | PASS | BENCHMARKS "M3 contradictions": precision 1.0, recall 1.0, selection accuracy 1.0, extraction precision 1.0 in every confidence band, recall 1.0 |
+| 6 | Deadline conflict in the inspector on the deployed URL (live) | PASS | In the browser on `https://main.d1jy52bqj8dt1h.amplifyapp.com/app/?ws=ws_KFdHFNj0IPUoOs4pQDcMUQ`, the golden question gives:<br>- the "Sources disagree" card, from data;<br>- the inspector with brief v1 (20 Sep) against organiser update 3 (22 Sept), marked "Newer · 10 Sep";<br>- the rule "newest source date";<br>- the timeline 31 Aug → 10 Sep (changed) → 11 Sep (current value);<br>- a gpt-oss-120b answer citing D1, D3 and D4, with no 1 October or 21 Sept. |
+| 7 | Rough demo recording | OPEN | the user records it (script in PROGRESS); its location goes in PROGRESS |
+| 8 | Quality | PASS | API `uv run pytest -q` 309 passed (5 consecutive runs), `ruff` clean, `uv lock --check` ok; harness 39 passed; web lint, typecheck, `pnpm test` 18 passed, `pnpm build` ok; `cfn-lint` clean |
+| 9 | Evaluation vs the M2 baseline | PASS | every M2 metric unchanged (case pass 0.55, status 0.825, value match 0.4643, security properties 1.0); the contradiction precision gate (1.0) now fails `evals/run.py` otherwise |
+| 10 | Security | PASS | the conflicts block is escaped data (`test_the_conflicts_block_is_escaped_data_like_the_evidence`); conflicts never cross workspaces (test and live B = 0); the injected line never becomes a claim; the ingest role gained only `Query` and `BatchWriteItem` on the table |
+| 11 | Observability | PASS | `/conflicts` returns `request_id`; ingestion logs `claims extracted` per document (keys, minimum confidence); the answer audit and the "answer written" log carry conflict IDs, extraction confidence and the selection rule (`test_conflicts_api.py`) |
+| 12 | Docs | PASS | ADR-020; SRS §4 and ARCHITECTURE §4 updated; README limitation; BENCHMARKS M3 section |
+| 13 | Demo path without a manual step | PASS | `demo/seed.py`, then the golden question on the Amplify URL |
+
+Found and fixed during verification:
+- **The first deploy failed ingestion.** Claim queries passed low-level `{"S": ...}` values, which the
+  resource client refuses. My test double had copied the same mistake, so the tests missed it. Fixed in
+  `c6f5702`, and the double now refuses them too.
+- **A flaky `latest_upload` selection.** Two uploads could share a timestamp on a coarse clock, and a
+  tie correctly selects nothing. Timestamps now strictly increase within a process (`09afe27`).
+
 ## M2 Live Gate: GREEN (API 2026-09-19 09:45 IST; browser walk on Amplify 2026-09-19 11:20 IST)
 
 | # | Item | Result | Evidence |

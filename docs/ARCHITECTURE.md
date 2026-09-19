@@ -70,6 +70,17 @@ Request state: `request_id`, `workspace_id`, `question`, `retrieved_evidence`, `
 
 The model never decides that two values conflict. Deterministic code applies the predicate.
 
+As built in M3 (ADR-020):
+- **Claims.** At ingestion, `domain/claims.py` extracts claims by rule: a vocabulary trigger, then a
+  typed value in the same sentence, normalized by `domain/normalize.py`. The claims are stored as
+  `CLAIM#` items and replaced per document.
+- **Conflicts.** `domain/conflicts.py` and `domain/selection.py` derive conflicts and the current
+  value whenever `/query` or `GET /conflicts` reads the claims.
+- **Relevance.** A conflict joins a query only if a conflicting claim's chunk was retrieved and the
+  question names the fact (the key's `asks` terms in `domain/vocabulary.py`).
+- **Answering.** The answer call receives the conflicts as an escaped data block. Code sets the
+  status to `conflict`, and the UI renders the card from the conflict data.
+
 ## 5. Evidence object
 `evidence_id`, `document_id`, `chunk_id`, `source_uri`, `version_label`, `source_timestamp`,
 `page_or_section`, `quoted_span`, `char_start`, `char_end`, `retrieval_rank`, `retrieval_score`.

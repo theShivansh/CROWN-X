@@ -127,11 +127,14 @@ a spec only).
 **Out of scope:** timeline, workflow learning, landing page.
 
 **Done means:**
-- [ ] Date, numeric and owner conflicts detected; format-only differences aren't conflicts (unit)
-- [ ] Selection picks the newer source and names the rule; with no ordering signal it doesn't select (unit)
-- [ ] Contradiction precision and recall recorded against the golden set (integration)
-- [ ] Seeded deadline conflict shown in the inspector with both passages on the deployed URL (live)
-- [ ] Rough demo recording of the path so far
+- [x] Date, numeric and owner conflicts detected; format-only differences aren't conflicts (unit:
+      `test_claims.py`, 30 tests)
+- [x] Selection picks the newer source and names the rule; with no ordering signal it doesn't select (unit)
+- [x] Contradiction precision and recall recorded against the golden set (integration: offline eval
+      1.0 / 1.0; live `/conflicts` 6 of 6 pairs, 0 false)
+- [x] Seeded deadline conflict shown in the inspector with both passages on the deployed URL (live,
+      Amplify, 2026-09-19)
+- [ ] Rough demo recording of the path so far (the user records it; script in PROGRESS)
 
 **Kill criteria:** free-text normalization unreliable by Saturday evening → restrict conflict types to
 dates and numbers for the demo, and list the rest as a limitation.

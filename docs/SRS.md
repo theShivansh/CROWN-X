@@ -76,9 +76,18 @@ shape below. Together they form one question's result:
 - **Evidence:** `evidence_id`, `chunk_id`, `quoted_span`, `retrieval_rank`, `retrieval_score`,
   `citation_label`
 - **Claim:** `claim_id`, `workspace_id`, `subject`, `attribute`, `raw_value`, `normalized_value`,
-  `unit`, `source_chunk_id`, `source_timestamp`, `extraction_method` (`rule` | `model`)
+  `unit`, `source_chunk_id`, `source_timestamp`, `extraction_method` (`rule` | `model`). Since M3
+  (ADR-020) it also carries:
+  - `document_id`, `filename`, `version_label`, `uploaded_at`;
+  - `quote`, with its offsets `char_start`/`char_end` and the value's `value_start`/`value_end`;
+  - `trigger` and `trigger_is_label`;
+  - `confidence.extraction` (0-1, defined in ADR-020, never shown as a number).
 - **Conflict:** `conflict_id`, `workspace_id`, `claim_a`, `claim_b`, `type`, `severity`, `status`,
-  `selected_claim_id`, `selection_rule`
+  `selected_claim_id`, `selection_rule`.
+  - It is derived from the claims whenever it's read, never stored (ADR-020).
+  - The ID is a hash of the two sorted claim IDs.
+  - The API groups the pairs by key, with the key's claims oldest first (the inspector's timeline)
+    and `primary_conflict_id`.
 - **AuditEvent:** `event_id`, `request_id`, `workspace_id`, `event_type`, `timestamp`, `status`,
   `latency_ms`, `model_invocation_id`, `retrieval_ids`
 - **WorkflowEvent (M5):** `event_id`, `workspace_id`, `session_id`, `event_type`, `timestamp`, `payload_ref`

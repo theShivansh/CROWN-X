@@ -93,9 +93,14 @@ starts it on port 3000. Deployment steps are in the S1 runbook in [`docs/PROGRES
 ## Limitations
 - No accounts: the workspace ID in the link is the only access control during the event
   ([`docs/SECURITY.md`](docs/SECURITY.md) §3). Share a workspace link only with people who should see it.
-- Markdown and plain text only; PDF arrives in M2.
-- Retrieval returns passages, not written answers, until M2.
-- Not deployed yet (see the status note above). No performance figures are claimed: none are measured.
+- Conflicts are found only for wording in the vocabulary (`services/api/src/crownx/domain/vocabulary.py`):
+  submission deadline, Events Portal rate limit, budget cap, deployment owner, and the Robotics Expo
+  entries date.
+  - Dates, numbers and owners only. Requirement text and free-text categories aren't compared.
+  - A question that doesn't name the fact shows no conflict card, so a conflict can be missed, but
+    one is never invented.
+  - See ADR-020.
+- Measured figures are in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), each labelled offline or live.
 
 ## Credits
 AI coding tools, third-party components and licences: [`CREDITS.md`](CREDITS.md). MIT licence:
