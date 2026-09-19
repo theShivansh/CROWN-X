@@ -9,6 +9,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WORKFLOWS_ENABLED, track } from "@/lib/events";
 import { cn } from "@/lib/utils";
 import {
   api,
@@ -27,6 +28,7 @@ import { EvidencePanel, evidenceElementId } from "./evidence-panel";
 import { ProviderBanner } from "./provider-banner";
 import { useDocuments } from "./use-documents";
 import { TIMELINE_ELEMENT_ID, ValueTimeline } from "./value-timeline";
+import { WorkflowCard } from "./workflow-card";
 
 /**
  * One question is two calls (ADR-009): retrieve, then answer over exactly what was retrieved. Each
@@ -86,7 +88,8 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
   const [announcement, setAnnouncement] = useState("");
   const [conflicts, setConflicts] = useState<ConflictGroup[] | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false); // the evidence sheet, 1024-1279px only
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [workflowRefresh, setWorkflowRefresh] = useState(0); // bumped when an answer settles // the evidence sheet, 1024-1279px only
   const [recent, setRecent] = useState<string[]>([]);
   const readyCount = (docs.documents ?? []).filter((d) => d.status === "ready").length;
   const [timelineFor, setTimelineFor] = useState<{ key: string; label: string } | null>(null);
@@ -140,6 +143,7 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
       const answer = await api.answer(workspaceId, query.query_id);
       if (run.current !== id) return;
       setAsk({ phase: "done", question: text, query, answer });
+      setWorkflowRefresh((n) => n + 1);
       setAnnouncement(
         answer.status === "insufficient_evidence" ? "Not enough evidence" : "Answer ready",
       );
@@ -184,6 +188,7 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
   }
 
   function cite(evidenceId: string, attempt = 0) {
+    if (attempt === 0) track(workspaceId, "evidence_opened", { evidence_id: evidenceId });
     setHighlighted(evidenceId);
     setSheetOpen(true); // a no-op where the evidence is a pane
     const card = document.getElementById(evidenceElementId(evidenceId));
@@ -199,6 +204,7 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
   }
 
   function inspect(key: string) {
+    track(workspaceId, "conflict_opened", { key });
     const card = document.getElementById(conflictElementId(key));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     card?.focus({ preventScroll: true });
@@ -206,6 +212,7 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
   }
 
   function openTimeline(group: Pick<ConflictGroup, "key" | "label">) {
+    track(workspaceId, "timeline_opened", { key: group.key });
     setTimelineFor({ key: group.key, label: group.label });
     setAnnouncement(`Timeline for the ${group.label}`);
     // After it renders: bring it into view and move focus to it.
@@ -298,6 +305,9 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
               onDismissUpload={docs.dismissUpload}
               onRetryLoad={() => void docs.refresh()}
               conflictsByDocument={conflictsByDocument}
+              footer={
+                WORKFLOWS_ENABLED ? <WorkflowCard workspaceId={workspaceId} refreshKey={workflowRefresh} /> : null
+              }
             />
           </div>
 
@@ -336,7 +346,13 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
               </p>
             </form>
 
-            <AnswerCard ask={ask} onRetry={retry} onCite={cite} onInspect={inspect} />
+            <AnswerCard
+              ask={ask}
+              onRetry={retry}
+              onCite={cite}
+              onInspect={inspect}
+              onCopied={(queryId) => track(workspaceId, "answer_copied", { query_id: queryId })}
+            />
 
             {shown?.conflicts.length ? (
               <section aria-label="Conflict inspector" className="flex flex-col gap-3">

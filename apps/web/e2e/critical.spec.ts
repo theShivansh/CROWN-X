@@ -120,6 +120,38 @@ test.describe("@critical", () => {
 });
 
 
+test.describe("@critical workflows", () => {
+  test("after the routine, the card explains the events behind it and saves a version", async ({ page }) => {
+    test.skip(live, "recorded-response test");
+    const calls = await mockApi(page);
+    await page.goto(`/app/?ws=${workspace}`);
+    const card = page.getByRole("region", { name: "Workflows" });
+    await expect(card.getByText(/No repeated workflow yet/)).toBeVisible();
+
+    await askWithPalette(page, GOLDEN);
+    await expect(page.getByRole("region", { name: "Answer" }).getByText("Sources disagree")).toBeVisible();
+    // Opening the conflict and copying the answer are recorded, IDs only.
+    await page.getByRole("region", { name: "Answer" }).getByRole("button", { name: "Open the inspector" }).click();
+    await expect.poll(() => calls.filter((c) => c.endsWith("/events")).length).toBeGreaterThan(0);
+
+    // The answer settled, so the card mined again and shows the routine.
+    await expect(card.getByText("Repeated workflow detected")).toBeVisible();
+    await expect(card.getByRole("list", { name: "Steps, in order" }).getByRole("listitem")).toHaveCount(5);
+    await expect(card.getByText("3 times", { exact: true })).toBeVisible();
+    await card.getByRole("button", { name: "Why detected?" }).click();
+    await expect(card.getByRole("listitem").filter({ hasText: /Finished 3 of the 3 times/ })).toBeVisible();
+    await expect(card.getByText(/%/)).toHaveCount(0);
+
+    await card.getByRole("button", { name: "See the events behind it" }).click();
+    const detail = page.getByRole("dialog");
+    await expect(detail.getByText(/The events that matched \(3 most recent\)/)).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await card.getByRole("button", { name: "Save workflow" }).click();
+    await expect(card.getByText("Saved as v1")).toBeVisible();
+  });
+});
+
 test.describe("@critical reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 

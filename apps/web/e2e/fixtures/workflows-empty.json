@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "suggestions": [],
+    "templates": [],
+    "definitions": {
+      "support": "How many times the whole sequence occurred, counted without overlap within a session.",
+      "recency": "When the sequence last finished (UTC).",
+      "confidence": "support divided by how many times the sequence's first step occurred: the share of times that starting this sequence led to finishing it. Between 0 and 1.",
+      "session": "Events with no gap longer than 30 minutes between them. A session's ID is derived from its first event, so the same events always give the same sessions."
+    },
+    "automation": "none",
+    "request_id": "req_50688fa77ad3"
+  }
+}

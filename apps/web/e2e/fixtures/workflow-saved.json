@@ -1,0 +1,29 @@
+{
+  "status": 201,
+  "body": {
+    "template": {
+      "suggestion_id": "wf_5fe3f08cdee868b3",
+      "name": "ask question to copy answer",
+      "description": "The team repeats 5 steps in this order.",
+      "steps": [
+        "ask_question",
+        "read_answer",
+        "inspect_conflict",
+        "open_timeline",
+        "copy_answer"
+      ],
+      "support": 3,
+      "source_event_ids": [
+        "evt_5aQFVWeF3e06hlDl5Bu25A",
+        "evt_jxfrHEz9WzadiQIRt7wrVg",
+        "01a0b9f6-4a39-7daf-9066-2542183ff7d9",
+        "01a0b9f6-4a39-7b29-98ae-054b1e6e1a80",
+        "01a0b9f6-4a39-77d0-ae1a-4294566057ae"
+      ],
+      "saved_at": "2026-09-19T13:58:43.988497Z",
+      "automation": "none",
+      "version": 1
+    },
+    "request_id": "req_cad04b24bddf"
+  }
+}

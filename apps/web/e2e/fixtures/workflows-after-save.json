@@ -1,0 +1,119 @@
+{
+  "status": 200,
+  "body": {
+    "suggestions": [
+      {
+        "suggestion_id": "wf_5fe3f08cdee868b3",
+        "name": "ask question to copy answer",
+        "steps": [
+          "ask_question",
+          "read_answer",
+          "inspect_conflict",
+          "open_timeline",
+          "copy_answer"
+        ],
+        "support": 3,
+        "recency": "2026-09-19T13:58:40.953215Z",
+        "confidence": 1.0,
+        "traces": [
+          [
+            "evt_BQPWGchN2UqjIoXekLe1Gw",
+            "evt_0he4OVsubD6Dy619ZSesUg",
+            "01a0b9f6-3299-7c36-92f2-b48b14d7a1b2",
+            "01a0b9f6-329e-7ee8-a24f-a036f473b8f4",
+            "01a0b9f6-329e-7840-a1b4-2d4143c7fd16"
+          ],
+          [
+            "evt_ZIX0dw9e5txV7Gb-3-NEig",
+            "evt_Wgbjcry8zM7SX2YClvwUtA",
+            "01a0b9f6-3e61-7853-a07b-2e8c49a50521",
+            "01a0b9f6-3e61-74e4-aeac-e8103ac3eb55",
+            "01a0b9f6-3e61-727a-91bf-1dc7940d4676"
+          ],
+          [
+            "evt_5aQFVWeF3e06hlDl5Bu25A",
+            "evt_jxfrHEz9WzadiQIRt7wrVg",
+            "01a0b9f6-4a39-7daf-9066-2542183ff7d9",
+            "01a0b9f6-4a39-7b29-98ae-054b1e6e1a80",
+            "01a0b9f6-4a39-77d0-ae1a-4294566057ae"
+          ]
+        ],
+        "trace_sessions": [
+          "ses_3096b289c103",
+          "ses_3096b289c103",
+          "ses_3096b289c103"
+        ],
+        "trace_times": [
+          [
+            "2026-09-19T13:58:31.900106Z",
+            "2026-09-19T13:58:34.905500Z",
+            "2026-09-19T13:58:34.905501Z",
+            "2026-09-19T13:58:34.910622Z",
+            "2026-09-19T13:58:34.910623Z"
+          ],
+          [
+            "2026-09-19T13:58:34.910624Z",
+            "2026-09-19T13:58:37.919889Z",
+            "2026-09-19T13:58:37.921897Z",
+            "2026-09-19T13:58:37.921898Z",
+            "2026-09-19T13:58:37.921899Z"
+          ],
+          [
+            "2026-09-19T13:58:37.947561Z",
+            "2026-09-19T13:58:40.953212Z",
+            "2026-09-19T13:58:40.953213Z",
+            "2026-09-19T13:58:40.953214Z",
+            "2026-09-19T13:58:40.953215Z"
+          ]
+        ],
+        "example_session_ids": [
+          "ses_3096b289c103"
+        ],
+        "first_step_count": 3,
+        "rule_name": "Ask a question → Read the answer → Inspect a conflict → Open the timeline → Copy the answer",
+        "description": "The team repeats 5 steps in this order.",
+        "named_by": "openai/gpt-oss-120b",
+        "saved_versions": [
+          {
+            "version": 1,
+            "name": "ask question to copy answer",
+            "saved_at": "2026-09-19T13:58:43.988497Z"
+          }
+        ]
+      }
+    ],
+    "templates": [
+      {
+        "suggestion_id": "wf_5fe3f08cdee868b3",
+        "name": "ask question to copy answer",
+        "description": "The team repeats 5 steps in this order.",
+        "steps": [
+          "ask_question",
+          "read_answer",
+          "inspect_conflict",
+          "open_timeline",
+          "copy_answer"
+        ],
+        "support": 3,
+        "source_event_ids": [
+          "evt_5aQFVWeF3e06hlDl5Bu25A",
+          "evt_jxfrHEz9WzadiQIRt7wrVg",
+          "01a0b9f6-4a39-7daf-9066-2542183ff7d9",
+          "01a0b9f6-4a39-7b29-98ae-054b1e6e1a80",
+          "01a0b9f6-4a39-77d0-ae1a-4294566057ae"
+        ],
+        "saved_at": "2026-09-19T13:58:43.988497Z",
+        "automation": "none",
+        "version": 1
+      }
+    ],
+    "definitions": {
+      "support": "How many times the whole sequence occurred, counted without overlap within a session.",
+      "recency": "When the sequence last finished (UTC).",
+      "confidence": "support divided by how many times the sequence's first step occurred: the share of times that starting this sequence led to finishing it. Between 0 and 1.",
+      "session": "Events with no gap longer than 30 minutes between them. A session's ID is derived from its first event, so the same events always give the same sessions."
+    },
+    "automation": "none",
+    "request_id": "req_1503d1e3d548"
+  }
+}

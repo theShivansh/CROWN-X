@@ -1,6 +1,7 @@
 "use client";
 
-import { CircleNotch, GitDiff, Question, SealCheck, SealWarning } from "@phosphor-icons/react";
+import { Check, CircleNotch, Copy, GitDiff, Question, SealCheck, SealWarning } from "@phosphor-icons/react";
+import { useState } from "react";
 
 import { ErrorNotice } from "@/components/error-notice";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,9 @@ export function AnswerCard(props: {
   onRetry: () => void;
   onCite: (evidenceId: string) => void;
   onInspect: (key: string) => void;
+  onCopied?: (queryId: string) => void;
 }) {
-  const { ask, onRetry, onCite, onInspect } = props;
+  const { ask, onRetry, onCite, onInspect, onCopied } = props;
   if (ask.phase === "idle") return null;
 
   return (
@@ -50,6 +52,7 @@ export function AnswerCard(props: {
           conflicts={ask.query.conflicts}
           onCite={onCite}
           onInspect={onInspect}
+          onCopied={onCopied ? () => onCopied(ask.query.query_id) : undefined}
         />
       ) : null}
     </section>
@@ -70,13 +73,36 @@ function Answered({
   conflicts,
   onCite,
   onInspect,
+  onCopied,
 }: {
   answer: AnswerResult;
   evidence: Evidence[];
   conflicts: ConflictGroup[];
   onCite: (evidenceId: string) => void;
   onInspect: (key: string) => void;
+  onCopied?: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    // The answer with its citations and the sources they point to, as plain text.
+    const byId = new Map(evidence.map((e) => [e.evidence_id, e]));
+    const lines = answer.claims.map(
+      (c) => `${c.text} ${c.evidence_ids.map((id) => `[${byId.get(id)?.retrieval_rank ?? "?"}]`).join("")}`,
+    );
+    const cited = [...new Set(answer.claims.flatMap((c) => c.evidence_ids))]
+      .map((id) => byId.get(id))
+      .filter((e): e is Evidence => Boolean(e))
+      .sort((a, b) => a.retrieval_rank - b.retrieval_rank)
+      .map((e) => `[${e.retrieval_rank}] ${e.filename ?? e.document_id}${e.page_or_section ? `, ${e.page_or_section}` : ""}`);
+    try {
+      await navigator.clipboard.writeText([...lines, "", "Sources:", ...cited].join("\n"));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+      onCopied?.();
+    } catch {
+      setCopied(false);
+    }
+  }
   const rankOf = new Map(evidence.map((e) => [e.evidence_id, e.retrieval_rank]));
   const sources = new Set(
     answer.claims.flatMap((c) => c.evidence_ids.map((id) => evidence.find((e) => e.evidence_id === id)?.document_id)),
@@ -169,6 +195,16 @@ function Answered({
           </li>
         ))}
       </ol>
+      {answer.claims.length ? (
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="inline-flex w-fit items-center gap-1 rounded-sm text-xs text-accent underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+          <span aria-live="polite">{copied ? "Copied with sources" : "Copy answer"}</span>
+        </button>
+      ) : null}
       {answer.answer_provider ? (
         <p className="font-mono text-xs text-text-subtle">
           {answer.answer_provider} · {answer.answered_by_model ?? answer.model_id}

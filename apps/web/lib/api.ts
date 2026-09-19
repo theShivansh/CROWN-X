@@ -142,6 +142,48 @@ export const TimelineResponse = z.object({
   events: z.array(TimelineEventSchema),
 });
 
+/** A detected workflow (ADR-018, ADR-022): mined by code, never run. Scores are defined in `definitions`. */
+export const WorkflowSuggestionSchema = z.object({
+  suggestion_id: z.string().min(1),
+  name: z.string().min(1),
+  rule_name: z.string().min(1),
+  description: z.string().nullable(),
+  named_by: z.string(),
+  steps: z.array(z.string()).min(1),
+  support: z.number().int().nonnegative(),
+  recency: z.string(),
+  confidence: z.number().min(0).max(1),
+  first_step_count: z.number().int().nonnegative(),
+  traces: z.array(z.array(z.string())),
+  trace_sessions: z.array(z.string()),
+  trace_times: z.array(z.array(z.string())),
+  example_session_ids: z.array(z.string()),
+  saved_versions: z.array(z.object({ version: z.number().int(), name: z.string(), saved_at: z.string() })),
+});
+
+export const WorkflowTemplateSchema = z.object({
+  suggestion_id: z.string(),
+  version: z.number().int(),
+  name: z.string(),
+  description: z.string().nullish(),
+  steps: z.array(z.string()),
+  support: z.number().int(),
+  saved_at: z.string(),
+  automation: z.literal("none"),
+});
+
+export const WorkflowsResponse = z.object({
+  request_id: RequestId,
+  suggestions: z.array(WorkflowSuggestionSchema),
+  templates: z.array(WorkflowTemplateSchema),
+  definitions: z.record(z.string(), z.string()),
+  automation: z.literal("none"),
+});
+
+const SaveWorkflowResponse = z.object({ request_id: RequestId, template: WorkflowTemplateSchema });
+const DismissWorkflowResponse = z.object({ request_id: RequestId, dismissed: z.literal(true) });
+const EventResponse = z.object({ request_id: RequestId, event_id: z.string(), recorded: z.literal(true) });
+
 const WorkspaceResponse = z.object({
   request_id: RequestId,
   workspace: z.object({ workspace_id: z.string().min(1), created_at: z.string() }),
@@ -228,6 +270,9 @@ export type ConflictGroup = z.infer<typeof ConflictGroupSchema>;
 export type SelectionRule = (typeof SELECTION_RULES)[number];
 export type Timeline = z.infer<typeof TimelineResponse>;
 export type TimelineEvent = z.infer<typeof TimelineEventSchema>;
+export type WorkflowSuggestion = z.infer<typeof WorkflowSuggestionSchema>;
+export type WorkflowTemplate = z.infer<typeof WorkflowTemplateSchema>;
+export type Workflows = z.infer<typeof WorkflowsResponse>;
 
 /** True when the configured model didn't write this answer: the reliability layer fell back (ADR-017). */
 export function fellBack(answer: Pick<AnswerResult, "attempts" | "answered_by_model">): boolean {
@@ -387,6 +432,30 @@ export function createApiClient(options: { baseUrl: string | undefined; fetch?: 
         "GET",
         `${ws(workspaceId)}/timeline?subject=${encodeURIComponent(subject)}&attribute=${encodeURIComponent(attribute)}`,
       ),
+
+    workflows: (workspaceId: string) => call(WorkflowsResponse, "GET", `${ws(workspaceId)}/workflow-suggestions`),
+
+    refreshWorkflows: (workspaceId: string) =>
+      call(WorkflowsResponse, "POST", `${ws(workspaceId)}/workflow-suggestions/refresh`),
+
+    saveWorkflow: (workspaceId: string, suggestionId: string, name?: string) =>
+      call(
+        SaveWorkflowResponse,
+        "POST",
+        `${ws(workspaceId)}/workflow-suggestions/${encodeURIComponent(suggestionId)}/save`,
+        name ? { name } : {},
+      ),
+
+    dismissWorkflow: (workspaceId: string, suggestionId: string) =>
+      call(
+        DismissWorkflowResponse,
+        "POST",
+        `${ws(workspaceId)}/workflow-suggestions/${encodeURIComponent(suggestionId)}/dismiss`,
+        {},
+      ),
+
+    event: (workspaceId: string, event: { event_id: string; event_type: string; occurred_at: string; ref: object }) =>
+      call(EventResponse, "POST", `${ws(workspaceId)}/events`, event),
 
     health: () => call(HealthResponse, "GET", "/health", undefined, [503]),
   };

@@ -29,8 +29,10 @@ export function DocumentsRail(props: {
   onDismissUpload: (key: string) => void;
   onRetryLoad: () => void;
   conflictsByDocument?: ReadonlyMap<string, number>;
+  footer?: ReactNode;
 }) {
-  const { documents, loadError, uploads, onUpload, onDismissUpload, onRetryLoad, conflictsByDocument } = props;
+  const { documents, loadError, uploads, onUpload, onDismissUpload, onRetryLoad, conflictsByDocument, footer } =
+    props;
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -125,6 +127,7 @@ export function DocumentsRail(props: {
           </li>
         ) : null}
       </ul>
+      {footer}
     </nav>
   );
 }

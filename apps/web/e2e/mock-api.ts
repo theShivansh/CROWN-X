@@ -8,13 +8,20 @@ import health from "./fixtures/health.json";
 import queryDeadline from "./fixtures/query-deadline.json";
 import queryInsufficient from "./fixtures/query-insufficient.json";
 import timelineDeadline from "./fixtures/timeline-deadline.json";
+import eventRecorded from "./fixtures/event-recorded.json";
+import workflowSaved from "./fixtures/workflow-saved.json";
+import workflowsAfterSave from "./fixtures/workflows-after-save.json";
+import workflowsEmpty from "./fixtures/workflows-empty.json";
+import workflowsRefresh from "./fixtures/workflows-refresh.json";
 
 /** The workspace the recorded fixtures came from (a local API run over the real resolver). */
 export const WORKSPACE = "ws_iWnb7m2xqxxFlGRxfBrrJg";
 export const API = "http://api.e2e.test";
 
 type Fixture = { status: number; body: unknown };
-export type Overrides = Partial<Record<"documents" | "query" | "answer" | "timeline", Fixture | Fixture[]>>;
+export type Overrides = Partial<
+  Record<"documents" | "query" | "answer" | "timeline" | "workflows" | "refresh", Fixture | Fixture[]>
+>;
 
 /** The SRS §6 error envelope, as the API sends it. */
 export function apiError(status: number, code: string, message: string, requestId: string): Fixture {
@@ -44,6 +51,12 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     else if (path.endsWith("/documents")) fixture = next("documents", documents);
     else if (path.endsWith("/conflicts")) fixture = conflicts;
     else if (path.endsWith("/timeline")) fixture = next("timeline", timelineDeadline);
+    // Workflow Learning Lite (built with NEXT_PUBLIC_WORKFLOWS_ENABLED=true): none until refreshed.
+    else if (path.endsWith("/events")) fixture = eventRecorded;
+    else if (path.endsWith("/workflow-suggestions/refresh")) fixture = next("refresh", workflowsRefresh);
+    else if (path.endsWith("/save")) fixture = workflowSaved;
+    else if (path.endsWith("/workflow-suggestions"))
+      fixture = next("workflows", calls.some((c) => c.endsWith("/save")) ? workflowsAfterSave : workflowsEmpty);
     else if (path.endsWith("/query"))
       fixture = next("query", /deadline/i.test(question(route)) ? queryDeadline : queryInsufficient);
     else if (path.endsWith("/answer"))

@@ -80,6 +80,7 @@ jobs:
       - run: pnpm build
         env:
           NEXT_PUBLIC_API_URL: http://api.e2e.test
+          NEXT_PUBLIC_WORKFLOWS_ENABLED: "true"  # the golden path must pass with the feature on
       - run: pnpm e2e --grep @critical
       - if: failure()
         uses: actions/upload-artifact@v4
