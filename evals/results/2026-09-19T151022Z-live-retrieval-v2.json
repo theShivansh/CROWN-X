@@ -1,0 +1,379 @@
+{
+  "dataset": "retrieval-v2",
+  "mode": "live-retrieval",
+  "run_at": "2026-09-19T15:10:22Z",
+  "commit": "ce1b9be",
+  "providers": {
+    "environment": "production",
+    "answer_provider": "groq",
+    "answer_model": "openai/gpt-oss-120b",
+    "answer_fallback_model": "openai/gpt-oss-20b",
+    "embedding_provider": "onnx",
+    "embedding_model": "bge-small-en-v1.5-int8",
+    "embedding_version": "2",
+    "reranker_model": null
+  },
+  "workspace": "ws_Fc6Ca9NMLm2ih-tmdQeU-Q",
+  "passages": 60,
+  "cases": 30,
+  "errors": 0,
+  "recall_at_5": 0.9167,
+  "recall_at_8": 0.95,
+  "mrr": 0.7472,
+  "p50_query_ms": 242.3,
+  "p95_query_ms": 1190.8,
+  "by_category": {
+    "hard_negative": {
+      "cases": 3,
+      "errors": 0,
+      "recall_at_5": 1.0,
+      "recall_at_8": 1.0,
+      "mrr": 1.0,
+      "p50_query_ms": 267.5,
+      "p95_query_ms": 1200.0
+    },
+    "hinglish": {
+      "cases": 6,
+      "errors": 0,
+      "recall_at_5": 1.0,
+      "recall_at_8": 1.0,
+      "mrr": 0.7083,
+      "p50_query_ms": 203.4,
+      "p95_query_ms": 1190.8
+    },
+    "indirect": {
+      "cases": 3,
+      "errors": 0,
+      "recall_at_5": 0.5,
+      "recall_at_8": 0.5,
+      "mrr": 0.5,
+      "p50_query_ms": 190.0,
+      "p95_query_ms": 210.7
+    },
+    "original": {
+      "cases": 10,
+      "errors": 0,
+      "recall_at_5": 1.0,
+      "recall_at_8": 1.0,
+      "mrr": 0.95,
+      "p50_query_ms": 242.3,
+      "p95_query_ms": 365.5
+    },
+    "paraphrased": {
+      "cases": 8,
+      "errors": 0,
+      "recall_at_5": 0.875,
+      "recall_at_8": 1.0,
+      "mrr": 0.5208,
+      "p50_query_ms": 378.3,
+      "p95_query_ms": 1163.5
+    }
+  },
+  "mrr_range": [
+    0.7472,
+    0.7472
+  ],
+  "repeats": 1,
+  "first_run": {
+    "r2-orig-01": [
+      "api-limits-spec-v2.md#Spec v2 · Events Portal limit",
+      "architecture-notes.md#Architecture · Event list cache",
+      "retro-sprint-1.md#Retro · Root cause of the portal block",
+      "security-review.md#Security · Secrets",
+      "api-limits-spec-v2.md#Spec v2 · Our own API throttling",
+      "retro-sprint-1.md#Retro · What went badly",
+      "retro-sprint-1.md#Retro · Changes we agreed",
+      "meeting-notes-sync-6.md#Sync 6 · Load test results"
+    ],
+    "r2-orig-02": [
+      "venue-logistics.md#Venue · Fest dates",
+      "project-brief-v2.md#Brief v2 · Problem",
+      "volunteer-plan.md#Volunteers · Recruitment",
+      "api-limits-spec-v2.md#Spec v2 · Endpoints",
+      "project-brief-v2.md#Brief v2 · Scope changes since v1",
+      "architecture-notes.md#Architecture · Data retention",
+      "organiser-update-4.md#Update 4 · Robotics Expo clash",
+      "project-brief-v2.md#Brief v2 · Programme and sponsor"
+    ],
+    "r2-orig-03": [
+      "venue-logistics.md#Venue · Main stage",
+      "venue-logistics.md#Venue · Power and network",
+      "architecture-notes.md#Architecture · Hosting",
+      "venue-logistics.md#Venue · Fest dates",
+      "venue-logistics.md#Venue · Gates",
+      "retro-sprint-1.md#Retro · What went badly",
+      "sms-vendor-quote.md#SMS quote · Invoice terms",
+      "qa-test-plan.md#QA · Scope"
+    ],
+    "r2-orig-04": [
+      "qa-test-plan.md#QA · Regression suite",
+      "qa-test-plan.md#QA · Load testing",
+      "organiser-update-4.md#Update 4 · Submission checklist",
+      "meeting-notes-sync-6.md#Sync 6 · Decisions",
+      "project-brief-v2.md#Brief v2 · Problem",
+      "qa-test-plan.md#QA · Bug triage",
+      "qa-test-plan.md#QA · Scope",
+      "meeting-notes-sync-6.md#Sync 6 · Load test results"
+    ],
+    "r2-orig-05": [
+      "volunteer-plan.md#Volunteers · Briefing",
+      "volunteer-plan.md#Volunteers · Recruitment",
+      "volunteer-plan.md#Volunteers · Door duty",
+      "architecture-notes.md#Architecture · Offline door scanning",
+      "volunteer-plan.md#Volunteers · Perks",
+      "volunteer-plan.md#Volunteers · Shifts",
+      "meeting-notes-sync-6.md#Sync 6 · Action items",
+      "organiser-update-4.md#Update 4 · Deadline reminder"
+    ],
+    "r2-orig-06": [
+      "organiser-update-4.md#Update 4 · Prizes",
+      "security-review.md#Security · Pass forgery",
+      "project-brief-v2.md#Brief v2 · Goals and success measures",
+      "retro-sprint-1.md#Retro · What went well",
+      "volunteer-plan.md#Volunteers · Perks",
+      "api-limits-spec-v2.md#Spec v2 · Endpoints",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "security-review.md#Security · Personal data"
+    ],
+    "r2-orig-07": [
+      "sms-vendor-quote.md#SMS quote · Delivery and retries",
+      "sms-vendor-quote.md#SMS quote · Vendor and pricing",
+      "security-review.md#Security · OTP abuse",
+      "qa-test-plan.md#QA · Scope",
+      "security-review.md#Security · Threat summary",
+      "sms-vendor-quote.md#SMS quote · DLT registration",
+      "api-limits-spec-v2.md#Spec v2 · Payload limits",
+      "organiser-update-4.md#Update 4 · Robotics Expo clash"
+    ],
+    "r2-orig-08": [
+      "budget-sheet-v3.md#Budget v3 · Cap",
+      "budget-sheet-v3.md#Budget v3 · Contingency",
+      "project-brief-v2.md#Brief v2 · Budget and grant",
+      "budget-sheet-v3.md#Budget v3 · Printing and T-shirts",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "organiser-update-4.md#Update 4 · Submission checklist",
+      "project-brief-v2.md#Brief v2 · Problem",
+      "project-brief-v2.md#Brief v2 · Scope changes since v1"
+    ],
+    "r2-orig-09": [
+      "meeting-notes-sync-6.md#Sync 6 · Load test results",
+      "qa-test-plan.md#QA · Load testing",
+      "meeting-notes-sync-6.md#Sync 6 · Payment gateway spike",
+      "meeting-notes-sync-6.md#Sync 6 · Attendance",
+      "meeting-notes-sync-6.md#Sync 6 · Decisions",
+      "meeting-notes-sync-6.md#Sync 6 · Action items",
+      "retro-sprint-1.md#Retro · Team health",
+      "qa-test-plan.md#QA · Scope"
+    ],
+    "r2-orig-10": [
+      "venue-logistics.md#Venue · Gates",
+      "volunteer-plan.md#Volunteers · Door duty",
+      "venue-logistics.md#Venue · Power and network",
+      "qa-test-plan.md#QA · Scope",
+      "project-brief-v2.md#Brief v2 · Scope changes since v1",
+      "meeting-notes-sync-6.md#Sync 6 · Payment gateway spike",
+      "project-brief-v2.md#Brief v2 · Programme and sponsor",
+      "architecture-notes.md#Architecture · Offline door scanning"
+    ],
+    "r2-para-01": [
+      "retro-sprint-1.md#Retro · What went badly",
+      "api-limits-spec-v2.md#Spec v2 · Events Portal limit",
+      "retro-sprint-1.md#Retro · Root cause of the portal block",
+      "project-brief-v2.md#Brief v2 · Problem",
+      "architecture-notes.md#Architecture · Event list cache",
+      "security-review.md#Security · Secrets",
+      "meeting-notes-sync-6.md#Sync 6 · Load test results",
+      "project-brief-v2.md#Brief v2 · Goals and success measures"
+    ],
+    "r2-para-02": [
+      "volunteer-plan.md#Volunteers · Door duty",
+      "api-limits-spec-v2.md#Spec v2 · Retries and backoff",
+      "project-brief-v2.md#Brief v2 · Goals and success measures",
+      "architecture-notes.md#Architecture · Event list cache",
+      "retro-sprint-1.md#Retro · What went badly",
+      "security-review.md#Security · Pass forgery",
+      "volunteer-plan.md#Volunteers · Briefing",
+      "security-review.md#Security · Threat summary"
+    ],
+    "r2-para-03": [
+      "project-brief-v2.md#Brief v2 · Problem",
+      "volunteer-plan.md#Volunteers · Recruitment",
+      "architecture-notes.md#Architecture · Data retention",
+      "api-limits-spec-v2.md#Spec v2 · Payload limits",
+      "volunteer-plan.md#Volunteers · Briefing",
+      "project-brief-v2.md#Brief v2 · Goals and success measures",
+      "sms-vendor-quote.md#SMS quote · Throughput limits",
+      "sms-vendor-quote.md#SMS quote · Delivery and retries"
+    ],
+    "r2-para-04": [
+      "sms-vendor-quote.md#SMS quote · Vendor and pricing",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "sms-vendor-quote.md#SMS quote · DLT registration",
+      "retro-sprint-1.md#Retro · What went badly",
+      "retro-sprint-1.md#Retro · Root cause of the portal block",
+      "budget-sheet-v3.md#Budget v3 · Printing and T-shirts",
+      "venue-logistics.md#Venue · Power and network",
+      "sms-vendor-quote.md#SMS quote · Throughput limits"
+    ],
+    "r2-para-05": [
+      "volunteer-plan.md#Volunteers · Briefing",
+      "volunteer-plan.md#Volunteers · Door duty",
+      "project-brief-v2.md#Brief v2 · Goals and success measures",
+      "security-review.md#Security · Personal data",
+      "architecture-notes.md#Architecture · Offline door scanning",
+      "security-review.md#Security · OTP abuse",
+      "meeting-notes-sync-6.md#Sync 6 · Decisions",
+      "qa-test-plan.md#QA · Scope"
+    ],
+    "r2-para-06": [
+      "project-brief-v2.md#Brief v2 · Scope changes since v1",
+      "meeting-notes-sync-6.md#Sync 6 · Payment gateway spike",
+      "api-limits-spec-v2.md#Spec v2 · Endpoints",
+      "project-brief-v2.md#Brief v2 · Problem",
+      "project-brief-v2.md#Brief v2 · Goals and success measures",
+      "budget-sheet-v3.md#Budget v3 · Hosting",
+      "retro-sprint-1.md#Retro · What went badly",
+      "volunteer-plan.md#Volunteers · Perks"
+    ],
+    "r2-para-07": [
+      "architecture-notes.md#Architecture · QR pass generation",
+      "architecture-notes.md#Architecture · Event list cache",
+      "security-review.md#Security · Secrets",
+      "project-brief-v2.md#Brief v2 · Scope changes since v1",
+      "architecture-notes.md#Architecture · Data retention",
+      "api-limits-spec-v2.md#Spec v2 · Payload limits",
+      "retro-sprint-1.md#Retro · What went badly",
+      "security-review.md#Security · Personal data"
+    ],
+    "r2-para-08": [
+      "retro-sprint-1.md#Retro · Changes we agreed",
+      "retro-sprint-1.md#Retro · What went badly",
+      "qa-test-plan.md#QA · Load testing",
+      "meeting-notes-sync-6.md#Sync 6 · Action items",
+      "venue-logistics.md#Venue · Power and network",
+      "meeting-notes-sync-6.md#Sync 6 · Load test results",
+      "volunteer-plan.md#Volunteers · Briefing",
+      "retro-sprint-1.md#Retro · Root cause of the portal block"
+    ],
+    "r2-hing-01": [
+      "api-limits-spec-v2.md#Spec v2 · Events Portal limit",
+      "architecture-notes.md#Architecture · Event list cache",
+      "retro-sprint-1.md#Retro · Root cause of the portal block",
+      "security-review.md#Security · Secrets",
+      "api-limits-spec-v2.md#Spec v2 · Our own API throttling",
+      "retro-sprint-1.md#Retro · What went badly",
+      "meeting-notes-sync-6.md#Sync 6 · Attendance",
+      "project-brief-v2.md#Brief v2 · Programme and sponsor"
+    ],
+    "r2-hing-02": [
+      "venue-logistics.md#Venue · Gates",
+      "volunteer-plan.md#Volunteers · Perks",
+      "volunteer-plan.md#Volunteers · Recruitment",
+      "venue-logistics.md#Venue · Fest dates",
+      "project-brief-v2.md#Brief v2 · Goals and success measures",
+      "sms-vendor-quote.md#SMS quote · Throughput limits",
+      "project-brief-v2.md#Brief v2 · Problem",
+      "meeting-notes-sync-6.md#Sync 6 · Payment gateway spike"
+    ],
+    "r2-hing-03": [
+      "volunteer-plan.md#Volunteers · Perks",
+      "volunteer-plan.md#Volunteers · Shifts",
+      "volunteer-plan.md#Volunteers · Briefing",
+      "volunteer-plan.md#Volunteers · Recruitment",
+      "budget-sheet-v3.md#Budget v3 · Printing and T-shirts",
+      "volunteer-plan.md#Volunteers · Door duty",
+      "meeting-notes-sync-6.md#Sync 6 · Action items",
+      "architecture-notes.md#Architecture · Offline door scanning"
+    ],
+    "r2-hing-04": [
+      "budget-sheet-v3.md#Budget v3 · Contingency",
+      "project-brief-v2.md#Brief v2 · Budget and grant",
+      "budget-sheet-v3.md#Budget v3 · Printing and T-shirts",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "budget-sheet-v3.md#Budget v3 · Cap",
+      "sms-vendor-quote.md#SMS quote · Vendor and pricing",
+      "budget-sheet-v3.md#Budget v3 · Hosting",
+      "organiser-update-4.md#Update 4 · Prizes"
+    ],
+    "r2-hing-05": [
+      "sms-vendor-quote.md#SMS quote · Vendor and pricing",
+      "sms-vendor-quote.md#SMS quote · Delivery and retries",
+      "organiser-update-4.md#Update 4 · Deadline reminder",
+      "meeting-notes-sync-6.md#Sync 6 · Attendance",
+      "security-review.md#Security · OTP abuse",
+      "meeting-notes-sync-6.md#Sync 6 · Decisions",
+      "sms-vendor-quote.md#SMS quote · DLT registration",
+      "venue-logistics.md#Venue · Gates"
+    ],
+    "r2-hing-06": [
+      "organiser-update-4.md#Update 4 · Judging schedule",
+      "meeting-notes-sync-6.md#Sync 6 · Attendance",
+      "retro-sprint-1.md#Retro · What went well",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "organiser-update-4.md#Update 4 · Deadline reminder",
+      "retro-sprint-1.md#Retro · Team health",
+      "sms-vendor-quote.md#SMS quote · Vendor and pricing",
+      "project-brief-v2.md#Brief v2 · Programme and sponsor"
+    ],
+    "r2-vague-01": [
+      "retro-sprint-1.md#Retro · Root cause of the portal block",
+      "retro-sprint-1.md#Retro · Changes we agreed",
+      "retro-sprint-1.md#Retro · What went badly",
+      "architecture-notes.md#Architecture · Event list cache",
+      "api-limits-spec-v2.md#Spec v2 · Events Portal limit",
+      "security-review.md#Security · Secrets",
+      "api-limits-spec-v2.md#Spec v2 · Retries and backoff",
+      "sms-vendor-quote.md#SMS quote · Delivery and retries"
+    ],
+    "r2-vague-02": [
+      "retro-sprint-1.md#Retro · What went badly",
+      "venue-logistics.md#Venue · Power and network",
+      "volunteer-plan.md#Volunteers · Briefing",
+      "volunteer-plan.md#Volunteers · Door duty",
+      "security-review.md#Security · Threat summary",
+      "qa-test-plan.md#QA · Scope",
+      "sms-vendor-quote.md#SMS quote · Invoice terms",
+      "meeting-notes-sync-6.md#Sync 6 · Payment gateway spike"
+    ],
+    "r2-vague-03": [
+      "retro-sprint-1.md#Retro · Changes we agreed",
+      "api-limits-spec-v2.md#Spec v2 · Retries and backoff",
+      "retro-sprint-1.md#Retro · Root cause of the portal block",
+      "meeting-notes-sync-6.md#Sync 6 · Payment gateway spike",
+      "security-review.md#Security · Secrets",
+      "retro-sprint-1.md#Retro · What went badly",
+      "sms-vendor-quote.md#SMS quote · Throughput limits",
+      "architecture-notes.md#Architecture · Offline door scanning"
+    ],
+    "r2-hardneg-01": [
+      "volunteer-plan.md#Volunteers · Recruitment",
+      "volunteer-plan.md#Volunteers · Door duty",
+      "organiser-update-4.md#Update 4 · Deadline reminder",
+      "volunteer-plan.md#Volunteers · Perks",
+      "budget-sheet-v3.md#Budget v3 · Printing and T-shirts",
+      "volunteer-plan.md#Volunteers · Briefing",
+      "volunteer-plan.md#Volunteers · Shifts",
+      "architecture-notes.md#Architecture · Offline door scanning"
+    ],
+    "r2-hardneg-02": [
+      "sms-vendor-quote.md#SMS quote · Throughput limits",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "sms-vendor-quote.md#SMS quote · Invoice terms",
+      "sms-vendor-quote.md#SMS quote · DLT registration",
+      "api-limits-spec-v2.md#Spec v2 · Events Portal limit",
+      "security-review.md#Security · OTP abuse",
+      "meeting-notes-sync-6.md#Sync 6 · Load test results",
+      "meeting-notes-sync-6.md#Sync 6 · Action items"
+    ],
+    "r2-hardneg-03": [
+      "budget-sheet-v3.md#Budget v3 · Hosting",
+      "architecture-notes.md#Architecture · Hosting",
+      "budget-sheet-v3.md#Budget v3 · SMS credits",
+      "project-brief-v2.md#Brief v2 · Budget and grant",
+      "budget-sheet-v3.md#Budget v3 · Cap",
+      "organiser-update-4.md#Update 4 · Submission checklist",
+      "budget-sheet-v3.md#Budget v3 · Printing and T-shirts",
+      "api-limits-spec-v2.md#Spec v2 · Our own API throttling"
+    ]
+  }
+}

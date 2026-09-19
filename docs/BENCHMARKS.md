@@ -6,6 +6,55 @@ averaged (ADR-016, ADR-017). Offline answers come from a scripted transport, so 
 properties, never model quality. Offline retrieval with a real local model is real retrieval
 measured on a laptop, labelled with its model.
 
+## Final evaluation at the freeze (M6, 2026-09-19, product commit `ce1b9be`, tag `freeze-1`)
+Everything ran against the frozen product: the deployed stack in ap-south-1 (Groq gpt-oss-120b with a
+gpt-oss-20b fallback, ONNX bge-small-en-v1.5 int8, OpenSearch) and the same code offline. Each live
+run seeds its own fresh workspaces through the public API, so the demo workspace is untouched.
+
+**Headline** (the numbers the README, writeup and video use):
+
+| Metric | Value | Run |
+|---|---:|---|
+| Contradiction precision / recall | 1.0 / 1.0 | offline and live (runs 4 and 5) |
+| Selection accuracy (current value and rule, 4 keys) | 1.0 | offline and live |
+| Format-only differences flagged as conflicts | 0 | offline and live |
+| Security gate (citation validity, evidence integrity, isolation, injection, zero model calls) | pass, each 1.0 | offline and live |
+| Case pass rate, 40 M2 cases | 0.95 | live run 5 |
+| Status accuracy | 0.95 | live run 5 |
+| Answer value match | 1.0 | live run 5 |
+| Groundedness | 0.964 | live run 5 |
+| M3 conflict answers (7 cases) | 7 of 7 | live runs 4 and 5 |
+| Retrieval recall@8, golden set v1 | 1.0 | live run 5 |
+| Retrieval benchmark v2 (60 passages, 30 queries): recall@5 / recall@8 / MRR | 0.917 / 0.95 / 0.747 | live, 0 errors |
+| Query latency inside Lambda, p50 / p95 | 39 / 65 ms | CloudWatch (M4 section) |
+| Answer call inside Lambda, p50 / p95 | 731 / 1153 ms | CloudWatch (M4 section) |
+
+**Runs:**
+
+| Run | Command (from `services/api`) | Result file | Notes |
+|---|---|---|---|
+| Offline gate | `uv run python ../../evals/run.py --offline` | `2026-09-19T144551Z-offline.json` | identical to the M4 baseline: case pass 0.55 (scripted answers), status 0.825, security gate passed, contradictions 1.0 / 1.0 |
+| Live 4 | `... --api <ApiUrl> --pace 2.5` | `2026-09-19T145217Z-live.json` | pass 0.90, status 0.925, value match 0.929, groundedness 0.929. **Fallback rate 0.45**: at a 2.5 s pace Groq rate-limited the primary model, and 9 answer calls returned 503 before the runner's retry succeeded |
+| Live 5 | `... --api <ApiUrl> --pace 12` | `2026-09-19T150229Z-live.json` | the headline run: fallback 0.0; p50 / p95 query 213 / 250 ms and answer 1068 / 1698 ms, measured by this client, so network included. The misses are `synthesis-06` and `xws-02`, both status only; `xws-02` is the known answer-quality miss from the M2 live gate, not a leak |
+| Live retrieval v2 | `... --api <ApiUrl> --retrieval-only --dataset retrieval-v2` | `2026-09-19T151022Z-live-retrieval-v2.json` | 0 errors. By category (recall@5): original 1.0, hard negatives 1.0, Hinglish 1.0, paraphrased 0.875, indirect 0.5. Client p50 / p95 242 / 1191 ms: with 30 samples, one slow request sets p95 |
+
+**A defect found in the first retrieval run, and fixed.** The first live retrieval run at the freeze
+(`2026-09-19T144638Z-live-retrieval-v2.json`) recorded `errors: 19`. 19 of its 63 queries got 429s,
+from two causes:
+- M4's `/query` throttle (3 requests a second);
+- the 60 questions per workspace per hour quota: 3 warm-ups + 2 × 30 = 63.
+
+The printed table hid this, and its recall 0.927 / MRR 0.766 were computed over fewer queries than
+claimed, so they aren't used. The harness now (a fix after the freeze, in `evals/run.py`):
+- paces queries at 0.4 s;
+- runs one repeat (33 questions);
+- times only the request, not the pacing;
+- prints a warning and fails when any query errors.
+
+A second clean run on the same product (`2026-09-19T150813Z-live-retrieval-v2.json`) gave recall 0.917 / 0.95 and MRR 0.769, with latency inflated
+by the pacing (fixed before the final run). MRR moves by about 0.02 between fresh workspaces because
+of ranking ties.
+
 ## M4 latency per stage (deployed stack, CloudWatch Logs Insights)
 Measured on 2026-09-19 from the `request finished` and `ingestion stages` log lines, over about three
 hours of traffic after deploying `62d5fca`: the security acceptance run, the `@critical` golden path

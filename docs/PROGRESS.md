@@ -1,6 +1,6 @@
 # CROWN-X progress
 
-Next session starts here: M5 is DONE and live with both flags on (`WorkflowsEnabled=true` in the SAM deploy, `NEXT_PUBLIC_WORKFLOWS_ENABLED=true` on the Amplify branch). Workspace A's card shows "Answer Review Workflow" from three real UI runs (ADR-022). Next: M6 freeze and submit (`/milestone M6`), including the demo recording. To turn the feature off: redeploy with WorkflowsEnabled=false and remove the Amplify variable. Open: B10 (gitleaks summaries, signed in); ADR-019 gates to confirm. Live runs through this network use HTTPS_PROXY.
+Next session starts here: M6 in progress. Freeze tagged (`freeze-1` = `ce1b9be`), final eval recorded (BENCHMARKS "Final evaluation at the freeze"), README, CREDITS, WRITEUP, SUBMISSION and VIDEO_TAKE_SHEET written, live walk and drill passed. **Your turn:** record the video from `docs/VIDEO_TAKE_SHEET.md` by Sun 12:00 IST (I run the pre-flight first), upload it unlisted, then submit the form from `docs/SUBMISSION.md` by 13:00 IST. Deadline Sun 20 Sept 18:00 IST. Fixes only after the freeze, each logged under 'Post-freeze fixes'.
 
 The repo overrules this file; memory overrules neither. Update it before every session ends.
 
@@ -8,9 +8,18 @@ The repo overrules this file; memory overrules neither. Update it before every s
 (read 2026-09-16 23:43 IST; the countdown was gone at 2026-09-17 10:10 IST). Nothing in the repository
 predates it.
 
-**Event deadline (record with time zone):** not published yet. At 2026-09-16 23:43, 2026-09-17 07:39,
-10:10 and 13:30 IST the schedule page said the hours, including "the deadline the clock stops
-on", are still being finalised. Re-check the schedule page and record it here.
+**Event deadline (record with time zone):** **Sunday 2026-09-20 18:00 IST**, as the user set it on
+2026-09-19. The schedule page still said only "Sun / Sept 20: last day to submit" at 20:40 IST on
+2026-09-19. If the real time turns out earlier, the schedule below moves with it.
+
+**M6 schedule** (worked back from the deadline):
+| Target (IST) | Step |
+|---|---|
+| Sat 19 Sept night | freeze tag, final eval, `/verify-stage M6`, README, CREDITS, WRITEUP, form sheet, take sheet |
+| Sun 10:00 | all of the above done and pushed (deadline minus 8 h) |
+| Sun 12:00 | video recorded by the user from `docs/VIDEO_TAKE_SHEET.md`, then checked (deadline minus 6 h) |
+| Sun 13:00 | **submitted** by the user from `docs/SUBMISSION.md` (deadline minus 5 h) |
+| after | fixes only, each logged below; the form can be edited until 18:00 |
 
 ## Milestones
 | ID | Milestone | Status | Verified at | Commit | Notes |
@@ -21,7 +30,7 @@ on", are still being finalised. Re-check the schedule page and record it here.
 | M3 | Contradictions + conflict inspector | done (demo recording deferred to M6 by the user) | unit, integration (offline eval, live `/conflicts`), live (Amplify browser walk) | `5d36e76`..`09afe27` | Rule-based claims with defined extraction confidence, conflicts derived on read and scoped to the question (ADR-020); `/conflicts`; answer status `conflict`; inspector with sources, rule, value timeline and why-flagged. Precision 1.0, recall 1.0, selection 1.0 offline and live. 309 API + 18 web tests |
 | M4 | Timeline, polish, reliability | done | unit, integration (security acceptance on the deployed stack, Logs Insights), live (Amplify walk, `@critical` live run) | `82e6274`..`bb6be5e` | Timeline API and track, Ask CROWN palette, header counters, conflict card among the evidence, evidence sheet at 1024, hourly quota and route throttles (ADR-021), per-stage latency logs, `@critical` Playwright in CI |
 | M5 | Workflow Learning Lite (gated) | done, flags ON on the demo stack | unit, integration (deployed stack), live (Amplify card, `@critical` with the flag on) | `81ae701`..`8e2fbef` | Client UI events, refresh with cached Groq naming, versioned save, dismiss, suggestion card and detail, labelled benchmark with every false suggestion reviewed (ADR-022). Recommended for the video as the optional 2:35-2:50 segment (your call at M6) |
-| M6 | Freeze and submit | not started | none | none | |
+| M6 | Freeze and submit | freeze and docs done; video and submission are the user's (Sunday) | live (walk at 1440 and 1024, drill, final eval) | `freeze-1` = `ce1b9be` | Final eval: contradictions 1.0 / 1.0, live pass 0.95, value match 1.0, retrieval v2 recall@5 0.917 |
 
 ## M0 facts (bootstrap session, 2026-09-16 23:40 to 2026-09-17 18:35 IST)
 
@@ -160,6 +169,7 @@ verifies the account (ADR-015). On 2026-09-18 the user also waived the triage ch
 ## Verification log
 One line per `/verify-stage` run: `date time | milestone | commit | gates | level | failures`
 - 2026-09-18 17:05 IST | M2 Offline Gate | `81f4630` | 10/10 PASS (docs/CHECKLIST.md) | unit, offline eval, integration (deploy) | none; External Bedrock Gate NOT TESTED (B4)
+- 2026-09-19 21:00 IST | M6 (freeze part) | `freeze-1` = `ce1b9be` | freeze, final eval, live walk (1440, 1024 reduced motion), drill, docs PASS; video and submission OPEN | live | none
 - 2026-09-19 20:15 IST | M5 | `8e2fbef` deployed, flags on | 9/9 PASS (docs/CHECKLIST.md) | unit, integration, live | none
 - 2026-09-19 18:55 IST | M4 | `62d5fca` deployed, `bb6be5e` | 10/10 PASS (docs/CHECKLIST.md) | unit, integration, live | none
 - 2026-09-19 13:40 IST | M3 | `09afe27` deployed | 12/13 PASS, recording OPEN (docs/CHECKLIST.md) | unit, integration, live | none; demo recording not made yet (the user records it)
@@ -192,8 +202,30 @@ with the date: what, and where it showed up.
   `crownx-chunks-384` (the stray index is harmless and unused).
 - 2026-09-18: a hidden browser pane runs no animation frames, so smooth scrolling and
   requestAnimationFrame never finish there; check scroll targets with an instant scroll instead.
+- 2026-09-19: attaching a conflict whenever a conflicting passage was retrieved flagged almost every
+  question (status accuracy 0.825 → 0.275): top-8 retrieval covers half a small workspace. A conflict
+  now also needs the question to name the fact (ADR-020). Relevance is a separate decision from
+  detection.
+- 2026-09-19: a stdlib `logging` INFO line in a Lambda never reaches CloudWatch (the runtime filters
+  at WARNING); only the Powertools logger's lines did. A unit test that captured the line passed
+  anyway, so "logged" has to be checked in CloudWatch.
+- 2026-09-19: a new account's Lambda concurrency limit is 10, and AWS keeps 10 unreserved, so
+  reserved concurrency can't be set at all; throttling and a DynamoDB quota bound cost instead
+  (ADR-021).
+- 2026-09-19: ordering browser events by the browser's clock scrambled sequences against the
+  server's events; one clock (the server's) must order a stream that two machines write (ADR-022).
+- 2026-09-19: the equal-support sub-sequence rule left fragments of every workflow in our benchmark
+  (precision 0.4), and they outranked the whole workflow; a fragment now needs `min_support`
+  occurrences of its own.
 
-## Demo recording (deferred to M6 by the user; you record it)
+## Post-freeze fixes (M6; each small, with its reason)
+- 2026-09-19 `evals/run.py`: the live retrieval benchmark was sending queries faster than the
+  deployed `/query` throttle and more than the hourly quota, so 19 of 63 queries were scored as
+  errors, and the printed table didn't show it. The live client now paces queries at 0.4 s and times
+  only the request; the benchmark runs one repeat; any error prints a warning and fails the run.
+  This is harness only, not product code (BENCHMARKS, "Final evaluation at the freeze").
+
+## Demo recording (superseded by docs/VIDEO_TAKE_SHEET.md)
 Recording location: _not recorded yet: add the path here._ Keep the file outside the repository.
 
 Script (about 90 seconds, screen capture with Win+G or OBS, at 1440 wide):

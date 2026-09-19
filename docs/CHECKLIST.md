@@ -52,6 +52,20 @@ Known and not part of this gate:
 - The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
+## M6 Freeze and submit: freeze part GREEN (2026-09-19 21:00 IST, `freeze-1` = `ce1b9be`); video and submission OPEN
+
+| # | Gate / item | Result | Evidence |
+|---|---|---|---|
+| 1 | Freeze tagged | PASS | `freeze-1` on origin at `ce1b9be`; later changes are docs or the logged eval-harness fix |
+| 2 | Final eval recorded | PASS | BENCHMARKS "Final evaluation at the freeze": offline gate; live runs 4 (2.5 s pace) and 5 (12 s pace); live retrieval v2 with 0 errors. The first retrieval run's 19 errors are disclosed |
+| 3 | Golden path live at 1440x900 and 1024x768 | PASS | scripted keyboard-only walk on Amplify: the conflict answer, Tab to the timeline, arrow keys, focus ring, no overflow, console clean (1024 with reduced motion) |
+| 4 | Diagnosis drill | PASS | 404 request ID `req_D873hhgQBcwEJCw=` found in Logs Insights (`request finished` 404 `not_found`) |
+| 5 | M5 flag state | PASS | flags on, as decided; card live in workspace A |
+| 6 | README, CREDITS, WRITEUP | PASS | product README with screenshots from the deployed site, architecture as built, measured table from BENCHMARKS; CREDITS names Claude Code (Opus 5) and GitHub Copilot, models and licences read from metadata |
+| 7 | Repository public, history in window, CI and gitleaks green | pending the final push | first commit 2026-09-17 13:18 IST; no force-push |
+| 8 | Video recorded and checked | OPEN | the user records from `docs/VIDEO_TAKE_SHEET.md` |
+| 9 | Submitted, recorded in PROGRESS | OPEN | the user submits from `docs/SUBMISSION.md` |
+
 ## M5 Workflow Learning Lite: GREEN (2026-09-19 20:15 IST, deployed `8e2fbef`, flags on)
 Verified with `/verify-stage M5`.
 

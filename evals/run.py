@@ -218,12 +218,26 @@ class HttpClient:
     """A deployed stack. `pace_s` spaces out answer calls for Groq's free-tier rate limit; a 503
     `answer_unavailable` (rate limited even after the fallback) is retried after a pause."""
 
+    # The deployed `/query` route is throttled at 3 requests a second (ADR-021): starting one at
+    # most every 0.4 s keeps a benchmark under it, so a 429 is never scored as a retrieval miss.
+    QUERY_INTERVAL_S = 0.4
+
     def __init__(self, api: str, pace_s: float = 0.0) -> None:
         self._api = api.rstrip("/")
         self._pace_s = pace_s
         self._last_answer = 0.0
+        self._last_query = 0.0
 
     def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
+        if path.endswith("/query"):
+            wait = self._last_query + self.QUERY_INTERVAL_S - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self._last_query = time.monotonic()
+            started = time.perf_counter()
+            status, reply = self._call(method, path, body)
+            reply["_client_ms"] = (time.perf_counter() - started) * 1000  # the pacing isn't latency
+            return status, reply
         if not path.endswith("/answer"):
             return self._call(method, path, body)
         for attempt in range(3):
@@ -436,7 +450,7 @@ def retrieval_only(client: Client, cases: list[dict], workspaces: dict) -> dict[
         status, query = client.call(
             "POST", f"/workspaces/{ws}/query", {"question": case["question"]}
         )
-        elapsed = (time.perf_counter() - started) * 1000
+        elapsed = query.get("_client_ms", (time.perf_counter() - started) * 1000)
         outcomes[case["id"]] = (
             {"error": f"query HTTP {status}"}
             if status != 200
@@ -567,10 +581,11 @@ def benchmark_v2(embedders: list[str], timeout_s: int = 180, repeats: int = 3) -
     }
 
 
-def live_retrieval_v2(client: Client, timeout_s: int = 180, repeats: int = 2) -> dict:
+def live_retrieval_v2(client: Client, timeout_s: int = 180, repeats: int = 1) -> dict:
     """Benchmark v2 on a deployed stack as its /health describes it. Latency is measured by this
-    client, so it includes the network round trip to ap-south-1. Two repeats of 30 questions stay
-    within the stack's 60 questions per workspace per hour (ADR-021); a third would be refused."""
+    client, so it includes the network round trip to ap-south-1. The 3 warm-up questions and one
+    repeat of 30 stay within the stack's 60 questions per workspace per hour (ADR-021); a second
+    repeat would pass it and be refused."""
     _, health = client.call("GET", "/health")
     cases = load_cases(RETRIEVAL_V2)
     workspaces = {"R": seed_retrieval_v2(client, timeout_s)["R"]}
@@ -595,6 +610,9 @@ def print_v2(report: dict) -> None:
         f"CROWN-X retrieval benchmark v2 · {report['passages']} passages · {rows[0]['cases']} "
         f"queries · {report['mode']} · commit {report['commit']}"
     )
+    errors = sum(r.get("errors") or 0 for r in rows)
+    if errors:
+        print(f"WARNING: {errors} queries failed (HTTP errors) and are missing from these metrics")
     print("| System | Embedding model | Recall@5 | Recall@8 | MRR (range) | p50 ms | p95 ms |")
     print("|" + "---|" * 7)
     for r in rows:
@@ -750,6 +768,8 @@ def main() -> None:
         if not args.no_write:
             _write(report, "compare-retrieval-v2" if args.compare else "live-retrieval-v2")
         print_v2(report)
+        if report.get("errors"):
+            sys.exit(1)  # metrics missing queries aren't a result
         return
     if args.compare:
         report = compare(

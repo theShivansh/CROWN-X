@@ -4,35 +4,40 @@
 A simple, inspectable pipeline, not a swarm of agents. Judges reward a working product, and a
 deterministic graph with a few model calls is easier to test, debug, explain and keep within budget.
 
-## 2. System (AWS, Ship It track)
+## 2. System (AWS, Ship It track), as built
+The original plan used Bedrock for answers and embeddings. Since ADR-017, production answers come from
+Groq (gpt-oss-120b, falling back to gpt-oss-20b) and embeddings from a local ONNX model inside the
+Lambda; Bedrock stays a provider switch.
+
 ```mermaid
 flowchart TD
-    U[Browser: Next.js on Amplify] --> G[API Gateway HTTP API]
-    G --> L[Lambda: API + orchestration, Python 3.12]
-    U -- pre-signed POST, size-limited --> S3[(S3: raw documents)]
-    L -- async invoke after /complete --> I[Lambda: ingestion worker]
+    U[Browser: Next.js static export on Amplify Hosting] --> G[API Gateway HTTP API: CORS, per-route throttling]
+    U -- pre-signed POST, size-limited --> S3[(S3: raw documents, model files)]
+    G --> L[Lambda: API, Python 3.12]
+    L -- async invoke after upload --> I[Lambda: ingestion worker]
     I --> S3
-    I --> OS[(OpenSearch: chunks + vectors)]
-    I --> D[(DynamoDB: documents, claims, conflicts, audit, events)]
+    I --> OS[(OpenSearch Service: BM25 + k-NN, one index)]
+    I --> D[(DynamoDB: documents, claims, queries, audit, events, quotas)]
     L --> OS
     L --> D
-    L --> B[Amazon Bedrock]
-    I --> B
-    L --> CW[CloudWatch logs + metrics]
+    L -- HTTPS, key from SSM Parameter Store --> Q[Groq: gpt-oss-120b answers]
+    I -. ONNX embeddings run inside the Lambda .- I
+    L --> CW[CloudWatch Logs: every line carries request_id]
     I --> CW
 ```
 
-| Service | Responsibility | Why this service |
+| AWS service | Job in CROWN-X | Why this service |
 |---|---|---|
-| Amplify Hosting | Web app | URL in minutes, Git-connected deploys |
-| API Gateway (HTTP API) | API edge, CORS, throttling | Managed boundary, cheap per request |
-| Lambda | API, orchestration, ingestion | Scales to zero for a four-day event |
-| S3 | Raw documents, pre-signed uploads | Durable, no file bytes through Lambda |
-| OpenSearch | Lexical + vector retrieval | Hybrid search with metadata filters in one store |
-| Bedrock | Embeddings, claim normalization help, answer generation | Managed models, IAM-scoped |
-| DynamoDB | Metadata, claims, conflicts, audit, events | Key-value by workspace, on-demand billing |
-| CloudWatch | Logs, metrics, request tracing by ID | Proof for the video and debugging |
-| IAM | One role per function | Least privilege, reviewable |
+| Amplify Hosting | Serves the static web app, rebuilding on each push | Git-connected deploys with no server to run (ADR-014) |
+| API Gateway (HTTP API) | API edge: CORS for the app's origins, per-route throttling | Managed boundary, cheap per request; the throttles are a cost control (ADR-021) |
+| Lambda | The API and the ingestion worker, one least-privilege IAM role each; the ONNX embedding model runs inside | Scales to zero between demos; local embeddings add no per-call cost (ADR-017) |
+| S3 | Raw documents uploaded straight from the browser, and the pinned model files | No file bytes pass through Lambda, and S3 enforces the size limit on upload |
+| OpenSearch Service | BM25 and vector search in one index, filtered by workspace inside every query | Hybrid retrieval with metadata filters in a single store (ADR-011) |
+| DynamoDB | Workspaces, documents, claims, stored queries, audit records, workflow events, hourly quota counters (with TTL) | Everything is keyed by workspace; on-demand billing |
+| CloudWatch Logs and Logs Insights | Structured logs with `request_id` and per-stage latency; saved queries find any failed request | Every error the UI shows can be traced from its request ID |
+| SSM Parameter Store | Holds the Groq API key as a SecureString, read once per cold start | The key never enters the repo, the template or the logs |
+| IAM, CloudFormation (AWS SAM) | One role per function, scoped to its resources; the whole backend is one template | Reviewable least privilege (SECURITY T4); repeatable deploys |
+
 
 **Build It fallback** (if cloud deployment becomes the bottleneck): the same code on SAM Local and
 OpenSearch in Docker, per the event's Build It track. Decided in M1, recorded as an ADR.
