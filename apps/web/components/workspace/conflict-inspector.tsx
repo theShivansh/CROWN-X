@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ClockClockwise, GitDiff } from "@phosphor-icons/react";
+import { ArrowRight, ChartLineUp, ClockClockwise, GitDiff } from "@phosphor-icons/react";
 
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -35,8 +35,9 @@ export function ConflictInspector(props: {
   evidence: Evidence[];
   comparing: boolean;
   onOpen: (evidenceId: string) => void;
+  onTimeline: (group: ConflictGroup) => void;
 }) {
-  const { group, evidence, comparing, onOpen } = props;
+  const { group, evidence, comparing, onOpen, onTimeline } = props;
   const { older, newer } = primaryPair(group);
   const selected = selectedClaim(group);
   const evidenceFor = (claim: Claim) => evidence.find((e) => e.chunk_id === claim.source_chunk_id) ?? null;
@@ -74,6 +75,14 @@ export function ConflictInspector(props: {
       <p className="text-sm text-text">{ruleSentence(group)}</p>
 
       <Timeline group={group} evidence={evidence} onOpen={onOpen} />
+      <button
+        type="button"
+        onClick={() => onTimeline(group)}
+        className="inline-flex w-fit items-center gap-1 rounded-sm text-xs text-accent underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <ChartLineUp className="size-3.5" aria-hidden />
+        Open the full timeline
+      </button>
 
       <Disclosure label="Why was this flagged?">
         <ul className="flex flex-col gap-1 text-xs leading-5 text-text-muted">

@@ -110,6 +110,38 @@ export const ConflictGroupSchema = z.object({
   primary_conflict_id: z.string().min(1),
 });
 
+/** One source's value for a fact, in the selection rule's order (UI_UX §3.6). */
+export const TimelineEventSchema = z.object({
+  claim_id: z.string().min(1),
+  document_id: z.string().min(1),
+  filename: z.string(),
+  version_label: z.string().nullish(),
+  source_timestamp: z.string().nullish(),
+  uploaded_at: z.string().nullish(),
+  dated: z.boolean(),
+  order_label: z.string(),
+  raw_value: z.string(),
+  normalized_value: z.string().nullable(),
+  unit: z.string().nullish(),
+  quote: z.string(),
+  source_chunk_id: z.string().min(1),
+  changed: z.boolean(),
+  conflict_ids: z.array(z.string()),
+  selected: z.boolean(),
+});
+
+export const TimelineResponse = z.object({
+  request_id: RequestId,
+  key: z.string().min(1),
+  subject: z.string().min(1),
+  attribute: z.string().min(1),
+  label: z.string().min(1),
+  type: z.enum(["date", "number", "owner"]),
+  selection_rule: z.enum(SELECTION_RULES).nullable(),
+  selected_claim_id: z.string().nullable(),
+  events: z.array(TimelineEventSchema),
+});
+
 const WorkspaceResponse = z.object({
   request_id: RequestId,
   workspace: z.object({ workspace_id: z.string().min(1), created_at: z.string() }),
@@ -194,6 +226,8 @@ export type AnswerResult = z.infer<typeof AnswerResponse>;
 export type Claim = z.infer<typeof ClaimSchema>;
 export type ConflictGroup = z.infer<typeof ConflictGroupSchema>;
 export type SelectionRule = (typeof SELECTION_RULES)[number];
+export type Timeline = z.infer<typeof TimelineResponse>;
+export type TimelineEvent = z.infer<typeof TimelineEventSchema>;
 
 /** True when the configured model didn't write this answer: the reliability layer fell back (ADR-017). */
 export function fellBack(answer: Pick<AnswerResult, "attempts" | "answered_by_model">): boolean {
@@ -346,6 +380,13 @@ export function createApiClient(options: { baseUrl: string | undefined; fetch?: 
 
     conflicts: (workspaceId: string) =>
       call(ConflictsResponse, "GET", `${ws(workspaceId)}/conflicts`),
+
+    timeline: (workspaceId: string, subject: string, attribute: string) =>
+      call(
+        TimelineResponse,
+        "GET",
+        `${ws(workspaceId)}/timeline?subject=${encodeURIComponent(subject)}&attribute=${encodeURIComponent(attribute)}`,
+      ),
 
     health: () => call(HealthResponse, "GET", "/health", undefined, [503]),
   };

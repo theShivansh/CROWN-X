@@ -130,7 +130,7 @@ export function timeline(group: ConflictGroup): TimelinePoint[] {
 }
 
 /** How the timeline is ordered, in words: which signal placed the points. */
-export function timelineOrder(group: ConflictGroup): string {
+export function timelineOrder(group: Pick<ConflictGroup, "selection_rule">): string {
   switch (group.selection_rule) {
     case "newest_source_timestamp":
       return "Ordered by each document's own date.";

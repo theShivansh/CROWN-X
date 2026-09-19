@@ -4,6 +4,7 @@ import {
   CheckCircle,
   CircleNotch,
   Copy,
+  GitDiff,
   UploadSimple,
   WarningOctagon,
   X,
@@ -27,8 +28,9 @@ export function DocumentsRail(props: {
   onUpload: (files: Iterable<File>) => void;
   onDismissUpload: (key: string) => void;
   onRetryLoad: () => void;
+  conflictsByDocument?: ReadonlyMap<string, number>;
 }) {
-  const { documents, loadError, uploads, onUpload, onDismissUpload, onRetryLoad } = props;
+  const { documents, loadError, uploads, onUpload, onDismissUpload, onRetryLoad, conflictsByDocument } = props;
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -108,6 +110,7 @@ export function DocumentsRail(props: {
             key={d.document_id}
             document={d}
             original={d.duplicate_of ? byId.get(d.duplicate_of) : undefined}
+            conflicts={conflictsByDocument?.get(d.document_id) ?? 0}
           />
         ))}
         {documents === null && !loadError ? (
@@ -132,7 +135,7 @@ function Card({ title, status, children }: { title: string; status: ReactNode; c
       <p className="truncate text-dense font-medium text-text" title={title}>
         {title}
       </p>
-      <div className="flex items-center gap-1.5 text-xs text-text-muted">{status}</div>
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-muted">{status}</div>
       {children}
     </li>
   );
@@ -192,7 +195,15 @@ function UploadCard({ upload, onDismiss }: { upload: LocalUpload; onDismiss: () 
   );
 }
 
-function DocumentCard({ document: d, original }: { document: DocumentRecord; original?: DocumentRecord }) {
+function DocumentCard({
+  document: d,
+  original,
+  conflicts,
+}: {
+  document: DocumentRecord;
+  original?: DocumentRecord;
+  conflicts: number;
+}) {
   switch (d.status) {
     case "queued":
       return <Card title={d.filename} status={<Working label="Queued for parsing" />} />;
@@ -211,6 +222,13 @@ function DocumentCard({ document: d, original }: { document: DocumentRecord; ori
                 Ready · <span className="font-mono tabular-nums">{d.chunk_count ?? 0}</span>{" "}
                 {d.chunk_count === 1 ? "passage" : "passages"}
               </span>
+              {conflicts ? (
+                <span className="inline-flex items-center gap-1 text-conflict">
+                  <GitDiff weight="bold" className="size-3.5" aria-hidden />
+                  <span className="font-mono tabular-nums">{conflicts}</span>
+                  {conflicts === 1 ? "conflict" : "conflicts"}
+                </span>
+              ) : null}
             </>
           }
         />
