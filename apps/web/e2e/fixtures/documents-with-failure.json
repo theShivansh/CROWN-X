@@ -1,0 +1,72 @@
+{
+  "status": 200,
+  "body": {
+    "documents": [
+      {
+        "document_id": "doc_J13EIV_jtXXrva8YEz4tBg",
+        "workspace_id": "ws_iWnb7m2xqxxFlGRxfBrrJg",
+        "filename": "project-brief-v1.pdf",
+        "content_type": "application/pdf",
+        "size_bytes": 30405,
+        "status": "ready",
+        "stage": "ready",
+        "uploaded_at": "2026-09-19T12:04:38.593055Z",
+        "checksum": "6ef1313bf7ef8b1e20cb476a70ec0b7f5cef027aff914b81bc025fa46cbf7334",
+        "error": null,
+        "duplicate_of": null,
+        "chunk_count": 1,
+        "version_label": "v1",
+        "source_timestamp": "2026-08-31"
+      },
+      {
+        "document_id": "doc_xKqMwF1nzhJAigUSqIXuqg",
+        "workspace_id": "ws_iWnb7m2xqxxFlGRxfBrrJg",
+        "filename": "organiser-update-3.txt",
+        "content_type": "text/plain",
+        "size_bytes": 762,
+        "status": "ready",
+        "stage": "ready",
+        "uploaded_at": "2026-09-19T12:04:40.678216Z",
+        "checksum": "6d0e99d1be0fd07dc968c0f0b81bd1ec283e709f07de432f125bf8a7f5af4699",
+        "error": null,
+        "duplicate_of": null,
+        "chunk_count": 1,
+        "version_label": "update 3",
+        "source_timestamp": "2026-09-10"
+      },
+      {
+        "document_id": "doc_cDeYtXYfNbaE4k0iVyltUg",
+        "workspace_id": "ws_iWnb7m2xqxxFlGRxfBrrJg",
+        "filename": "meeting-notes-sync-5.md",
+        "content_type": "text/markdown",
+        "size_bytes": 856,
+        "status": "ready",
+        "stage": "ready",
+        "uploaded_at": "2026-09-19T12:04:42.714827Z",
+        "checksum": "cf663d5e47388f4fabc3d12ff37b95e6e1c6658f269c01a035fa5629d81f0569",
+        "error": null,
+        "duplicate_of": null,
+        "chunk_count": 5,
+        "version_label": "Sync 5",
+        "source_timestamp": "2026-09-11"
+      },
+      {
+        "document_id": "doc_dQS4mjTCyvucgKkpeMZnjw",
+        "workspace_id": "ws_iWnb7m2xqxxFlGRxfBrrJg",
+        "filename": "scan.pdf",
+        "content_type": "application/pdf",
+        "size_bytes": 431,
+        "status": "failed",
+        "stage": "parsing",
+        "uploaded_at": "2026-09-19T12:04:51.719795Z",
+        "checksum": "b3e44df802e407df3d586bb3d4b3a7db17bc868565f04a061077f7d8de3e44bd",
+        "error": "No text found; upload a text PDF. This one has no text layer, as happens with scanned pages.",
+        "duplicate_of": null,
+        "chunk_count": null,
+        "version_label": null,
+        "source_timestamp": null
+      }
+    ],
+    "request_id": "req_1fad0ebd2d49"
+  }
+}

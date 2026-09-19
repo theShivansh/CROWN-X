@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "body": {
+    "query_id": "qry_1hlFdyovCi1TNBBrGQ-D_w",
+    "status": "insufficient_evidence",
+    "answer": "Not enough evidence: no passage in this workspace answers the question. Upload a document that covers it, or ask about something the documents mention.",
+    "claims": [],
+    "answer_provider": "groq",
+    "model_id": "openai/gpt-oss-120b",
+    "answered_by_model": "openai/gpt-oss-120b",
+    "attempts": [
+      {
+        "model_id": "openai/gpt-oss-120b",
+        "outcome": "ok"
+      }
+    ],
+    "request_id": "req_e16147e9a4ec"
+  }
+}

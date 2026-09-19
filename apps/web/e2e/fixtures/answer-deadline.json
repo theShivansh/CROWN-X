@@ -1,0 +1,32 @@
+{
+  "status": 200,
+  "body": {
+    "query_id": "qry_wpGL6rzep8zEjRnE1VhD8w",
+    "status": "conflict",
+    "answer": "The submission deadline for Campus Build Sprint moves to 22 Sept. Deadline confirmed as 2026-09-22 (per the organiser email).",
+    "claims": [
+      {
+        "text": "The submission deadline for Campus Build Sprint moves to 22 Sept.",
+        "evidence_ids": [
+          "ev_1"
+        ]
+      },
+      {
+        "text": "Deadline confirmed as 2026-09-22 (per the organiser email).",
+        "evidence_ids": [
+          "ev_3"
+        ]
+      }
+    ],
+    "answer_provider": "groq",
+    "model_id": "openai/gpt-oss-120b",
+    "answered_by_model": "openai/gpt-oss-120b",
+    "attempts": [
+      {
+        "model_id": "openai/gpt-oss-120b",
+        "outcome": "ok"
+      }
+    ],
+    "request_id": "req_b9667f395040"
+  }
+}

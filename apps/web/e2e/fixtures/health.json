@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "status": "ok",
+    "dependencies": {
+      "config": "ok",
+      "table": "ok",
+      "bucket": "ok",
+      "index": "ok"
+    },
+    "providers": {
+      "environment": "development",
+      "answer_provider": "groq",
+      "answer_model": "openai/gpt-oss-120b",
+      "answer_fallback_model": null,
+      "embedding_provider": "mock",
+      "embedding_model": "mock-hashed-bow",
+      "embedding_version": "1",
+      "reranker_model": null
+    },
+    "request_id": "req_88381bf1bfc6"
+  }
+}

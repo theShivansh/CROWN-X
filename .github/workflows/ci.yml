@@ -58,6 +58,36 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  e2e:
+    name: Web end-to-end (@critical, recorded API responses)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      # The API address is a name the tests answer with `page.route`; nothing leaves the runner.
+      - run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://api.e2e.test
+      - run: pnpm e2e --grep @critical
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results
+          retention-days: 7
+
   api:
     name: API (ruff, pytest, template checks)
     runs-on: ubuntu-latest

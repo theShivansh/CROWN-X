@@ -1,0 +1,76 @@
+{
+  "status": 200,
+  "body": {
+    "key": "submission/deadline",
+    "subject": "submission",
+    "attribute": "deadline",
+    "label": "submission deadline",
+    "type": "date",
+    "selection_rule": "newest_source_timestamp",
+    "selected_claim_id": "cl_a62b9ef4d39d8af466b1",
+    "events": [
+      {
+        "claim_id": "cl_e261dbda33131b84078e",
+        "document_id": "doc_J13EIV_jtXXrva8YEz4tBg",
+        "filename": "project-brief-v1.pdf",
+        "version_label": "v1",
+        "source_timestamp": "2026-08-31",
+        "uploaded_at": "2026-09-19T12:04:38.593055Z",
+        "dated": true,
+        "order_label": "2026-08-31",
+        "raw_value": "20 September 2026",
+        "normalized_value": "2026-09-20",
+        "unit": null,
+        "quote": "submissions close on 20 September 2026",
+        "source_chunk_id": "doc_J13EIV_jtXXrva8YEz4tBg:0",
+        "changed": false,
+        "conflict_ids": [
+          "cf_8b5bac9298747e3928d1",
+          "cf_903e95a4aae8018926bc"
+        ],
+        "selected": false
+      },
+      {
+        "claim_id": "cl_787b53221a1cf1d62539",
+        "document_id": "doc_xKqMwF1nzhJAigUSqIXuqg",
+        "filename": "organiser-update-3.txt",
+        "version_label": "update 3",
+        "source_timestamp": "2026-09-10",
+        "uploaded_at": "2026-09-19T12:04:40.678216Z",
+        "dated": true,
+        "order_label": "2026-09-10",
+        "raw_value": "22 Sept",
+        "normalized_value": "2026-09-22",
+        "unit": null,
+        "quote": "submission deadline for Campus Build Sprint moves to 22 Sept",
+        "source_chunk_id": "doc_xKqMwF1nzhJAigUSqIXuqg:0",
+        "changed": true,
+        "conflict_ids": [
+          "cf_903e95a4aae8018926bc"
+        ],
+        "selected": false
+      },
+      {
+        "claim_id": "cl_a62b9ef4d39d8af466b1",
+        "document_id": "doc_cDeYtXYfNbaE4k0iVyltUg",
+        "filename": "meeting-notes-sync-5.md",
+        "version_label": "Sync 5",
+        "source_timestamp": "2026-09-11",
+        "uploaded_at": "2026-09-19T12:04:42.714827Z",
+        "dated": true,
+        "order_label": "2026-09-11",
+        "raw_value": "2026-09-22",
+        "normalized_value": "2026-09-22",
+        "unit": null,
+        "quote": "Deadline confirmed as 2026-09-22",
+        "source_chunk_id": "doc_cDeYtXYfNbaE4k0iVyltUg:2",
+        "changed": false,
+        "conflict_ids": [
+          "cf_8b5bac9298747e3928d1"
+        ],
+        "selected": true
+      }
+    ],
+    "request_id": "req_a169e3683e95"
+  }
+}

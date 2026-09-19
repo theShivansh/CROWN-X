@@ -1,0 +1,122 @@
+{
+  "status": 200,
+  "body": {
+    "conflicts": [
+      {
+        "key": "submission/deadline",
+        "subject": "submission",
+        "attribute": "deadline",
+        "label": "submission deadline",
+        "type": "date",
+        "severity": "high",
+        "selection_rule": "newest_source_timestamp",
+        "selected_claim_id": "cl_a62b9ef4d39d8af466b1",
+        "selected_value": "2026-09-22",
+        "selected_unit": null,
+        "claims": [
+          {
+            "claim_id": "cl_e261dbda33131b84078e",
+            "document_id": "doc_J13EIV_jtXXrva8YEz4tBg",
+            "filename": "project-brief-v1.pdf",
+            "subject": "submission",
+            "attribute": "deadline",
+            "value_type": "date",
+            "raw_value": "20 September 2026",
+            "normalized_value": "2026-09-20",
+            "unit": null,
+            "quote": "submissions close on 20 September 2026",
+            "char_start": 789,
+            "char_end": 827,
+            "value_start": 810,
+            "value_end": 827,
+            "source_chunk_id": "doc_J13EIV_jtXXrva8YEz4tBg:0",
+            "page_or_section": "Page 1",
+            "source_timestamp": "2026-08-31",
+            "version_label": "v1",
+            "uploaded_at": "2026-09-19T12:04:38.593055Z",
+            "trigger": "submissions close",
+            "trigger_is_label": false,
+            "extraction_method": "rule",
+            "confidence": {
+              "extraction": 0.9
+            }
+          },
+          {
+            "claim_id": "cl_787b53221a1cf1d62539",
+            "document_id": "doc_xKqMwF1nzhJAigUSqIXuqg",
+            "filename": "organiser-update-3.txt",
+            "subject": "submission",
+            "attribute": "deadline",
+            "value_type": "date",
+            "raw_value": "22 Sept",
+            "normalized_value": "2026-09-22",
+            "unit": null,
+            "quote": "submission deadline for Campus Build Sprint moves to 22 Sept",
+            "char_start": 270,
+            "char_end": 330,
+            "value_start": 323,
+            "value_end": 330,
+            "source_chunk_id": "doc_xKqMwF1nzhJAigUSqIXuqg:0",
+            "page_or_section": null,
+            "source_timestamp": "2026-09-10",
+            "version_label": "update 3",
+            "uploaded_at": "2026-09-19T12:04:40.678216Z",
+            "trigger": "submission deadline",
+            "trigger_is_label": false,
+            "extraction_method": "rule",
+            "confidence": {
+              "extraction": 0.81
+            }
+          },
+          {
+            "claim_id": "cl_a62b9ef4d39d8af466b1",
+            "document_id": "doc_cDeYtXYfNbaE4k0iVyltUg",
+            "filename": "meeting-notes-sync-5.md",
+            "subject": "submission",
+            "attribute": "deadline",
+            "value_type": "date",
+            "raw_value": "2026-09-22",
+            "normalized_value": "2026-09-22",
+            "unit": null,
+            "quote": "Deadline confirmed as 2026-09-22",
+            "char_start": 169,
+            "char_end": 201,
+            "value_start": 191,
+            "value_end": 201,
+            "source_chunk_id": "doc_cDeYtXYfNbaE4k0iVyltUg:2",
+            "page_or_section": "Decisions",
+            "source_timestamp": "2026-09-11",
+            "version_label": "Sync 5",
+            "uploaded_at": "2026-09-19T12:04:42.714827Z",
+            "trigger": "Deadline confirmed as",
+            "trigger_is_label": false,
+            "extraction_method": "rule",
+            "confidence": {
+              "extraction": 0.9
+            }
+          }
+        ],
+        "pairs": [
+          {
+            "conflict_id": "cf_8b5bac9298747e3928d1",
+            "claim_a": "cl_e261dbda33131b84078e",
+            "claim_b": "cl_a62b9ef4d39d8af466b1",
+            "type": "date",
+            "severity": "high",
+            "status": "open"
+          },
+          {
+            "conflict_id": "cf_903e95a4aae8018926bc",
+            "claim_a": "cl_e261dbda33131b84078e",
+            "claim_b": "cl_787b53221a1cf1d62539",
+            "type": "date",
+            "severity": "high",
+            "status": "open"
+          }
+        ],
+        "primary_conflict_id": "cf_903e95a4aae8018926bc"
+      }
+    ],
+    "request_id": "req_ee99041ed6a5"
+  }
+}
