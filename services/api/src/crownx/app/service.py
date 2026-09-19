@@ -18,6 +18,7 @@ from crownx.adapters.ports import (
     SearchIndex,
 )
 from crownx.app.events import record_event
+from crownx.app.workflows import Namer, Workflows
 from crownx.domain.answering import FinalAnswer, finalize, insufficient
 from crownx.domain.conflicts import ConflictGroup, audit_record, detect, group_view
 from crownx.domain.errors import (
@@ -46,7 +47,7 @@ from crownx.domain.timeline import KEYS as TIMELINE_KEYS
 from crownx.domain.timeline import timeline
 from crownx.domain.uploads import object_key, validate_upload
 from crownx.domain.vocabulary import asks_about
-from crownx.domain.workflow import DEFINITIONS, MinerConfig, WorkflowSuggestion, mine
+from crownx.domain.workflow import MinerConfig
 
 log = logging.getLogger(__name__)
 
@@ -121,6 +122,8 @@ class CrownService:
         providers: dict | None = None,
         reranker: Reranker | None = None,
         miner: MinerConfig | None = None,
+        workflows_enabled: bool = False,
+        namer: Namer | None = None,
     ) -> None:
         self._store = store
         self._objects = objects
@@ -133,6 +136,10 @@ class CrownService:
         self._providers = providers or {}
         self._reranker = reranker
         self._miner = miner or MinerConfig()
+        # Workflow Learning Lite's M5 surface (ADR-022): behind a flag, every route a 404 when off.
+        self.workflows = Workflows(
+            store, self.require_workspace, workflows_enabled, self._miner, namer
+        )
 
     # Workspaces ---------------------------------------------------------------------------------
 
@@ -545,11 +552,6 @@ class CrownService:
         )
 
     # Workflow Learning Lite (ADR-018) ------------------------------------------------------------
-
-    def workflow_suggestions(self, workspace_id: str) -> tuple[list[WorkflowSuggestion], dict]:
-        """Repeated sequences of this workspace's own actions. Suggestions only: nothing runs."""
-        self.require_workspace(workspace_id)
-        return mine(self._store.list_events(workspace_id), self._miner), DEFINITIONS
 
     def _event(self, workspace_id: str, event_type: EventType, **attributes: object) -> None:
         record_event(self._store, workspace_id, event_type, **attributes)

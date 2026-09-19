@@ -100,6 +100,11 @@ Parameters:
     Type: Number
     Default: 20
     MinValue: 1
+  WorkflowsEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Workflow Learning Lite routes (M5, ADR-022). Off returns 404 on every workflow route.
   QuestionsPerWorkspacePerHour:
     Type: Number
     Default: 60
@@ -143,6 +148,7 @@ Globals:
         MAX_UPLOAD_BYTES: !Ref MaxUploadBytes
         MAX_DOCUMENTS_PER_WORKSPACE: !Ref MaxDocumentsPerWorkspace
         QUESTIONS_PER_WORKSPACE_PER_HOUR: !Ref QuestionsPerWorkspacePerHour
+        WORKFLOWS_ENABLED: !Ref WorkflowsEnabled
         RETRIEVAL_TOP_K: !Ref RetrievalTopK
         POWERTOOLS_LOG_LEVEL: INFO
 
@@ -479,6 +485,30 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /workspaces/{workspace_id}/workflow-suggestions
+        ClientEvents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /workspaces/{workspace_id}/events
+        RefreshWorkflows:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /workspaces/{workspace_id}/workflow-suggestions/refresh
+        SaveWorkflow:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /workspaces/{workspace_id}/workflow-suggestions/{suggestion_id}/save
+        DismissWorkflow:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /workspaces/{workspace_id}/workflow-suggestions/{suggestion_id}/dismiss
         Conflicts:
           Type: HttpApi
           Properties:

@@ -15,7 +15,7 @@ _lock = threading.Lock()
 _last: datetime | None = None
 
 
-def _event_time() -> str:
+def event_time() -> str:
     """UTC now, strictly increasing within this process. Some clocks (Windows) tick in milliseconds,
     and two events of one request must keep the order they happened in."""
     global _last
@@ -37,7 +37,7 @@ def record_event(
                 event_id=new_event_id(),
                 workspace_id=workspace_id,
                 event_type=event_type,
-                occurred_at=_event_time(),
+                occurred_at=event_time(),
                 attributes=attributes,
             )
         )

@@ -237,3 +237,75 @@ def test_a_failing_event_store_never_fails_the_request(api):
     api.upload(ws, "brief.md", BRIEF)
     status, body, _ = api.call("POST", f"/workspaces/{ws}/query", {"question": "When?"})
     assert status == 200 and body["query_id"]
+
+
+# ---------------------------------------------------------------- M5 (ADR-022)
+
+OPEN_CONFLICT, OPEN_TIMELINE, COPY = (
+    EventType.CONFLICT_OPENED,
+    EventType.TIMELINE_OPENED,
+    EventType.ANSWER_COPIED,
+)
+
+
+def _at(offsets_s: list[float], types: list[EventType]) -> list[WorkflowEvent]:
+    return [
+        WorkflowEvent(
+            event_id=f"evt_{n:022d}",
+            workspace_id=WS,
+            event_type=t,
+            occurred_at=(START + timedelta(seconds=o)).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        )
+        for n, (o, t) in enumerate(zip(offsets_s, types, strict=True))
+    ]
+
+
+def test_the_session_gap_boundary_is_exactly_thirty_minutes():
+    routine = [ASK, READ, OPEN_CONFLICT]
+    types = routine * 3
+    # A gap of exactly 30:00 between rounds keeps one session; 30:01 splits every round.
+    # Each round lasts 2 s, so a round starting 1802 s after the last began is 30:00 after it ended.
+    same = _at([r * 1802 + i for r in range(3) for i in range(3)], types)
+    split = _at([r * 1803 + i for r in range(3) for i in range(3)], types)
+    [one] = mine(same)
+    assert one.support == 3 and len(set(one.trace_sessions)) == 1
+    [three] = mine(split)
+    assert three.support == 3 and len(set(three.trace_sessions)) == 3
+    assert three.example_session_ids == list(dict.fromkeys(reversed(three.trace_sessions)))
+
+
+def test_ui_events_are_workflow_steps_and_saving_is_not():
+    stream = events(
+        *[[ASK, READ, OPEN_CONFLICT, OPEN_TIMELINE, COPY, EventType.WORKFLOW_SAVED]] * 3
+    )
+    [top] = mine(stream)
+    assert top.steps == [
+        "ask_question",
+        "read_answer",
+        "inspect_conflict",
+        "open_timeline",
+        "copy_answer",
+    ]
+    assert top.name == (
+        "Ask a question → Read the answer → Inspect a conflict → Open the timeline → Copy the answer"
+    )
+    assert top.first_step_count == 3 and top.confidence == 1.0
+
+
+def test_confidence_counts_starts_that_did_not_finish():
+    finished = [ASK, READ, OPEN_CONFLICT]
+    stream = events(finished, finished, finished, [ASK, READ, COPY])
+    [top] = [
+        s for s in mine(stream) if s.steps == ["ask_question", "read_answer", "inspect_conflict"]
+    ]
+    assert (top.support, top.first_step_count, top.confidence) == (3, 4, 0.75)
+
+
+def test_trace_sessions_and_times_are_deterministic_too():
+    stream = events(*[[ASK, READ, OPEN_CONFLICT, COPY]] * 4, gap_minutes=45)
+    first = json.dumps([s.model_dump() for s in mine(stream)], sort_keys=True)
+    second = json.dumps([s.model_dump() for s in mine(list(reversed(stream)))], sort_keys=True)
+    assert first == second
+    [top] = mine(stream)
+    assert len(top.trace_times) == len(top.traces) == len(top.trace_sessions)
+    assert all(len(times) == 4 for times in top.trace_times)

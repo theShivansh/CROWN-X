@@ -84,6 +84,31 @@ class FakeStore:
         found = [e for e in self.events.values() if e.workspace_id == workspace_id]
         return sorted(found, key=lambda e: (e.occurred_at, e.event_id))[-limit:]
 
+    def claim_event_id(self, workspace_id: str, event_id: str) -> bool:
+        claimed = self.__dict__.setdefault("claimed_event_ids", set())
+        if (workspace_id, event_id) in claimed:
+            return False
+        claimed.add((workspace_id, event_id))
+        return True
+
+    def get_workflow_states(self, workspace_id: str) -> dict[str, dict]:
+        states = self.__dict__.setdefault("workflow_states", {})
+        return {sid: dict(s) for (ws, sid), s in states.items() if ws == workspace_id}
+
+    def put_workflow_state(self, workspace_id: str, suggestion_id: str, state: dict) -> None:
+        self.__dict__.setdefault("workflow_states", {})[(workspace_id, suggestion_id)] = dict(state)
+
+    def add_template(self, workspace_id: str, suggestion_id: str, template: dict) -> int:
+        templates = self.__dict__.setdefault("templates", [])
+        version = 1 + sum(
+            1 for ws, t in templates if ws == workspace_id and t["suggestion_id"] == suggestion_id
+        )
+        templates.append((workspace_id, {**template, "version": version}))
+        return version
+
+    def list_templates(self, workspace_id: str) -> list[dict]:
+        return [dict(t) for ws, t in self.__dict__.get("templates", []) if ws == workspace_id]
+
     def event_types(self, workspace_id: str) -> list[str]:
         return [e.event_type.value for e in self.list_events(workspace_id)]
 

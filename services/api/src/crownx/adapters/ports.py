@@ -63,6 +63,22 @@ class MetadataStore(Protocol):
         """The newest `limit` events of one workspace, oldest first."""
         ...
 
+    def claim_event_id(self, workspace_id: str, event_id: str) -> bool:
+        """Reserve a client event ID; False when it was already recorded (a retry)."""
+        ...
+
+    def get_workflow_states(self, workspace_id: str) -> dict[str, dict]:
+        """What's stored about each workflow suggestion (name, dismissal), by suggestion ID."""
+        ...
+
+    def put_workflow_state(self, workspace_id: str, suggestion_id: str, state: dict) -> None: ...
+
+    def add_template(self, workspace_id: str, suggestion_id: str, template: dict) -> int:
+        """Write the next immutable version of a saved workflow and return its version number."""
+        ...
+
+    def list_templates(self, workspace_id: str) -> list[dict]: ...
+
     def replace_claims(self, workspace_id: str, document_id: str, claims: list[Claim]) -> None:
         """Delete the document's previous claims, then write these (M3, ADR-020): a re-ingested
         document leaves nothing stale, and conflicts are derived from the claims when read."""

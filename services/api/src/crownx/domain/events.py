@@ -1,7 +1,9 @@
-"""CROWN-native workflow events (FR-WL-01, FR-WL-02; ADR-018).
+"""CROWN-native workflow events (FR-WL-01, FR-WL-02; ADR-018, ADR-022).
 
-Written server-side during ingestion and questions into an append-only stream per workspace. An event
-holds IDs, a type, a status and timings only: never document text, questions or answers.
+An append-only stream per workspace. Uploads, questions and answers are written server-side as they
+happen; what the user does in the UI (opening a passage, a conflict or a timeline, copying an answer,
+saving a workflow) arrives from the browser through `POST /events`. An event holds IDs, a type, a
+status and timings only: never document text, questions or answers.
 """
 
 from __future__ import annotations
@@ -12,7 +14,10 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-_EVENT_ID = re.compile(r"evt_[A-Za-z0-9_-]{22}")
+# Server events: `evt_` and 22 URL-safe characters. Client events: a UUIDv7 made in the browser.
+_EVENT_ID = re.compile(
+    r"evt_[A-Za-z0-9_-]{22}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+)
 
 
 class EventType(StrEnum):
@@ -26,6 +31,24 @@ class EventType(StrEnum):
     ANSWER_GENERATED = "answer_generated"
     ANSWER_INSUFFICIENT = "answer_insufficient"
     ANSWER_UNAVAILABLE = "answer_unavailable"
+    # From the browser (ADR-022).
+    EVIDENCE_OPENED = "evidence_opened"
+    CONFLICT_OPENED = "conflict_opened"
+    TIMELINE_OPENED = "timeline_opened"
+    ANSWER_COPIED = "answer_copied"
+    WORKFLOW_SAVED = "workflow_saved"
+
+
+# The only types the browser may send. Uploads, questions and saves are recorded by the server as
+# they happen, so accepting them from a client would count them twice.
+CLIENT_EVENT_TYPES = frozenset(
+    {
+        EventType.EVIDENCE_OPENED,
+        EventType.CONFLICT_OPENED,
+        EventType.TIMELINE_OPENED,
+        EventType.ANSWER_COPIED,
+    }
+)
 
 
 # Equivalent events share one stable step type, so a workflow isn't split by incidental outcomes.
@@ -41,6 +64,11 @@ NORMALIZED: dict[EventType, str | None] = {
     EventType.ANSWER_GENERATED: "read_answer",
     EventType.ANSWER_INSUFFICIENT: "read_answer",
     EventType.ANSWER_UNAVAILABLE: None,
+    EventType.EVIDENCE_OPENED: "open_evidence",
+    EventType.CONFLICT_OPENED: "inspect_conflict",
+    EventType.TIMELINE_OPENED: "open_timeline",
+    EventType.ANSWER_COPIED: "copy_answer",
+    EventType.WORKFLOW_SAVED: None,  # recorded, but saving a workflow never feeds its own detection
 }
 
 # Attribute values are small scalars only; this keeps text out of the stream by construction.

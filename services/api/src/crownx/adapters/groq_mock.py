@@ -60,6 +60,8 @@ class MockGroqTransport:
             raise _http_error(url, 500, {})
         if outcome.startswith("rate_limited:"):
             raise _http_error(url, 429, {"retry-after": outcome.split(":", 1)[1]})
+        if _tool_of(request) == "name_workflow":
+            return _named(request)
         return _completion(request, outcome)
 
 
@@ -95,6 +97,40 @@ def _completion(request: dict, outcome: str) -> dict:
         message["content"] = "Here is a free-text answer instead of the tool."
     return {
         "id": f"chatcmpl-mock-{len(evidence)}",
+        "model": request["model"],
+        "choices": [{"index": 0, "message": message, "finish_reason": "tool_calls"}],
+        "usage": {"prompt_tokens": len(user) // 4, "completion_tokens": len(arguments) // 4},
+    }
+
+
+def _tool_of(request: dict) -> str | None:
+    tools = request.get("tools") or []
+    return (tools[0].get("function") or {}).get("name") if tools else None
+
+
+def _named(request: dict) -> dict:
+    """A deterministic name for a naming request: the first and last step it was given."""
+    user = next(m["content"] for m in request["messages"] if m["role"] == "user")
+    steps = user.splitlines()[0].removeprefix("Steps, in order: ").split(" -> ")
+    arguments = json.dumps(
+        {
+            "name": f"{steps[0]} to {steps[-1]}".replace("_", " ")[:40],
+            "description": f"The team repeats {len(steps)} steps in this order.",
+        }
+    )
+    message = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": "call_mock",
+                "type": "function",
+                "function": {"name": "name_workflow", "arguments": arguments},
+            }
+        ],
+    }
+    return {
+        "id": "chatcmpl-mock-name",
         "model": request["model"],
         "choices": [{"index": 0, "message": message, "finish_reason": "tool_calls"}],
         "usage": {"prompt_tokens": len(user) // 4, "completion_tokens": len(arguments) // 4},

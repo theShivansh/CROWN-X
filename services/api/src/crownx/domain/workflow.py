@@ -31,13 +31,20 @@ DEFINITIONS = {
         "support divided by how many times the sequence's first step occurred: the share of times "
         "that starting this sequence led to finishing it. Between 0 and 1."
     ),
-    "session": "Events with no gap longer than the session gap between them.",
+    "session": (
+        "Events with no gap longer than 30 minutes between them. A session's ID is derived from its "
+        "first event, so the same events always give the same sessions."
+    ),
 }
 
 STEP_LABELS = {
     "add_document": "Add a document",
     "ask_question": "Ask a question",
     "read_answer": "Read the answer",
+    "open_evidence": "Open a cited passage",
+    "inspect_conflict": "Inspect a conflict",
+    "open_timeline": "Open the timeline",
+    "copy_answer": "Copy the answer",
 }
 
 
@@ -61,11 +68,17 @@ class WorkflowSuggestion(BaseModel):
     recency: str
     confidence: float
     traces: list[list[str]]  # event IDs of each representative occurrence, oldest first
+    trace_sessions: list[str]  # the session of each trace, in the same order
+    trace_times: list[list[str]]  # when each step of each trace happened (UTC), in the same order
+    example_session_ids: list[str]  # up to three distinct sessions where it occurred, newest first
+    first_step_count: int  # the confidence's denominator, so the UI can say it in words
 
 
 @dataclass
 class _Step:
     step: str
+    session_id: str
+    first_at: str
     event_ids: list[str] = field(default_factory=list)
     last_at: str = ""
 
@@ -108,6 +121,10 @@ def mine(
         )
     }
 
+    def sessions_of(found: list[list[_Step]]) -> list[str]:
+        newest_first = [window[0].session_id for window in reversed(found)]
+        return list(dict.fromkeys(newest_first))[:3]
+
     suggestions = [
         WorkflowSuggestion(
             suggestion_id="wf_" + hashlib.sha256("|".join(key).encode()).hexdigest()[:16],
@@ -120,6 +137,12 @@ def mine(
                 [event_id for step in window for event_id in step.event_ids]
                 for window in found[-config.max_traces :]
             ],
+            trace_sessions=[window[0].session_id for window in found[-config.max_traces :]],
+            trace_times=[
+                [step.first_at for step in window] for window in found[-config.max_traces :]
+            ],
+            example_session_ids=sessions_of(found),
+            first_step_count=first_step_counts[key[0]],
         )
         for key, found in kept.items()
     ]
@@ -131,6 +154,7 @@ def _sessions(events: list[WorkflowEvent], gap_minutes: int) -> list[list[_Step]
     unique = {event.event_id: event for event in events}
     ordered = sorted(unique.values(), key=lambda e: (e.occurred_at, e.event_id))
     sessions: list[list[_Step]] = []
+    session_id = ""
     previous: datetime | None = None
     for event in ordered:
         step = step_of(event)
@@ -139,13 +163,16 @@ def _sessions(events: list[WorkflowEvent], gap_minutes: int) -> list[list[_Step]
         at = datetime.fromisoformat(event.occurred_at.replace("Z", "+00:00"))
         if previous is None or (at - previous).total_seconds() > gap_minutes * 60:
             sessions.append([])
+            session_id = "ses_" + hashlib.sha256(event.event_id.encode()).hexdigest()[:12]
         previous = at
         current = sessions[-1]
         if current and current[-1].step == step:
             current[-1].event_ids.append(event.event_id)  # a repeat of the same step
             current[-1].last_at = event.occurred_at
         else:
-            current.append(_Step(step, [event.event_id], event.occurred_at))
+            current.append(
+                _Step(step, session_id, event.occurred_at, [event.event_id], event.occurred_at)
+            )
     return sessions
 
 

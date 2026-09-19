@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     max_upload_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
     max_documents_per_workspace: int = Field(default=20, gt=0)
     questions_per_workspace_per_hour: int = Field(default=60, gt=0)
+    workflows_enabled: bool = False  # Workflow Learning Lite's M5 routes (ADR-022)
     retrieval_top_k: int = Field(default=8, gt=0, le=50)
     retrieval_score_floor: float = Field(default=0.0, ge=0.0)
     upload_url_expiry_seconds: int = Field(default=300, gt=0, le=3600)

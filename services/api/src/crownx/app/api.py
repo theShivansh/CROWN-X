@@ -246,17 +246,54 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
             }
         )
 
+    # Workflow Learning Lite (ADR-018, ADR-022). Behind WORKFLOWS_ENABLED: 404 when off.
+
+    def json_body() -> Any:
+        try:
+            return json.loads(app.current_event.body or "{}")
+        except ValueError as exc:
+            raise InvalidRequest("The request body must be JSON.") from exc
+
+    @app.post("/workspaces/<workspace_id>/events")
+    def client_event(workspace_id: str) -> Response:
+        event = service().workflows.record(workspace_id, json_body())
+        return reply({"event_id": event.event_id, "recorded": True}, 201)
+
     @app.get("/workspaces/<workspace_id>/workflow-suggestions")
     def workflow_suggestions(workspace_id: str) -> Response:
-        """Read-only (ADR-018): repeated sequences of this workspace's own actions. Nothing runs."""
-        suggestions, definitions = service().workflow_suggestions(workspace_id)
-        return reply(
-            {
-                "suggestions": [s.model_dump(mode="json") for s in suggestions],
-                "definitions": definitions,
-                "automation": "none",
-            }
+        return reply(service().workflows.suggestions(workspace_id))
+
+    @app.post("/workspaces/<workspace_id>/workflow-suggestions/refresh")
+    def refresh_workflows(workspace_id: str) -> Response:
+        view = service().workflows.refresh(workspace_id)
+        logger.info(
+            "workflow suggestions refreshed",
+            extra={
+                "suggestions": [
+                    {
+                        "suggestion_id": s["suggestion_id"],
+                        "support": s["support"],
+                        "named_by": s["named_by"],
+                    }
+                    for s in view["suggestions"]
+                ]
+            },
         )
+        return reply(view)
+
+    @app.post("/workspaces/<workspace_id>/workflow-suggestions/<suggestion_id>/save")
+    def save_workflow(workspace_id: str, suggestion_id: str) -> Response:
+        template = service().workflows.save(workspace_id, suggestion_id, json_body())
+        logger.info(
+            "workflow saved",
+            extra={"suggestion_id": suggestion_id, "version": template["version"]},
+        )
+        return reply({"template": template}, 201)
+
+    @app.post("/workspaces/<workspace_id>/workflow-suggestions/<suggestion_id>/dismiss")
+    def dismiss_workflow(workspace_id: str, suggestion_id: str) -> Response:
+        service().workflows.dismiss(workspace_id, suggestion_id)
+        return reply({"suggestion_id": suggestion_id, "dismissed": True})
 
     return app
 
@@ -304,7 +341,24 @@ def _live_service() -> CrownService:
             retrieval_score_floor=settings.retrieval_score_floor,
             questions_per_hour=settings.questions_per_workspace_per_hour,
         ),
+        workflows_enabled=settings.workflows_enabled,
+        namer=_groq_namer(providers.answerer),
     )
+
+
+def _groq_namer(answerer: Any):
+    """Names a detected workflow with the answer model when it's Groq (ADR-022); otherwise the
+    suggestions keep their rule names."""
+    from crownx.adapters.groq import GroqAnswerer, name_workflow
+
+    if not isinstance(answerer, GroqAnswerer):
+        return None
+
+    def namer(steps: list[str], examples: list[list[str]]):
+        named = name_workflow(answerer, steps, examples)
+        return None if named is None else (named[0].name, named[0].description, named[1])
+
+    return namer
 
 
 _resolver = build_resolver(_live_service)

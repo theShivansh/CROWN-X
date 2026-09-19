@@ -149,6 +149,58 @@ class DynamoMetadataStore:
         events = [WorkflowEvent.model_validate_json(i["event_json"]) for i in response["Items"]]
         return sorted(events, key=lambda e: (e.occurred_at, e.event_id))
 
+    def claim_event_id(self, workspace_id: str, event_id: str) -> bool:
+        try:
+            self._table.put_item(
+                Item={"PK": _ws(workspace_id), "SK": f"EVTID#{event_id}"},
+                ConditionExpression=Attr("SK").not_exists(),
+            )
+            return True
+        except ClientError as error:
+            if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+            return False
+
+    def get_workflow_states(self, workspace_id: str) -> dict[str, dict]:
+        return {
+            item["SK"].removeprefix("WFSUGGEST#"): json.loads(item["state_json"])
+            for item in self._query_prefix(workspace_id, "WFSUGGEST#")
+        }
+
+    def put_workflow_state(self, workspace_id: str, suggestion_id: str, state: dict) -> None:
+        self._table.put_item(
+            Item={
+                "PK": _ws(workspace_id),
+                "SK": f"WFSUGGEST#{suggestion_id}",
+                "state_json": json.dumps(state),
+            }
+        )
+
+    def add_template(self, workspace_id: str, suggestion_id: str, template: dict) -> int:
+        """Versions are never overwritten: the put is conditional, and a lost race takes the next."""
+        for _ in range(5):
+            version = len(self._query_prefix(workspace_id, f"WFTEMPLATE#{suggestion_id}#")) + 1
+            try:
+                self._table.put_item(
+                    Item={
+                        "PK": _ws(workspace_id),
+                        "SK": f"WFTEMPLATE#{suggestion_id}#v{version:04d}",
+                        "template_json": json.dumps({**template, "version": version}),
+                    },
+                    ConditionExpression=Attr("SK").not_exists(),
+                )
+                return version
+            except ClientError as error:
+                if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                    raise
+        raise RuntimeError("could not reserve a template version")
+
+    def list_templates(self, workspace_id: str) -> list[dict]:
+        return [
+            json.loads(item["template_json"])
+            for item in self._query_prefix(workspace_id, "WFTEMPLATE#")
+        ]
+
     def replace_claims(self, workspace_id: str, document_id: str, claims: list[Claim]) -> None:
         stale = [
             item["SK"]

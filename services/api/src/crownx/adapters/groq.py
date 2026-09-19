@@ -19,7 +19,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from crownx.adapters.ports import AnswerResult
 from crownx.adapters.prompting import (
@@ -226,3 +226,92 @@ def _draft_from(response: dict) -> AnswerDraft:
                 except (ValidationError, json.JSONDecodeError) as error:
                     raise _Failed("wrong_format") from error
     raise _Failed("no_tool_call")
+
+
+# Naming a detected workflow (M5, ADR-022). The model sees only step types and when each step
+# happened relative to the first, never IDs, questions or document text, and it names a sequence
+# that code already found. Nothing depends on its text: any failure keeps the rule name.
+NAME_TOOL = "name_workflow"
+NAME_SYSTEM = (
+    "You name a repeated sequence of steps a team took in a document tool. The sequence was detected "
+    "by code; you only give it a short, plain name (at most 5 words, like a task a teammate would "
+    "say) and one sentence saying what the team does. Use only the steps given. No marketing words, "
+    "no emoji. Call the name_workflow tool."
+)
+
+
+class WorkflowName(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=3, max_length=40, pattern=r"^[^<>\n\r]+$")
+    description: str = Field(min_length=3, max_length=200, pattern=r"^[^<>\n\r]+$")
+
+
+def name_request(model: str, steps: list[str], examples: list[list[str]]) -> dict:
+    lines = [f"Steps, in order: {' -> '.join(steps)}"]
+    for n, offsets in enumerate(examples, start=1):
+        lines.append(f"Example {n}: " + ", ".join(offsets))
+    body: dict = {
+        "model": model,
+        "temperature": 0,
+        "max_completion_tokens": 512,
+        "messages": [
+            {"role": "system", "content": NAME_SYSTEM},
+            {"role": "user", "content": "\n".join(lines)},
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": NAME_TOOL,
+                    "description": "Give the detected workflow a short name and one sentence.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "maxLength": 40},
+                            "description": {"type": "string", "maxLength": 200},
+                        },
+                        "required": ["name", "description"],
+                    },
+                },
+            }
+        ],
+        "tool_choice": {"type": "function", "function": {"name": NAME_TOOL}},
+    }
+    if model.startswith("openai/gpt-oss"):
+        body["reasoning_effort"] = "low"
+    return body
+
+
+def _name_from(response: dict) -> WorkflowName:
+    for choice in response.get("choices") or []:
+        for call in (choice.get("message") or {}).get("tool_calls") or []:
+            function = call.get("function") or {}
+            if function.get("name") == NAME_TOOL:
+                name = WorkflowName.model_validate(json.loads(function.get("arguments") or "{}"))
+                return WorkflowName(name=name.name.strip(), description=name.description.strip())
+    raise ValueError("no name_workflow call")
+
+
+def name_workflow(
+    answerer: GroqAnswerer, steps: list[str], examples: list[list[str]]
+) -> tuple[WorkflowName, str] | None:
+    """One attempt per model (primary, then fallback); None on any failure. Returns the name and
+    the model that gave it."""
+    models = [answerer.model_id]
+    if answerer.fallback_model_id and answerer.fallback_model_id != answerer.model_id:
+        models.append(answerer.fallback_model_id)
+    headers = {
+        "content-type": "application/json",
+        "accept": "application/json",
+        "user-agent": USER_AGENT,
+        "authorization": f"Bearer {answerer._api_key}",
+    }
+    for model in models:
+        body = json.dumps(name_request(model, steps, examples)).encode()
+        try:
+            response = answerer._transport(answerer._url, headers, body, answerer._timeout)
+            return _name_from(response), model
+        except (TimeoutError, urllib.error.URLError, OSError, ValueError, ValidationError):
+            continue
+    return None

@@ -140,6 +140,7 @@ def api() -> ApiHarness:
         answerer=answerer,
         namespace=NAMESPACE,
         providers=PROVIDERS,
+        workflows_enabled=True,  # as on the demo stack; test_workflow_api.py covers it off
     )
     worker = IngestionWorker(
         store=store, objects=objects, embedder=embedder, index=index, namespace=NAMESPACE
