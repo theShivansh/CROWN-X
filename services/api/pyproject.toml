@@ -33,6 +33,7 @@ package = false
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = ["integration: runs against the deployed stack named by EVAL_API_URL (skipped without it)"]
 
 [tool.ruff]
 extend = "../../ruff.toml"
