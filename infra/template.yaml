@@ -466,6 +466,12 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /workspaces/{workspace_id}/conflicts
+        Timeline:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /workspaces/{workspace_id}/timeline
 
   IngestFunction:
     Type: AWS::Serverless::Function

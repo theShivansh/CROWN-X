@@ -33,6 +33,8 @@ class Selection:
 
 def select(claims: Sequence[Claim]) -> Selection:
     claims = list(claims)
+    if not claims:
+        return Selection(rule=None, ordered=(), selected=None)
     if all(c.source_timestamp for c in claims):
         return _by(claims, NEWEST_SOURCE_TIMESTAMP, lambda c: (c.source_timestamp or "",))
     versions = [version_key(c.version_label) for c in claims]

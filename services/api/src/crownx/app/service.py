@@ -41,6 +41,8 @@ from crownx.domain.ids import (
 from crownx.domain.injection import instruction_like
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 from crownx.domain.retrieval import EmbeddingNamespace, lexical_query, semantic_query
+from crownx.domain.timeline import KEYS as TIMELINE_KEYS
+from crownx.domain.timeline import timeline
 from crownx.domain.uploads import object_key, validate_upload
 from crownx.domain.vocabulary import asks_about
 from crownx.domain.workflow import DEFINITIONS, MinerConfig, WorkflowSuggestion, mine
@@ -384,6 +386,18 @@ class CrownService:
         """Every conflict in the workspace, derived from its claims now: never stale."""
         self.require_workspace(workspace_id)
         return [group_view(g) for g in detect(self._store.list_claims(workspace_id))]
+
+    def timeline(self, workspace_id: str, subject: str, attribute: str) -> dict:
+        """One fact's value history, ordered by the selection rule's own signals (FR-09)."""
+        key = f"{subject}/{attribute}"
+        if key not in TIMELINE_KEYS:
+            raise InvalidRequest(
+                "There is no timeline for that fact. Choose one of: "
+                + ", ".join(sorted(TIMELINE_KEYS))
+                + "."
+            )
+        self.require_workspace(workspace_id)
+        return timeline(self._store.list_claims(workspace_id), key)
 
     def _conflicts_touching(
         self, workspace_id: str, question: str, evidence: list[dict]

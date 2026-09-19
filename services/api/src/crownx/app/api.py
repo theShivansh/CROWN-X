@@ -158,6 +158,22 @@ def build_resolver(service: Callable[[], CrownService]) -> APIGatewayHttpResolve
         )
         return reply({"conflicts": groups})
 
+    @app.get("/workspaces/<workspace_id>/timeline")
+    def value_timeline(workspace_id: str) -> Response:
+        params = app.current_event.query_string_parameters or {}
+        view = service().timeline(
+            workspace_id, params.get("subject", ""), params.get("attribute", "")
+        )
+        logger.info(
+            "timeline listed",
+            extra={
+                "key": view["key"],
+                "events": len(view["events"]),
+                "selection_rule": view["selection_rule"],
+            },
+        )
+        return reply(view)
+
     @app.post("/workspaces/<workspace_id>/queries/<query_id>/answer")
     def answer(workspace_id: str, query_id: str) -> Response:
         try:

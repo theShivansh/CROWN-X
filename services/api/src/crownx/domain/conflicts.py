@@ -79,7 +79,7 @@ def conflicts_between(a: Claim, b: Claim) -> bool:
 
 def detect(claims: Iterable[Claim]) -> list[ConflictGroup]:
     by_key: dict[str, list[Claim]] = defaultdict(list)
-    for claim in _one_per_document_value(claims):
+    for claim in one_per_document_value(claims):
         if claim.comparable:
             by_key[claim.key].append(claim)
     groups = []
@@ -111,7 +111,7 @@ def detect(claims: Iterable[Claim]) -> list[ConflictGroup]:
     return groups
 
 
-def _one_per_document_value(claims: Iterable[Claim]) -> list[Claim]:
+def one_per_document_value(claims: Iterable[Claim]) -> list[Claim]:
     """A document that states one value twice is one source for it (chunk overlap, a summary)."""
     kept: dict[tuple[str, str, str | None, str | None], Claim] = {}
     for claim in sorted(claims, key=lambda c: (c.document_id, c.value_start)):

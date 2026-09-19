@@ -5,6 +5,7 @@ import socket
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import parse_qsl
 
 import pytest
 from fakes import FakeAnswerer, FakeEmbedder, FakeIndex, FakeIngest, FakeObjects, FakeStore
@@ -48,11 +49,14 @@ class ApiHarness:
         factory: Callable[[], CrownService] | None = None,
     ) -> tuple[int, dict, dict]:
         resolver = build_resolver(factory or (lambda: self.service))
+        path, _, query = path.partition("?")
+        params = dict(parse_qsl(query)) if query else None
         event = {
             "version": "2.0",
             "routeKey": "$default",
             "rawPath": path,
-            "rawQueryString": "",
+            "rawQueryString": query,
+            "queryStringParameters": params,
             "headers": {"content-type": "application/json"},
             "requestContext": {
                 "accountId": "000000000000",
