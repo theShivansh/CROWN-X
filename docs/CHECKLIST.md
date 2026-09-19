@@ -52,6 +52,24 @@ Known and not part of this gate:
 - The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
+## M5 Workflow Learning Lite: GREEN (2026-09-19 20:15 IST, deployed `8e2fbef`, flags on)
+Verified with `/verify-stage M5`.
+
+| # | Gate / item | Result | Evidence |
+|---|---|---|---|
+| 1 | Scope | PASS | `81ae701..8e2fbef` touch workflow events, the miner, the workflow API and card, the benchmark, tests and docs only |
+| 2 | Determinism, support, duplicates (unit) | PASS | `test_workflow.py` 25 tests (session gap at exactly 30:00 and 30:01, fragments, confidence, byte-identical output); `test_workflow_api.py` 16 tests (retry stored once, flag off 404 everywhere, server-owned types refused, IDs only, quota, scoping, naming once, fallback, versions, dismiss) |
+| 3 | Events, refresh, suggestion, save, dismiss (integration) | PASS | `tests/integration/test_workflows.py` on the deployed stack: support 3, save v1 then v2, dismissal hides it, a retry recorded once, another workspace 404 |
+| 4 | Card explains its events on the deployed URL (live) | PASS | the real UI driven three times in workspace A. The card shows "Answer Review Workflow" (Groq), 6 steps, "3 times", "Why detected?" in counts. The detail lists the 3 matching occurrences with times |
+| 5 | Golden path with the flag on (live) | PASS | `@critical` golden path against Amplify (flag on); CI e2e builds with the flag on (7 tests) |
+| 6 | Benchmark recorded, false suggestions reviewed | PASS | BENCHMARKS "Workflow Learning Lite, M5": precision 0.4 → 1.0 after the fragment rule, recall 1.0, support 1.0, deterministic; each false suggestion explained |
+| 7 | Quality | PASS | API 343 passed (6 integration skipped without `EVAL_API_URL`); ruff; web lint, typecheck, 28 unit tests, build, 7 e2e; `cfn-lint`; CI green on `8e2fbef` |
+| 8 | Security | PASS | events hold IDs only (validated, text refused); server-owned types refused; quota; flag off leaves nothing reachable; the model sees step types and times only, and its reply is validated |
+| 9 | Observability | PASS | `workflow suggestions refreshed` and `workflow saved` log lines; every request's `request finished` line |
+
+Found and fixed: client events keyed by the browser clock mis-ordered steps (now server time, ADR-022);
+fragments of a workflow outranked it on the card (fragment rule).
+
 ## M4 Timeline, polish, reliability: GREEN (2026-09-19 18:55 IST, deployed `62d5fca`)
 Verified with `/verify-stage M4`.
 

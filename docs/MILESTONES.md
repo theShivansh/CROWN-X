@@ -186,10 +186,11 @@ dates and numbers for the demo, and list the rest as a limitation.
 - WL benchmark
 
 **Done means:**
-- [ ] Determinism, support and duplicate tests pass (unit)
-- [ ] Events → suggestion → save works end to end (integration)
-- [ ] Suggestion card explains its events on the deployed URL (live)
-- [ ] Golden path still passes with the feature flag on (live)
+- [x] Determinism, support and duplicate tests pass (unit: `test_workflow.py`, `test_workflow_api.py`)
+- [x] Events → suggestion → save works end to end (integration: `tests/integration/test_workflows.py`
+      on the deployed stack)
+- [x] Suggestion card explains its events on the deployed URL (live, workspace A, 2026-09-19)
+- [x] Golden path still passes with the feature flag on (live: `@critical` against Amplify)
 
 **Kill criteria:** not live by Sunday 10:00 → disable behind a flag, keep it out of the video.
 

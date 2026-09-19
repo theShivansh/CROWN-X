@@ -4,6 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-022 · 2026-09-19 · M5 Workflow Learning Lite: client events on the server clock, derived sessions, fragment rule, cached Groq naming, behind a flag · accepted
 - ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack · accepted
 - ADR-020 · 2026-09-19 · M3 claims by rule, extraction confidence defined, conflicts derived on read and scoped to the question · accepted
 - ADR-019 · 2026-09-19 · Release gates from the first live runs · proposed
@@ -27,6 +28,56 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-022 · 2026-09-19 · M5 Workflow Learning Lite: client events on the server clock, derived sessions, fragment rule, cached Groq naming, behind a flag
+Status: accepted (unit, API, integration on the deployed stack, and the live card; 2026-09-19)
+
+**Context:** M5 adds UI events, save and dismiss, naming and the card to ADR-018's miner. Four
+findings shaped it:
+- The first client-event design keyed events by the browser's clock. In the tests, a routine's server
+  and browser events then interleaved wrongly, and the miner found only a 3-step tail.
+- Storing `session_id` at write time needs a read before every write, which races across Lambdas.
+- On the new labelled benchmark, the equal-support sub-sequence rule left fragments of each planted
+  workflow (precision 0.4). They outranked the full workflow, so the card would have led with one.
+- The prompt names suggestions with Bedrock; answers are on Groq (ADR-017).
+
+**Decision:**
+- `WORKFLOWS_ENABLED` / `NEXT_PUBLIC_WORKFLOWS_ENABLED`: off gives a 404 on every workflow route,
+  including ADR-018's GET, and hides the card.
+- Client events are `POST /events` with a browser UUIDv7, and IDs only.
+  - Only `evidence_opened`, `conflict_opened`, `timeline_opened` and `answer_copied` are accepted.
+    Uploads, questions and saves are server-owned.
+  - Every event is ordered by server receive time; the browser's time is kept as `client_at`.
+  - A conditional `EVTID#` marker makes a retry idempotent.
+  - There's an hourly quota of 600 events.
+- Sessions are derived at mining time: a gap over 30 minutes, with the ID a hash of the first event.
+- A sequence inside a longer candidate is kept only if its support exceeds the longer one's by at
+  least `min_support`, i.e. it also happened that often on its own. The equal-support case is the
+  special case.
+- Confidence stays ADR-018's support over first-step count. The UI says it as "Finished 3 of the 8
+  times it started with …", never as a number alone.
+- Naming: `POST /workflow-suggestions/refresh` names each new suggestion once with Groq. The model is
+  given step types and relative seconds only. The reply is validated, stored and never requested
+  again; a failure keeps the rule name. Nothing depends on the name.
+- Save writes immutable `WFTEMPLATE#{id}#v{n}` items. Dismiss hides a suggestion until its support
+  exceeds its support at dismissal.
+
+**Rejected:**
+- Client-clock ordering: it lets device clock skew reorder steps.
+- Write-time sessions: the race above.
+- Tuning a new threshold for fragments: the benchmark is ours, and the rule reuses `min_support`.
+- Bedrock naming: not in the provider set (ADR-017).
+- The `:refresh` path from the SRS: a colon in an HTTP API path is avoidable risk.
+
+**Consequences:**
+- Two DynamoDB writes per client event.
+- The card's "started" count includes every question asked in the workspace, so it falls as people
+  ask one-off questions. That's correct under the definition, and worded so.
+
+**Verify / revisit if:**
+- `test_workflow.py` (the gap boundary, fragments, determinism), `test_workflow_api.py`,
+  `tests/integration/test_workflows.py` and `evals/workflows/run.py` pass.
+- Revisit when real usage shows fragments that people do want suggested.
 
 ### ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack
 Status: accepted (T7 passed on the deployed stack, 2026-09-19: the 61st question in an hour was a 429 whose request log shows no stage ran)

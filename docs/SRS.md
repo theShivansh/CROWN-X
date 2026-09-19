@@ -44,7 +44,8 @@ layer (Bedrock) · contradiction engine · provenance formatter · persistence (
 | `GET /workspaces/{ws}/conflicts` | Detected conflicts. |
 | `GET /workspaces/{ws}/timeline?subject=&attribute=` | Value history. |
 | `POST /workspaces/{ws}/events` | Record a native event (M5). |
-| `POST /workspaces/{ws}/workflow-suggestions:refresh` | Run the deterministic miner and upsert suggestions (M5). |
+| `POST /workspaces/{ws}/events` | A UI event from the browser: UUIDv7 `event_id`, a client event type, IDs only (M5, ADR-022). |
+| `POST /workspaces/{ws}/workflow-suggestions/refresh` | Run the deterministic miner, name new suggestions once, return them (M5; `/refresh`, not `:refresh`, ADR-022). |
 | `GET /workspaces/{ws}/workflow-suggestions` | Suggestions (M5). |
 | `POST /workspaces/{ws}/workflow-suggestions/{id}/save`, `/dismiss` | Act on a suggestion (M5). |
 
@@ -90,9 +91,15 @@ shape below. Together they form one question's result:
     and `primary_conflict_id`.
 - **AuditEvent:** `event_id`, `request_id`, `workspace_id`, `event_type`, `timestamp`, `status`,
   `latency_ms`, `model_invocation_id`, `retrieval_ids`
-- **WorkflowEvent (M5):** `event_id`, `workspace_id`, `session_id`, `event_type`, `timestamp`, `payload_ref`
-- **WorkflowSuggestion / WorkflowTemplate (M5):** `id`, `workspace_id`, `sequence[]`, `support`,
-  `last_seen`, `confidence`, `example_session_ids[]`, `status`, `version`
+- **WorkflowEvent (M5):** `event_id`, `workspace_id`, `event_type`, `occurred_at` (server time),
+  `attributes` (IDs only; `client_at` for browser events). `session_id` is derived when mining
+  (ADR-022).
+- **WorkflowSuggestion (M5):** `suggestion_id`, `steps[]`, `support`, `recency`, `confidence`,
+  `first_step_count`, `traces[]`, `trace_sessions[]`, `trace_times[]`, `example_session_ids[]`,
+  `name`, `description`, `named_by`, `saved_versions[]`. Dismissal is stored as
+  `dismissed_at_support`.
+- **WorkflowTemplate (M5):** `suggestion_id`, `version`, `name`, `description`, `steps[]`, `support`,
+  `source_event_ids[]`, `saved_at`, `automation: "none"`. Versions are immutable.
 
 ## 5. Non-functional requirements
 - **Reliability:** timeouts on every external call; retries only for idempotent operations, bounded;

@@ -222,6 +222,15 @@ flowchart LR
 The model names and explains an already-detected pattern; it never invents the sequence. EventBridge is
 post-hackathon.
 
+As built in M5 (ADR-022), behind `WORKFLOWS_ENABLED`:
+- There's no separate Lambda; the API function does all of it.
+- **Events.** The browser posts UI events (`/events`). The server orders every event by its own clock
+  and dedups retries with an `EVTID#` marker.
+- **Mining.** The miner runs on read and on `/refresh`.
+- **Naming.** `/refresh` names new suggestions with Groq, once each, from step types and times only.
+- **Save and dismiss.** Save writes versioned `WFTEMPLATE#` items; dismiss stores the support at
+  dismissal.
+
 ## 13. Post-hackathon
 Hybrid retrieval benchmark (BM25 + dense, reranker; Qdrant option), LangGraph durable orchestration,
 read-only MCP server behind a permission layer, OpenTelemetry + Langfuse traces, MLflow evaluation runs.

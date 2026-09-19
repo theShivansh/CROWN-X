@@ -272,6 +272,47 @@ What this shows:
 - **Weighted fusion is parked.** Down-weighting BM25 in RRF looks like the fix. Choosing a weight on
   this set would tune on the test set, so it needs a separate development set first (Parking lot).
 
+## Workflow Learning Lite, M5 (labelled synthetic traces; ADR-022)
+Command: `cd services/api && uv run python ../../evals/workflows/run.py`, run twice with
+byte-identical output. 20 seeded scenarios from `evals/workflows/generate.py`, each with:
+- two planted workflows (a 5-step "sprint review" with the new UI steps, sometimes twice in one
+  session; a 4-step "intake");
+- near misses: swapped steps, and a step missing;
+- an interrupted review, with an extra step in the middle;
+- step-free system events, double-clicks and 5 retried writes;
+- one-offs.
+
+| Metric | First run (ADR-018 rule) | After the fragment rule (ADR-022) |
+|---|---:|---:|
+| Pattern precision | 0.4 | 1.0 |
+| Pattern recall | 1.0 | 1.0 |
+| False-suggestion rate | 0.6 (60 of 100) | 0.0 (0 of 40) |
+| Support-count accuracy | 1.0 | 1.0 |
+| Deterministic | yes | yes |
+
+**Every false suggestion from the first run, reviewed by hand:**
+
+| Suggestion | In how many scenarios | Why it appeared |
+|---|---:|---|
+| ask → read → inspect conflict | 20 | the sprint review's start; the two "step missing" near misses also start this way, so support = review + 2 |
+| inspect conflict → open timeline → copy | 20 | the review's tail; the interrupted review also ends this way (+1) |
+| ask → read → open passage | 20 | the intake's tail; the interrupted review contains it (+1) |
+
+Each is a correct observation, but it's a fragment of a workflow already suggested, not a workflow of
+its own. It also ranked above the full workflow by support. The fragment rule keeps a sub-sequence
+only if it also happened `min_support` times on its own. A unit test shows the other side: a
+fragment with 3 extra occurrences is still suggested.
+
+This is our own synthetic benchmark, so 1.0 shows that the rules do what they say. It doesn't show
+the suggestions are useful.
+
+**Live demo trace** (2026-09-19, workspace A):
+- The real UI was driven through "prepare sprint review" three times: 12 client events, all 201.
+- Refresh found the 6-step routine with support 3. Groq named it "Answer Review Workflow", given step
+  types and relative times only.
+- The card says "Finished 3 of the 8 times it started with 'ask a question'": workspace A has other
+  questions from earlier golden-path runs.
+
 ## Workflow Learning Lite (synthetic traces; ADR-018)
 Command: `cd services/api && uv run python ../../evals/workflow_eval.py` · 20 seeded scenarios. Each
 scenario plants 3 to 5 repeats of a true workflow and adds:

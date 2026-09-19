@@ -41,7 +41,7 @@ in `docs/PROGRESS.md`; this file explains how the pieces fit and what to do firs
    Record the live row in BENCHMARKS and propose the gates in DECISIONS.
 6. DONE 2026-09-19. M1 S6: connect Amplify (you authorize the GitHub app) and set `AMPLIFY_MONOREPO_APP_ROOT=apps/web`
    and `NEXT_PUBLIC_API_URL`. Narrow `amplify.yml`'s `connect-src`, redeploy with the Amplify origin in
-   `AllowedOrigins`, and walk the golden path in a browser.
+   `AllowedOrigins` and `WorkflowsEnabled=true` (M5, ADR-022; the Amplify branch also sets `NEXT_PUBLIC_WORKFLOWS_ENABLED=true`), and walk the golden path in a browser.
 7. B10: read the gitleaks job summary for run 35337564630 while signed in to GitHub.
 
 ## How the code fits (ADR-016, ADR-017, ADR-018)
@@ -71,7 +71,7 @@ All commands are in `CLAUDE.md` (Commands). Offline end to end, no AWS:
 - `cd services/api && uv run python ../../evals/run.py --offline` runs the real handlers with the
   production Groq adapter over the scripted transport and a local BM25 + FAISS index;
   `--embedding bge-small-en-v1.5-int8` uses the real local model (after `scripts/fetch_models.py`).
-- `... --compare [--dataset paraphrase]` is the retrieval benchmark; `evals/workflow_eval.py` the miner's.
+- `... --compare [--dataset paraphrase]` is the retrieval benchmark; `evals/workflows/run.py` the miner's (`evals/workflow_eval.py` still runs it).
 - For a browser, a local API over the mock providers is a ~100-line script (the in-process client in
   `evals/run.py` is the pattern); point the web app at it with `NEXT_PUBLIC_API_URL`.
 

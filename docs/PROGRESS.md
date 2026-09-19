@@ -1,6 +1,6 @@
 # CROWN-X progress
 
-Next session starts here: M4 is DONE and live (timeline, palette, limits, per-stage latency, security acceptance T1-T3/T5-T7 on the deployed stack, `@critical` Playwright in CI; ADR-021). M5 is a GO: start it with `/milestone M5` (`prompts/05-M5-WORKFLOW-LEARNING-LITE.md`). The demo recording is deferred to M6. Open: B10 (gitleaks summaries, signed in); ADR-019 gates to confirm. On this network, direct TLS is intercepted: live runs go through HTTPS_PROXY (Playwright uses it in live mode).
+Next session starts here: M5 is DONE and live with both flags on (`WorkflowsEnabled=true` in the SAM deploy, `NEXT_PUBLIC_WORKFLOWS_ENABLED=true` on the Amplify branch). Workspace A's card shows "Answer Review Workflow" from three real UI runs (ADR-022). Next: M6 freeze and submit (`/milestone M6`), including the demo recording. To turn the feature off: redeploy with WorkflowsEnabled=false and remove the Amplify variable. Open: B10 (gitleaks summaries, signed in); ADR-019 gates to confirm. Live runs through this network use HTTPS_PROXY.
 
 The repo overrules this file; memory overrules neither. Update it before every session ends.
 
@@ -20,7 +20,7 @@ on", are still being finalised. Re-check the schedule page and record it here.
 | M2 | Grounded answers + eval baseline | Offline Gate GREEN; Live Gate GREEN, API and browser (2026-09-19; browser walk on the Amplify URL) | unit, offline eval, integration (deploy) | `ad1a018`..`81f4630` | Slices A-G: demo corpus and PDF; page-aware PDF ingestion and header metadata; two-stage query with immutable snapshots; answer engine behind `ProviderRouter` (Bedrock, Mock, Groq) with production locked to Bedrock and a namespaced index (ADR-016); answer UI with citation chips and provider banner; golden set v1 (47 cases) and runner; redeployed. 187 API + 11 web tests. Offline baseline in BENCHMARKS (security gate 1.0 on every row). 2026-09-18 evening (ADR-017, ADR-018): Groq production answerer with reliability layer and scripted transport, local ONNX embeddings (bge-small by measurement) and optional reranker, dedup, retrieval modes and `--compare`, workflow events and miner, provider observability, template for SSM and models; 254 API + 12 web tests |
 | M3 | Contradictions + conflict inspector | done (demo recording deferred to M6 by the user) | unit, integration (offline eval, live `/conflicts`), live (Amplify browser walk) | `5d36e76`..`09afe27` | Rule-based claims with defined extraction confidence, conflicts derived on read and scoped to the question (ADR-020); `/conflicts`; answer status `conflict`; inspector with sources, rule, value timeline and why-flagged. Precision 1.0, recall 1.0, selection 1.0 offline and live. 309 API + 18 web tests |
 | M4 | Timeline, polish, reliability | done | unit, integration (security acceptance on the deployed stack, Logs Insights), live (Amplify walk, `@critical` live run) | `82e6274`..`bb6be5e` | Timeline API and track, Ask CROWN palette, header counters, conflict card among the evidence, evidence sheet at 1024, hourly quota and route throttles (ADR-021), per-stage latency logs, `@critical` Playwright in CI |
-| M5 | Workflow Learning Lite (gated) | GO, not started | none | none | Every M4 done-means item passed (2026-09-19 18:55 IST); ADR-018's events and miner are already live |
+| M5 | Workflow Learning Lite (gated) | done, flags ON on the demo stack | unit, integration (deployed stack), live (Amplify card, `@critical` with the flag on) | `81ae701`..`8e2fbef` | Client UI events, refresh with cached Groq naming, versioned save, dismiss, suggestion card and detail, labelled benchmark with every false suggestion reviewed (ADR-022). Recommended for the video as the optional 2:35-2:50 segment (your call at M6) |
 | M6 | Freeze and submit | not started | none | none | |
 
 ## M0 facts (bootstrap session, 2026-09-16 23:40 to 2026-09-17 18:35 IST)
@@ -160,6 +160,7 @@ verifies the account (ADR-015). On 2026-09-18 the user also waived the triage ch
 ## Verification log
 One line per `/verify-stage` run: `date time | milestone | commit | gates | level | failures`
 - 2026-09-18 17:05 IST | M2 Offline Gate | `81f4630` | 10/10 PASS (docs/CHECKLIST.md) | unit, offline eval, integration (deploy) | none; External Bedrock Gate NOT TESTED (B4)
+- 2026-09-19 20:15 IST | M5 | `8e2fbef` deployed, flags on | 9/9 PASS (docs/CHECKLIST.md) | unit, integration, live | none
 - 2026-09-19 18:55 IST | M4 | `62d5fca` deployed, `bb6be5e` | 10/10 PASS (docs/CHECKLIST.md) | unit, integration, live | none
 - 2026-09-19 13:40 IST | M3 | `09afe27` deployed | 12/13 PASS, recording OPEN (docs/CHECKLIST.md) | unit, integration, live | none; demo recording not made yet (the user records it)
 - 2026-09-19 09:45 IST | M2 Live Gate | `2577551` deployed | 6/6 PASS at API level (docs/CHECKLIST.md) | live | none; browser walk on the deployed URL NOT TESTED (Amplify)
