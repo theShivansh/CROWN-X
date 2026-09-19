@@ -209,7 +209,10 @@ class HttpClient:
             if wait > 0:
                 time.sleep(wait)
             self._last_answer = time.monotonic()
+            started = time.perf_counter()
             status, reply = self._call(method, path, body)
+            # Server-side time only: the pacing sleep above is the client's choice, not latency.
+            reply["_client_ms"] = (time.perf_counter() - started) * 1000
             code = (reply.get("error") or {}).get("code")
             if status != 503 or code != "answer_unavailable" or attempt == 2:
                 return status, reply
@@ -227,11 +230,20 @@ class HttpClient:
             method=method,
             headers={"content-type": "application/json"} if data else {},
         )
-        try:
-            with urllib.request.urlopen(request, timeout=35) as response:
-                return response.status, json.loads(response.read())
-        except urllib.error.HTTPError as error:
-            return error.code, json.loads(error.read() or b"{}")
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(request, timeout=35) as response:
+                    return response.status, json.loads(response.read())
+            except urllib.error.HTTPError as error:
+                return error.code, json.loads(error.read() or b"{}")
+            except (urllib.error.URLError, TimeoutError) as error:
+                # A dropped connection on this machine's side isn't an API result; retry it. Both
+                # calls are safe to repeat: a query writes a new snapshot, an answer a new audit.
+                if attempt == 2:
+                    raise
+                print(f"network error on {path} ({error}); retrying", file=sys.stderr)
+                time.sleep(5 * (attempt + 1))
+        raise AssertionError("unreachable")
 
     def put_object(self, upload: dict, filename: str, content: bytes) -> None:
         from seed import post_to_s3
@@ -303,7 +315,7 @@ def run_case(client: Client, case: dict, workspace: dict) -> dict:
         return {"error": f"query HTTP {status}: {query.get('error', {}).get('code')}"}
     started = time.perf_counter()
     status, answer = client.call("POST", f"/workspaces/{ws}/queries/{query['query_id']}/answer")
-    answer_ms = (time.perf_counter() - started) * 1000
+    answer_ms = answer.pop("_client_ms", None) or (time.perf_counter() - started) * 1000
     if status != 200:
         return {"error": f"answer HTTP {status}: {answer.get('error', {}).get('code')}"}
     return {

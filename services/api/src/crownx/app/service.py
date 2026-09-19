@@ -37,6 +37,7 @@ from crownx.domain.ids import (
     new_query_id,
     new_workspace_id,
 )
+from crownx.domain.injection import instruction_like
 from crownx.domain.models import Document, DocumentStatus, QueryRecord, Workspace, utc_now
 from crownx.domain.retrieval import EmbeddingNamespace, lexical_query, semantic_query
 from crownx.domain.uploads import object_key, validate_upload
@@ -418,7 +419,13 @@ class CrownService:
             )
             self._event(workspace_id, EventType.ANSWER_UNAVAILABLE, query_id=query_id)
             raise
-        final = finalize(result.draft, {e["evidence_id"] for e in record.evidence})
+        final = finalize(
+            result.draft,
+            {e["evidence_id"] for e in record.evidence},
+            frozenset(
+                e["evidence_id"] for e in record.evidence if instruction_like(e["quoted_span"])
+            ),
+        )
         if final.dropped:
             log.warning(
                 "dropped %d claim(s) citing unknown or no evidence (request %s, query %s)",

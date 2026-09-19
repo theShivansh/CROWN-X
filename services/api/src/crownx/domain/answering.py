@@ -4,8 +4,12 @@ Code, not the model, decides the final status (CLAUDE.md rule 1, SECURITY T6):
 - a claim that cites no evidence, or any ID that wasn't in the evidence the model was given, is dropped;
 - the answer text is rebuilt from the kept claims only, so an unsupported sentence can't survive in
   free text beside them;
-- `grounded` when every claim survived, `partial` when some were dropped, `insufficient_evidence` when
-  none survived or the model said the evidence doesn't answer the question.
+- a claim whose every citation is a passage carrying text addressed to an assistant (an injected
+  instruction) is dropped too: that text is data, never a source of facts (rule 3);
+- `grounded` when every claim survived, `partial` when some were dropped for missing or unknown
+  citations, `insufficient_evidence` when none survived or the model said the evidence doesn't answer
+  the question. A dropped instruction-only claim is recorded but doesn't make an answer partial: it was
+  never a fact the reader lost.
 """
 
 from __future__ import annotations
@@ -50,25 +54,34 @@ def insufficient() -> FinalAnswer:
     return FinalAnswer(status="insufficient_evidence", answer=INSUFFICIENT_ANSWER, claims=[])
 
 
-def finalize(draft: AnswerDraft, allowed_ids: set[str]) -> FinalAnswer:
+def finalize(
+    draft: AnswerDraft, allowed_ids: set[str], instruction_ids: frozenset[str] = frozenset()
+) -> FinalAnswer:
+    """`instruction_ids`: evidence IDs whose passage contains text addressed to an assistant."""
     kept: list[dict] = []
     dropped: list[dict] = []
+    refused: list[dict] = []
     for claim in draft.claims:
         cited = list(dict.fromkeys(claim.evidence_ids))  # de-duplicated, order kept
         text = claim.text.strip()
-        if text and cited and all(evidence_id in allowed_ids for evidence_id in cited):
-            kept.append({"text": text, "evidence_ids": cited})
-        else:
+        if not (text and cited and all(evidence_id in allowed_ids for evidence_id in cited)):
             dropped.append({"text": text, "evidence_ids": cited})
+        elif all(evidence_id in instruction_ids for evidence_id in cited):
+            refused.append({"text": text, "evidence_ids": cited, "reason": "instruction_only"})
+        else:
+            kept.append({"text": text, "evidence_ids": cited})
     if draft.insufficient_evidence or not kept:
         return FinalAnswer(
-            status="insufficient_evidence", answer=INSUFFICIENT_ANSWER, claims=[], dropped=dropped
+            status="insufficient_evidence",
+            answer=INSUFFICIENT_ANSWER,
+            claims=[],
+            dropped=dropped + refused,
         )
     return FinalAnswer(
         status="partial" if dropped else "grounded",
         answer=" ".join(claim["text"] for claim in kept),
         claims=kept,
-        dropped=dropped,
+        dropped=dropped + refused,
     )
 
 

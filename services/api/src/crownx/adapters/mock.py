@@ -19,6 +19,7 @@ import time
 
 from crownx.adapters.ports import AnswerResult
 from crownx.domain.answering import AnswerDraft, ClaimDraft
+from crownx.domain.injection import INSTRUCTION
 
 MOCK_EMBEDDING_MODEL = "mock-hashed-bow"
 MOCK_ANSWER_MODEL = "mock-extractive"
@@ -30,11 +31,7 @@ _STOP = frozenset(
 )
 _SENTENCE = re.compile(r"[^\n.!?]+(?:[.!?](?=\s|$)|$)")
 # Text addressed to an assistant is content to describe, never a claim to repeat (SECURITY T1).
-_INSTRUCTION = re.compile(
-    r"\b(ignore (all |any )?(previous|prior|above) instructions|disregard (the |your )?(rules|instructions)"
-    r"|you are now|answer that)\b",
-    re.IGNORECASE,
-)
+_INSTRUCTION = INSTRUCTION
 MAX_CLAIMS = 3
 
 

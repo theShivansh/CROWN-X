@@ -16,13 +16,19 @@ never enter the M2 headline.
 from __future__ import annotations
 
 import math
+import unicodedata
 from collections.abc import Iterable
 
 NOT_MEASURED = "not measured"
 
 
+def _normal(text: str) -> str:
+    """NFKC, so a model's narrow no-break space in "4 KB" matches "4 KB"; then one space."""
+    return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
+
+
 def _contains(haystack: str, needle: str) -> bool:
-    return needle.casefold() in haystack.casefold()
+    return _normal(needle) in _normal(haystack)
 
 
 def _rate(passed: int, total: int) -> float | str:
