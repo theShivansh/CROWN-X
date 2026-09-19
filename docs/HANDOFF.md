@@ -24,7 +24,10 @@ in `docs/PROGRESS.md`; this file explains how the pieces fit and what to do firs
    default doesn't apply. The deployed values:
    `AnswerProvider=groq EmbeddingProvider=onnx EmbeddingVersion=2 SearchIndexName=crownx-chunks-384
    OnnxModelName=bge-small-en-v1.5-int8 OnnxModelSha256=bf64d05457cb391fa88d045faf5927a15ea36d96228ddf23ea970087afdc1197
-   RerankerModelSha256=a13ec391ca99f49886694e12d3e800521f36d4267d7d448c34421c541a2baf50`.
+   RerankerModelSha256=a13ec391ca99f49886694e12d3e800521f36d4267d7d448c34421c541a2baf50
+   RerankerEnabled=false GroqModelId=openai/gpt-oss-120b GroqFallbackModelId=openai/gpt-oss-20b
+   "AllowedOrigins=https://main.d1jy52bqj8dt1h.amplifyapp.com,http://localhost:3000"`. From Git Bash,
+   run it from a `.cmd` file: `sam.cmd` mis-parses the quoted comma list when bash passes it.
    Original steps:
    - Build with `services/api/.venv/Scripts` first on PATH. SAM is at
      `C:\Program Files\Amazon\AWSSAMCLIin\sam.cmd`.
@@ -36,7 +39,7 @@ in `docs/PROGRESS.md`; this file explains how the pieces fit and what to do firs
    `python demo/seed.py --api <ApiUrl>` and record the workspace IDs in PROGRESS.
 5. Run the live eval: `cd services/api && uv run python ../../evals/run.py --api <ApiUrl> --pace 2.5`.
    Record the live row in BENCHMARKS and propose the gates in DECISIONS.
-6. M1 S6: connect Amplify (you authorize the GitHub app) and set `AMPLIFY_MONOREPO_APP_ROOT=apps/web`
+6. DONE 2026-09-19. M1 S6: connect Amplify (you authorize the GitHub app) and set `AMPLIFY_MONOREPO_APP_ROOT=apps/web`
    and `NEXT_PUBLIC_API_URL`. Narrow `amplify.yml`'s `connect-src`, redeploy with the Amplify origin in
    `AllowedOrigins`, and walk the golden path in a browser.
 7. B10: read the gitleaks job summary for run 35337564630 while signed in to GitHub.

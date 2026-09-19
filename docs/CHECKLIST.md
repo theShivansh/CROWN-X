@@ -52,12 +52,12 @@ Known and not part of this gate:
 - The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
-## M2 Live Gate: GREEN at the API level (2026-09-19 09:45 IST); the browser walk waits for Amplify (M1 S6)
+## M2 Live Gate: GREEN (API 2026-09-19 09:45 IST; browser walk on Amplify 2026-09-19 11:20 IST)
 
 | # | Item | Result | Evidence |
 |---|---|---|---|
 | 1 | ONNX embeddings live; demo documents reach `ready` | PASS | `demo/seed.py` against `https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com`: 7 documents `ready`, including the PDF; `/health` reports `onnx`, `bge-small-en-v1.5-int8` and index `ok` |
-| 2 | Golden question answered by Groq with citations that resolve | PASS (API) | "What is the current submission deadline?": `grounded`, gpt-oss-120b, 22 September cited to the organiser email and the Sync 5 decisions. Browser walk on the deployed URL: NOT TESTED (Amplify, S6) |
+| 2 | Golden question answered by Groq with citations that resolve | PASS (API) | "What is the current submission deadline?": `grounded`, gpt-oss-120b, 22 September cited to the organiser email and the Sync 5 decisions. Browser walk on the Amplify URL: PASS (same answer, 3 citations, citation focuses its passage, injected line not cited) |
 | 3 | Live eval: groundedness, recall@8, MRR, latency, fallback rate | PASS | run 2 (`2026-09-19T035434Z-live.json`): security gate passed, value match 1.0, groundedness 1.0, recall@8 1.0, MRR 0.929, p95 answer 1.9 s |
 | 4 | Injection with the real model | PASS after a fix | run 1: 0.0 (the model repeated the injected value as a source); fixed in `2577551`; run 2: 1.0 |
 | 5 | Reranker on/off and model comparison on the deployed stack | PASS (measured) | the reranker adds about 330 ms at p50 and stays off; 20b alone scores lower than 120b, which stays primary (BENCHMARKS) |
@@ -79,5 +79,5 @@ Found and fixed during the gate:
 | 2 | Answer-model benchmark and ADR-013 decision | NOT TESTED | needs Bedrock |
 | 3 | Live eval: recall@8, MRR, groundedness, latency | NOT TESTED | `evals/run.py --api <ApiUrl>` ready; BENCHMARKS row reads "not measured" |
 | 4 | Injection with the real model | NOT TESTED | needs Bedrock |
-| 5 | Golden question with citations on the deployed URL | NOT TESTED | needs Bedrock and Amplify (M1 S6) |
+| 5 | Golden question with citations on the deployed URL | PASS (live, 2026-09-19) | Amplify `https://main.d1jy52bqj8dt1h.amplifyapp.com`, Groq + ONNX (ADR-017 replaced Bedrock) |
 | 6 | Demo PDF ingested and cited live | NOT TESTED | the PDF path works live up to the embedding call |

@@ -101,7 +101,7 @@ a spec only).
 *Live Gate* (replaces the External Bedrock Gate, ADR-017; needs the Groq key in SSM and a deploy):
 - [x] ONNX embeddings run live; all 7 demo documents reach `ready` on the deployed stack (live, 2026-09-19)
 - [x] The golden question answered by Groq with citations to the right passages, over the API (live).
-      In the browser on the deployed URL: waits for Amplify (M1 S6)
+      In the browser on the deployed URL, 2026-09-19: PASS on `https://main.d1jy52bqj8dt1h.amplifyapp.com` (Amplify, M1 S6): banner `production · answers groq · embeddings onnx`, 6 documents ready, the golden question answered by gpt-oss-120b with 3 citations, citation [3] focuses the Sync 5 Decisions passage, the injected line retrieved but neither cited nor repeated, no console or CSP errors
 - [x] Live eval: groundedness, recall@8, MRR, latency and fallback rate; gates proposed as ADR-019
 - [x] Injection resistance with the real model: 1.0 after the fix (was 0.0 on the first live run)
 - [x] Reranker on vs off and gpt-oss-120b vs 20b, measured on the deployed stack
@@ -133,7 +133,7 @@ a spec only).
 - [ ] Seeded deadline conflict shown in the inspector with both passages on the deployed URL (live)
 - [ ] Rough demo recording of the path so far
 
-**Kill criteria:** free-text normalization unreliable by Friday evening → restrict conflict types to
+**Kill criteria:** free-text normalization unreliable by Saturday evening → restrict conflict types to
 dates and numbers for the demo, and list the rest as a limitation.
 
 **Stage prompt:** `prompts/03-M3-CONTRADICTIONS.md`
@@ -164,7 +164,7 @@ dates and numbers for the demo, and list the rest as a limitation.
 - [ ] Security acceptance tests T1-T3, T5-T7 pass (integration)
 - [ ] Golden path runs start to finish without a manual rescue step (live)
 
-**Kill criteria:** any polish item threatening the golden path after 18:00 → drop it.
+**Kill criteria:** any polish item threatening the golden path after saturday 23:00 → drop it.
 
 **Stage prompt:** `prompts/04-M4-TIMELINE-POLISH-RELIABILITY.md`
 
