@@ -1,11 +1,12 @@
 "use client";
 
-import { CircleNotch, Question, SealCheck, SealWarning } from "@phosphor-icons/react";
+import { CircleNotch, GitDiff, Question, SealCheck, SealWarning } from "@phosphor-icons/react";
 
 import { ErrorNotice } from "@/components/error-notice";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fellBack, type AnswerResult, type Evidence } from "@/lib/api";
+import { fellBack, type AnswerResult, type ConflictGroup, type Evidence } from "@/lib/api";
+import { conflictSummary, ruleSentence } from "@/lib/conflicts";
 
 import type { AskState } from "./workspace-screen";
 
@@ -14,8 +15,9 @@ export function AnswerCard(props: {
   ask: AskState;
   onRetry: () => void;
   onCite: (evidenceId: string) => void;
+  onInspect: (key: string) => void;
 }) {
-  const { ask, onRetry, onCite } = props;
+  const { ask, onRetry, onCite, onInspect } = props;
   if (ask.phase === "idle") return null;
 
   return (
@@ -25,9 +27,7 @@ export function AnswerCard(props: {
         <div className="flex flex-col gap-2" aria-busy>
           <p className="flex items-center gap-2 text-sm text-text-muted">
             <CircleNotch className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
-            {ask.phase === "retrieving"
-              ? "Retrieving evidence"
-              : `Writing answer from ${ask.query.evidence.length} ${ask.query.evidence.length === 1 ? "passage" : "passages"}`}
+            {ask.phase === "retrieving" ? "Retrieving evidence" : writingStage(ask.query.evidence, ask.query.conflicts)}
           </p>
           <Skeleton className="h-4 w-11/12 rounded-sm bg-surface-2" />
           <Skeleton className="h-4 w-8/12 rounded-sm bg-surface-2" />
@@ -43,19 +43,39 @@ export function AnswerCard(props: {
           }
         />
       ) : null}
-      {ask.phase === "done" ? <Answered answer={ask.answer} evidence={ask.query.evidence} onCite={onCite} /> : null}
+      {ask.phase === "done" ? (
+        <Answered
+          answer={ask.answer}
+          evidence={ask.query.evidence}
+          conflicts={ask.query.conflicts}
+          onCite={onCite}
+          onInspect={onInspect}
+        />
+      ) : null}
     </section>
   );
+}
+
+/** UI_UX §3.3 loading text: name the work. Comparing happens only when code found conflicts. */
+function writingStage(evidence: Evidence[], conflicts: ConflictGroup[]): string {
+  const passages = `${evidence.length} ${evidence.length === 1 ? "passage" : "passages"}`;
+  if (!conflicts.length) return `Writing answer from ${passages}`;
+  const sources = new Set(conflicts.flatMap((g) => g.claims.map((c) => c.document_id))).size;
+  return `Comparing ${sources} sources, writing answer from ${passages}`;
 }
 
 function Answered({
   answer,
   evidence,
+  conflicts,
   onCite,
+  onInspect,
 }: {
   answer: AnswerResult;
   evidence: Evidence[];
+  conflicts: ConflictGroup[];
   onCite: (evidenceId: string) => void;
+  onInspect: (key: string) => void;
 }) {
   const rankOf = new Map(evidence.map((e) => [e.evidence_id, e.retrieval_rank]));
   const sources = new Set(
@@ -84,8 +104,40 @@ function Answered({
   const partial = answer.status === "partial";
   return (
     <div className="flex flex-col gap-3">
+      {answer.status === "conflict" && conflicts.length ? (
+        <div className="flex flex-col gap-2 rounded-sm border border-border bg-surface-2 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-text">
+            <GitDiff weight="bold" className="size-4 text-conflict" aria-hidden />
+            Sources disagree
+          </p>
+          {/* From the conflict data, never from the answer text (ADR-003). */}
+          {conflicts.map((group) => (
+            <div key={group.key} className="flex flex-col gap-1 text-sm">
+              <p className="text-text">
+                <span className="text-text-muted">{group.label}: </span>
+                {conflictSummary(group)}.
+              </p>
+              <p className="text-text-muted">{ruleSentence(group)}</p>
+              <button
+                type="button"
+                onClick={() => onInspect(group.key)}
+                className="w-fit rounded-sm text-xs text-accent underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                Open the inspector
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <p className="flex items-center gap-1.5 text-xs">
-        {partial ? (
+        {answer.status === "conflict" ? (
+          <>
+            <SealCheck weight="bold" className="size-4 text-text-muted" aria-hidden />
+            <span className="text-text">
+              Every sentence cites {sources.size} {sources.size === 1 ? "source" : "sources"}
+            </span>
+          </>
+        ) : partial ? (
           <>
             <SealWarning weight="bold" className="size-4 text-text-muted" aria-hidden />
             <span className="text-text">Partly supported: sentences without evidence were removed</span>

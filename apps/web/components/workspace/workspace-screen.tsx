@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { api, asApiError, type AnswerResult, type ApiError, type QueryResult } from "@/lib/api";
 
 import { AnswerCard } from "./answer-card";
+import { ConflictInspector, conflictElementId } from "./conflict-inspector";
 import { DocumentsRail } from "./documents-rail";
 import { EvidencePanel, evidenceElementId } from "./evidence-panel";
 import { ProviderBanner } from "./provider-banner";
@@ -122,6 +123,13 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
     card?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }
 
+  function inspect(key: string) {
+    const card = document.getElementById(conflictElementId(key));
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     void ask_(question);
@@ -129,6 +137,7 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
 
   const workspaceMissing = docs.loadError?.code === "not_found";
   const busy = ask.phase === "retrieving" || ask.phase === "answering";
+  const shown = "query" in ask && ask.query ? ask.query : null;
 
   return (
     <div className="grid min-h-dvh grid-rows-[auto_1fr] bg-bg lg:h-dvh">
@@ -206,7 +215,27 @@ function Workspace({ workspaceId }: { workspaceId: string }) {
               </p>
             </form>
 
-            <AnswerCard ask={ask} onRetry={retry} onCite={cite} />
+            <AnswerCard ask={ask} onRetry={retry} onCite={cite} onInspect={inspect} />
+
+            {shown?.conflicts.length ? (
+              <section aria-label="Conflict inspector" className="flex flex-col gap-3">
+                <h2 className="text-sm font-medium text-text">
+                  Conflicts in this evidence{" "}
+                  <span className="font-mono text-xs tabular-nums text-text-subtle">
+                    {shown.conflicts.length}
+                  </span>
+                </h2>
+                {shown.conflicts.map((group) => (
+                  <ConflictInspector
+                    key={group.key}
+                    group={group}
+                    evidence={shown.evidence}
+                    comparing={ask.phase === "answering"}
+                    onOpen={cite}
+                  />
+                ))}
+              </section>
+            ) : null}
           </main>
 
           <div className="border-t border-border lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-l">

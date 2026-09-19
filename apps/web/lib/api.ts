@@ -52,6 +52,64 @@ export const EvidenceSchema = z.object({
 
 const RequestId = z.string().min(1);
 
+/** A fact one document states (M3, SRS §4), extracted by rule, with exactly where it says it. */
+export const ClaimSchema = z.object({
+  claim_id: z.string().min(1),
+  document_id: z.string().min(1),
+  filename: z.string(),
+  subject: z.string().min(1),
+  attribute: z.string().min(1),
+  value_type: z.enum(["date", "number", "owner"]),
+  raw_value: z.string(),
+  normalized_value: z.string().nullable(),
+  unit: z.string().nullish(),
+  quote: z.string(),
+  char_start: z.number().int().nonnegative(),
+  char_end: z.number().int().nonnegative(),
+  value_start: z.number().int().nonnegative(),
+  value_end: z.number().int().nonnegative(),
+  source_chunk_id: z.string().min(1),
+  page_or_section: z.string().nullish(),
+  source_timestamp: z.string().nullish(),
+  version_label: z.string().nullish(),
+  uploaded_at: z.string(),
+  trigger: z.string(),
+  trigger_is_label: z.boolean(),
+  extraction_method: z.string(),
+  // Defined in ADR-020 and measured per band in BENCHMARKS; never shown as a number (CLAUDE.md rule 10).
+  confidence: z.record(z.string(), z.number()),
+});
+
+export const SELECTION_RULES = ["newest_source_timestamp", "version_order", "latest_upload"] as const;
+
+/** Every conflict on one fact: its claims oldest first (the timeline), the pairs, and the selection. */
+export const ConflictGroupSchema = z.object({
+  key: z.string().min(1),
+  subject: z.string().min(1),
+  attribute: z.string().min(1),
+  label: z.string().min(1),
+  type: z.enum(["date", "number", "owner"]),
+  severity: z.enum(["high", "medium"]),
+  selection_rule: z.enum(SELECTION_RULES).nullable(),
+  selected_claim_id: z.string().nullable(),
+  selected_value: z.string().nullable(),
+  selected_unit: z.string().nullish(),
+  claims: z.array(ClaimSchema).min(2),
+  pairs: z
+    .array(
+      z.object({
+        conflict_id: z.string().min(1),
+        claim_a: z.string().min(1),
+        claim_b: z.string().min(1),
+        type: z.string(),
+        severity: z.string(),
+        status: z.string(),
+      }),
+    )
+    .min(1),
+  primary_conflict_id: z.string().min(1),
+});
+
 const WorkspaceResponse = z.object({
   request_id: RequestId,
   workspace: z.object({ workspace_id: z.string().min(1), created_at: z.string() }),
@@ -80,10 +138,15 @@ const QueryResponse = z.object({
   query_id: z.string().min(1),
   status: z.enum(["retrieved", "insufficient_evidence"]),
   evidence: z.array(EvidenceSchema),
-  conflicts: z.array(z.unknown()),
+  conflicts: z.array(ConflictGroupSchema),
 });
 
-export const ANSWER_STATUSES = ["grounded", "partial", "insufficient_evidence"] as const;
+const ConflictsResponse = z.object({
+  request_id: RequestId,
+  conflicts: z.array(ConflictGroupSchema),
+});
+
+export const ANSWER_STATUSES = ["grounded", "partial", "conflict", "insufficient_evidence"] as const;
 
 const AnswerResponse = z.object({
   request_id: RequestId,
@@ -128,6 +191,9 @@ export type UploadTicket = z.infer<typeof UploadUrlResponse>;
 export type Completion = z.infer<typeof CompleteResponse>;
 export type QueryResult = z.infer<typeof QueryResponse>;
 export type AnswerResult = z.infer<typeof AnswerResponse>;
+export type Claim = z.infer<typeof ClaimSchema>;
+export type ConflictGroup = z.infer<typeof ConflictGroupSchema>;
+export type SelectionRule = (typeof SELECTION_RULES)[number];
 
 /** True when the configured model didn't write this answer: the reliability layer fell back (ADR-017). */
 export function fellBack(answer: Pick<AnswerResult, "attempts" | "answered_by_model">): boolean {
@@ -277,6 +343,9 @@ export function createApiClient(options: { baseUrl: string | undefined; fetch?: 
         "POST",
         `${ws(workspaceId)}/queries/${encodeURIComponent(queryId)}/answer`,
       ),
+
+    conflicts: (workspaceId: string) =>
+      call(ConflictsResponse, "GET", `${ws(workspaceId)}/conflicts`),
 
     health: () => call(HealthResponse, "GET", "/health", undefined, [503]),
   };

@@ -89,3 +89,40 @@
     @apply min-h-dvh bg-bg text-sm text-text;
   }
 }
+
+/* Border beam (components/ui/border-beam.tsx): a conflict-coloured arc travelling round the card's
+   border while a comparison runs. The mask leaves only the 1px border ring visible. */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.border-beam {
+  padding: 1px;
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0 72%,
+    var(--color-conflict) 88%,
+    transparent 100%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: beam-travel 2.4s linear infinite;
+}
+
+@keyframes beam-travel {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .border-beam {
+    animation: none;
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--color-conflict);
+  }
+}
