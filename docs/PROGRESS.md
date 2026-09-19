@@ -1,6 +1,6 @@
 # CROWN-X progress
 
-Next session starts here: M2 is live. Groq gpt-oss-120b (fallback 20b) and ONNX bge-small run on `https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com`, and the Live Gate is GREEN at the API level (`docs/CHECKLIST.md`). Live run 2 passes the security gate, with value match 1.0 and p95 answer 1.9 s. Proposed release gates are in ADR-019. Next: M1 S6 (Amplify: you authorize the GitHub app), then walk the golden path in a browser on the deployed URL; then M3 (contradictions). Open: B10 (gitleaks summaries, signed in). Deploys must pass every provider parameter (HANDOFF.md).
+Next session starts here: M2 is live on `https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com`, and the site is on Amplify at `https://main.d1jy52bqj8dt1h.amplifyapp.com/` (S6 connected by you, 2026-09-19). Groq gpt-oss-120b (fallback 20b) and ONNX bge-small; Live Gate GREEN at the API level. Retrieval benchmark v2 (60 passages, 30 queries, no Groq) is measured offline and on the deployed stack: recall@8 0.95 and MRR 0.75 deployed, p95 242 ms (`docs/BENCHMARKS.md`). Next: walk the golden path in a browser on the Amplify URL, then M3 (contradictions). Open: B10 (gitleaks summaries, signed in); ADR-019 gates to confirm. Deploys must pass every provider parameter (HANDOFF.md).
 
 The repo overrules this file; memory overrules neither. Update it before every session ends.
 
@@ -191,6 +191,7 @@ with the date: what, and where it showed up.
   requestAnimationFrame never finish there; check scroll targets with an instant scroll instead.
 
 ## Parking lot
+- Weighted RRF (down-weight BM25): retrieval benchmark v2 shows equal-weight fusion lowers MRR (hybrid 0.694 against dense 0.839). Pick the weight on a separate development set, never on v2, and then re-measure on v2.
 Ideas that don't strengthen the three-minute demo. Revisit after M6.
 - Read-only MCP server (`search_documents`, `find_conflicts`, `get_timeline`, `explain_evidence`)
 - Human review state for conflicts

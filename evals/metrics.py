@@ -131,6 +131,49 @@ def retrieval_metrics(cases: list[dict], outcomes: dict[str, dict]) -> dict:
     }
 
 
+def passage_key(evidence: dict) -> str:
+    """A passage's identity in retrieval benchmark v2: its file and section heading."""
+    return f"{evidence.get('filename')}#{evidence.get('page_or_section')}"
+
+
+def passage_metrics(cases: list[dict], outcomes: dict[str, dict]) -> dict:
+    """Retrieval benchmark v2: relevance is judged per passage (`relevant_passages`), not per file.
+
+    `recall@k` is the share of a case's relevant passages in the top k, averaged over cases; `mrr` is
+    the mean reciprocal rank of the first relevant passage (0 when none is in the evidence list). The
+    same numbers are broken down by query category."""
+
+    def score(pairs: list[tuple[dict, dict]]) -> dict:
+        ok = [(c, o) for c, o in pairs if not o.get("error")]
+        recall5, recall8, reciprocal = [], [], []
+        for case, outcome in ok:
+            keys = [passage_key(e) for e in outcome["evidence"]]
+            relevant = set(case["relevant_passages"])
+            recall5.append(len(relevant & set(keys[:5])) / len(relevant))
+            recall8.append(len(relevant & set(keys[:8])) / len(relevant))
+            rank = next((i for i, k in enumerate(keys, start=1) if k in relevant), None)
+            reciprocal.append(1 / rank if rank else 0.0)
+        latencies = [o["timings_ms"]["query"] for _, o in ok]
+        count = len(ok)
+        return {
+            "cases": len(pairs),
+            "errors": len(pairs) - count,
+            "recall_at_5": round(sum(recall5) / count, 4) if count else NOT_MEASURED,
+            "recall_at_8": round(sum(recall8) / count, 4) if count else NOT_MEASURED,
+            "mrr": round(sum(reciprocal) / count, 4) if count else NOT_MEASURED,
+            "p50_query_ms": percentile(latencies, 50),
+            "p95_query_ms": percentile(latencies, 95),
+        }
+
+    pairs = [(c, outcomes[c["id"]]) for c in cases]
+    categories = sorted({c["category"] for c in cases})
+    return score(pairs) | {
+        "by_category": {
+            name: score([(c, o) for c, o in pairs if c["category"] == name]) for name in categories
+        }
+    }
+
+
 def summarize(
     cases: list[dict], outcomes: dict[str, dict], providers: dict, live: bool = False
 ) -> dict:

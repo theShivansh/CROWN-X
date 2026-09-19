@@ -95,6 +95,105 @@ What this shows, and what it doesn't:
   Combined hybrid MRR over both sets is 0.832 for bge against 0.825 for e5. The margin is small and
   the sets are small (42 cases), so this is a measured default, not a general finding.
 
+## Retrieval benchmark v2 (60 passages, 30 queries, passage-level relevance)
+Why v2: in golden set v1, workspace A has only 17 chunks, so a top-8 list is nearly half the corpus
+and recall@8 saturates. v2 is built to separate the systems.
+
+**Corpus** (`evals/corpus/retrieval-v2/`):
+- 12 documents with 5 sections each: brief v2, architecture notes, API spec v2, an SMS vendor quote,
+  Sync 6 notes, a volunteer plan, venue logistics, a security review, a QA plan, organiser update 4, a
+  sprint retro and budget sheet v3.
+- The runner refuses to measure unless the corpus indexes as exactly 60 passages.
+- Passages deliberately share vocabulary: at least five deadlines, five limits of one kind or
+  another, several budget figures and several owners.
+
+**Queries** (`evals/golden/retrieval-v2.jsonl`), 30 in total:
+
+| Category | Count | What it tests |
+|---|---:|---|
+| original | 10 | the passage's own words |
+| paraphrased | 8 | vocabulary mismatch |
+| Hinglish | 6 | code-mixed Hindi-English |
+| indirect | 3 | vague "why" or "what if" questions |
+| hard negative | 3 | many passages share the words, but only one answers |
+
+**Scoring:**
+- Each query lists its relevant passages as `file#section`. A right file with the wrong section
+  doesn't count.
+- 6 queries have 2 or 3 relevant passages, so recall@5 and recall@8 can differ.
+- The corpus and labels were written together and frozen before the first run. Nothing was tuned on
+  them. They were written by the same author as the system, which is a known bias.
+
+No answer calls are made, so no Groq quota is used. Commit `0feef94` plus the benchmark files,
+2026-09-19.
+
+**Offline, in process:**
+- Command: `cd services/api && uv run python ../../evals/run.py --compare --dataset retrieval-v2`
+- Index: local BM25Okapi and FAISS on a laptop CPU.
+- Each system is asked all 30 queries 3 times after a warm-up. Quality is the mean; the latency
+  percentiles pool all 90 timings.
+- Results: `evals/results/2026-09-19T052122Z-compare-retrieval-v2.json`
+
+| System | Model | Recall@5 | Recall@8 | MRR | p50 / p95 ms |
+|---|---|---:|---:|---:|---:|
+| BM25 | none | 0.700 | 0.783 | 0.632 | 5 / 6 |
+| dense | e5-small | 0.867 | 0.933 | 0.782 | 9 / 12 |
+| hybrid (RRF) | e5-small | 0.900 | 0.933 | 0.710 | 16 / 18 |
+| hybrid + rerank | e5-small | 0.933 | 0.933 | 0.856 | 136 / 180 |
+| dense | bge-small | 0.867 | 0.883 | 0.839 | 13 / 17 |
+| **hybrid (RRF), production** | bge-small | 0.883 | **0.967** | 0.694 | 21 / 24 |
+| hybrid + rerank | bge-small | 0.950 | 0.967 | 0.864 | 147 / 183 |
+
+MRR by category, for the bge-small rows. Recall@8 is 1.0 in every category except indirect for all
+three rows; indirect is 0.5 for dense and 0.667 for the other two.
+
+| Category | dense | hybrid | hybrid + rerank |
+|---|---:|---:|---:|
+| original (10) | 1.000 | 0.950 | 1.000 |
+| paraphrased (8) | 0.854 | 0.497 | 0.781 |
+| Hinglish (6) | 0.556 | 0.708 | 0.889 |
+| indirect (3) | 0.667 | 0.500 | 0.444 |
+| hard negative (3) | 1.000 | 0.528 | 1.000 |
+
+**Deployed stack:**
+- Command: `... --api <ApiUrl> --retrieval-only --dataset retrieval-v2`
+- It calls `/query` only: OpenSearch BM25 and HNSW, ONNX bge-small in Lambda, reranker off.
+- Latency is measured by the client, so it includes the round trip from this laptop to ap-south-1.
+- Results: `evals/results/2026-09-19T052152Z-live-retrieval-v2.json`. An earlier identical run
+  (`T051955Z`, since deleted) gave recall@5 0.95, the same MRR, and p50 / p95 206 / 264 ms.
+
+| System | Recall@5 | Recall@8 | MRR | p50 / p95 ms |
+|---|---:|---:|---:|---:|
+| production hybrid, bge-small | 0.917 | 0.950 | 0.753 | 200 / 242 |
+
+By category on the deployed stack (recall@8 / MRR):
+
+| Category | Recall@8 | MRR |
+|---|---:|---:|
+| original | 1.0 | 0.950 |
+| paraphrased | 1.0 | 0.542 |
+| Hinglish | 1.0 | 0.792 |
+| indirect | 0.5 | 0.500 |
+| hard negative | 1.0 | 0.833 |
+
+What this shows:
+- **The answer model sees the right passages.** Production hybrid has the best recall@8, both
+  offline (0.967) and deployed (0.950). The answer model reads all 8 passages, so recall@8 is the
+  number that limits answer quality.
+- **The one live miss is an indirect question.** For `r2-vague-03`, "Is there anything that could stop
+  login codes from going out on day one?", the answer is the DLT template registration, and that
+  passage never uses the question's words.
+- **Equal-weight RRF lowers MRR.** This is now measured on a corpus large enough to show it: hybrid
+  MRR 0.694 against dense 0.839 offline. BM25 ranks keyword-heavy distractors first on paraphrases
+  and hard negatives. MRR decides which passage is listed first, not what the model reads.
+- **The reranker repairs the order but still misses its gate.** It lifts MRR to 0.864 with recall
+  unchanged. It costs +126 ms at p50 and +159 ms at p95 over hybrid on a laptop, against the +150 ms
+  p95 gate, and it measured +310-345 ms on Lambda earlier. It stays off (ADR-017).
+- **Deployed MRR (0.753) is higher than local hybrid (0.694).** The likely cause is that OpenSearch's
+  analyzer and BM25 scoring differ from `rank_bm25`. That is not measured separately.
+- **Weighted fusion is parked.** Down-weighting BM25 in RRF looks like the fix. Choosing a weight on
+  this set would tune on the test set, so it needs a separate development set first (Parking lot).
+
 ## Workflow Learning Lite (synthetic traces; ADR-018)
 Command: `cd services/api && uv run python ../../evals/workflow_eval.py` · 20 seeded scenarios. Each
 scenario plants 3 to 5 repeats of a true workflow and adds:

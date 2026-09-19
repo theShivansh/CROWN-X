@@ -164,6 +164,57 @@ def test_retrieval_metrics_count_hits_recall_and_rank():
     assert got["p50_query_ms"] == 12.0
 
 
+def test_passage_metrics_judge_passages_and_break_down_by_category():
+    from metrics import passage_metrics
+
+    cases = [
+        {"id": "a", "category": "original", "relevant_passages": ["f.md#One", "f.md#Two"]},
+        {"id": "b", "category": "hinglish", "relevant_passages": ["g.md#Three"]},
+    ]
+    same_file_wrong_section = {"filename": "f.md", "page_or_section": "Zero"}
+    outcomes = {
+        "a": {
+            "evidence": [same_file_wrong_section, {"filename": "f.md", "page_or_section": "One"}]
+            + [{"filename": "x.md", "page_or_section": "X"}] * 4
+            + [{"filename": "f.md", "page_or_section": "Two"}],
+            "timings_ms": {"query": 10.0},
+        },
+        "b": {"evidence": [same_file_wrong_section], "timings_ms": {"query": 30.0}},
+    }
+    got = passage_metrics(cases, outcomes)
+    assert got["recall_at_5"] == 0.25 and got["recall_at_8"] == 0.5  # (0.5 + 0) / 2, (1 + 0) / 2
+    assert got["mrr"] == 0.25  # (1/2 + 0) / 2: a right file in the wrong section doesn't count
+    assert got["by_category"]["hinglish"]["mrr"] == 0.0
+    assert got["by_category"]["original"]["recall_at_8"] == 1.0
+    assert got["p95_query_ms"] == 30.0
+
+
+def test_retrieval_benchmark_v2_is_60_passages_and_30_labelled_queries():
+    from collections import Counter
+
+    import run
+
+    from crownx.domain.chunking import chunk_text, normalize_text
+
+    passages = {
+        f"{path.name}#{chunk.section}"
+        for path in run.RETRIEVAL_V2_CORPUS.glob("*.md")
+        for chunk in chunk_text(normalize_text(path.read_text(encoding="utf-8")))
+    }
+    assert len(passages) == run.RETRIEVAL_V2_PASSAGES == 60
+    cases = run.load_cases(run.RETRIEVAL_V2)
+    assert Counter(c["category"] for c in cases) == {
+        "original": 10,
+        "paraphrased": 8,
+        "hinglish": 6,
+        "indirect": 3,
+        "hard_negative": 3,
+    }
+    assert len({c["id"] for c in cases}) == 30
+    for case in cases:
+        assert case["relevant_passages"] and set(case["relevant_passages"]) <= passages, case["id"]
+
+
 def test_percentile_is_nearest_rank():
     assert percentile([10, 20, 30, 40], 50) == 20 and percentile([10, 20, 30, 40], 95) == 40
     assert percentile([], 50) == NOT_MEASURED

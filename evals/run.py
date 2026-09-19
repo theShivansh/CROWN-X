@@ -10,6 +10,11 @@ through the public API contract, and writes exact metrics.
     # Retrieval benchmark: BM25 vs dense vs hybrid vs hybrid + rerank, for each local model.
     cd services/api && uv run python ../../evals/run.py --compare
 
+    # Retrieval benchmark v2 (60 passages, 30 queries, passage-level relevance). /query only, so
+    # neither run touches the answer model or Groq's quota.
+    cd services/api && uv run python ../../evals/run.py --compare --dataset retrieval-v2
+    cd services/api && uv run python ../../evals/run.py --api <ApiUrl> --retrieval-only --dataset retrieval-v2
+
     # Live gate: any deployed stack (seeds fresh workspaces through the API first), paced for Groq.
     cd services/api && uv run python ../../evals/run.py --api https://<api-id>.execute-api.ap-south-1.amazonaws.com --pace 2.5
 
@@ -33,11 +38,15 @@ EVALS = ROOT / "evals"
 DATASET = EVALS / "golden" / "v1.jsonl"
 # Same answers as v1 cases, asked in other words or in Hinglish: vocabulary mismatch, for --compare.
 PARAPHRASE = EVALS / "golden" / "paraphrase-v1.jsonl"
+# Retrieval benchmark v2: 60 passages (12 documents x 5 sections) and 30 passage-labelled queries.
+RETRIEVAL_V2 = EVALS / "golden" / "retrieval-v2.jsonl"
+RETRIEVAL_V2_CORPUS = EVALS / "corpus" / "retrieval-v2"
+RETRIEVAL_V2_PASSAGES = 60
 RESULTS = EVALS / "results"
 MODELS = ROOT / "services" / "api" / ".models"
 sys.path[:0] = [str(EVALS), str(ROOT / "demo"), str(ROOT / "services" / "api" / "src")]
 
-from metrics import retrieval_metrics, summarize  # noqa: E402
+from metrics import passage_key, passage_metrics, retrieval_metrics, summarize  # noqa: E402
 
 CORPUS = {
     "A": ROOT / "demo" / "documents" / "workspace-a",
@@ -257,17 +266,24 @@ class HttpClient:
 # ---------------------------------------------------------------- shared
 
 
-def seed(client: Client, timeout_s: int) -> dict[str, dict]:
-    """Workspace per corpus, documents uploaded in the SCENARIO.md §2 order, all settled."""
+def seed(
+    client: Client, timeout_s: int, corpus: dict[str, tuple[Path, list[str]]] | None = None
+) -> dict[str, dict]:
+    """Workspace per corpus, all documents settled. By default the demo corpus, uploaded in the
+    SCENARIO.md §2 order; `corpus` maps a workspace name to its folder and upload order."""
     from seed import WORKSPACE_A, WORKSPACE_B
 
-    order = {"A": WORKSPACE_A, "B": WORKSPACE_B, "EMPTY": []}
+    if corpus is None:
+        corpus = {
+            "A": (CORPUS["A"], WORKSPACE_A),
+            "B": (CORPUS["B"], WORKSPACE_B),
+            "EMPTY": (CORPUS["EMPTY"], []),
+        }
     workspaces: dict[str, dict] = {}
-    for name, filenames in order.items():
+    for name, (folder, filenames) in corpus.items():
         status, body = client.call("POST", "/workspaces")
         assert status == 201, body
         ws = body["workspace"]["workspace_id"]
-        folder = CORPUS[name]
         for filename in filenames:
             content = (folder / filename).read_bytes()
             status, ticket = client.call(
@@ -290,6 +306,7 @@ def seed(client: Client, timeout_s: int) -> dict[str, dict]:
         workspaces[name] = {
             "workspace_id": ws,
             "documents": {d["document_id"]: d["filename"] for d in documents},
+            "chunks": sum(d.get("chunk_count") or 0 for d in documents),
         }
     return workspaces
 
@@ -398,7 +415,10 @@ def retrieval_only(client: Client, cases: list[dict], workspaces: dict) -> dict[
             {"error": f"query HTTP {status}"}
             if status != 200
             else {
-                "evidence": [{"filename": e.get("filename")} for e in query["evidence"]],
+                "evidence": [
+                    {"filename": e.get("filename"), "page_or_section": e.get("page_or_section")}
+                    for e in query["evidence"]
+                ],
                 "timings_ms": {"query": round(elapsed, 1)},
             }
         )
@@ -451,6 +471,119 @@ def compare(
         "index": "local BM25Okapi + FAISS IndexFlatIP (in process)",
         "rows": rows,
     }
+
+
+def seed_retrieval_v2(client: Client, timeout_s: int) -> dict[str, dict]:
+    """One workspace holding the v2 corpus, which every v2 case asks. Refuses to measure unless the
+    corpus indexed as exactly 60 passages, so a chunker change can't silently change the benchmark."""
+    filenames = sorted(p.name for p in RETRIEVAL_V2_CORPUS.glob("*.md"))
+    workspaces = seed(client, timeout_s, {"R": (RETRIEVAL_V2_CORPUS, filenames)})
+    if workspaces["R"]["chunks"] != RETRIEVAL_V2_PASSAGES:
+        raise SystemExit(
+            f"retrieval v2 corpus indexed as {workspaces['R']['chunks']} passages, "
+            f"expected {RETRIEVAL_V2_PASSAGES}"
+        )
+    return workspaces
+
+
+def measure_v2(client: Client, cases: list[dict], workspaces: dict, repeats: int) -> dict:
+    """Warm up, then ask the 30 queries `repeats` times. Quality is the mean over the repeats (the
+    MRR range shows any tie-breaking spread); latency percentiles pool every repeat's timings."""
+    retrieval_only(client, cases[:3], workspaces)  # load the models / warm the Lambda first
+    runs = [retrieval_only(client, cases, workspaces) for _ in range(repeats)]
+    pooled_cases = [c | {"id": f"{c['id']}@{n}"} for n in range(repeats) for c in cases]
+    pooled = {f"{cid}@{n}": outcome for n, run in enumerate(runs) for cid, outcome in run.items()}
+    per_run = [passage_metrics(cases, run) for run in runs]
+    return passage_metrics(pooled_cases, pooled) | {
+        "cases": len(cases),
+        "mrr_range": [min(r["mrr"] for r in per_run), max(r["mrr"] for r in per_run)],
+        "repeats": repeats,
+        # The first run's ranked passages per case, so any miss can be read and checked by hand.
+        "first_run": {
+            cid: [passage_key(e) for e in outcome.get("evidence") or []]
+            for cid, outcome in runs[0].items()
+        },
+    }
+
+
+def benchmark_v2(embedders: list[str], timeout_s: int = 180, repeats: int = 3) -> dict:
+    """Retrieval benchmark v2 in process with the real local models: every system on the
+    60-passage corpus, each on a fresh index."""
+    cases = load_cases(RETRIEVAL_V2)
+    configs = [("bm25", "mock", "bm25", False)]
+    for name in embedders:
+        configs += [
+            ("dense", name, "dense", False),
+            ("hybrid", name, "hybrid", False),
+            ("hybrid + rerank", name, "hybrid", True),
+        ]
+    rows = []
+    for label, embedding, retrieval_mode, rerank in configs:
+        client = InProcessClient(embedding, retrieval_mode, rerank)
+        workspaces = {"R": seed_retrieval_v2(client, timeout_s)["R"]}
+        rows.append(
+            {
+                "system": label,
+                "embedding_model": None if retrieval_mode == "bm25" else embedding,
+                "reranker": RERANKER if rerank else None,
+                **measure_v2(client, cases, workspaces, repeats),
+            }
+        )
+    return {
+        "dataset": RETRIEVAL_V2.name.removesuffix(".jsonl"),
+        "mode": "compare",
+        "run_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": _commit(),
+        "cases": len(cases),
+        "passages": RETRIEVAL_V2_PASSAGES,
+        "index": "local BM25Okapi + FAISS IndexFlatIP (in process)",
+        "rows": rows,
+    }
+
+
+def live_retrieval_v2(client: Client, timeout_s: int = 180, repeats: int = 3) -> dict:
+    """Benchmark v2 on a deployed stack as its /health describes it. Latency is measured by this
+    client, so it includes the network round trip to ap-south-1."""
+    _, health = client.call("GET", "/health")
+    cases = load_cases(RETRIEVAL_V2)
+    workspaces = {"R": seed_retrieval_v2(client, timeout_s)["R"]}
+    return {
+        "dataset": RETRIEVAL_V2.name.removesuffix(".jsonl"),
+        "mode": "live-retrieval",
+        "run_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": _commit(),
+        "providers": health.get("providers") or {},
+        "workspace": workspaces["R"]["workspace_id"],
+        "passages": RETRIEVAL_V2_PASSAGES,
+        **measure_v2(client, cases, workspaces, repeats),
+    }
+
+
+def print_v2(report: dict) -> None:
+    rows = report.get("rows") or [
+        {"system": "deployed", "embedding_model": report["providers"].get("embedding_model")}
+        | report
+    ]
+    print(
+        f"CROWN-X retrieval benchmark v2 · {report['passages']} passages · {rows[0]['cases']} "
+        f"queries · {report['mode']} · commit {report['commit']}"
+    )
+    print("| System | Embedding model | Recall@5 | Recall@8 | MRR (range) | p50 ms | p95 ms |")
+    print("|" + "---|" * 7)
+    for r in rows:
+        low, high = r["mrr_range"]
+        print(
+            f"| {r['system']} | {r['embedding_model'] or 'none'} | {r['recall_at_5']} | "
+            f"{r['recall_at_8']} | {r['mrr']:.3f} ({low:.3f}-{high:.3f}) | "
+            f"{r['p50_query_ms']:.0f} | {r['p95_query_ms']:.0f} |"
+        )
+    print("\nBy category (Recall@5 / Recall@8 / MRR):")
+    for r in rows:
+        cells = [
+            f"{name} {m['recall_at_5']}/{m['recall_at_8']}/{m['mrr']}"
+            for name, m in r["by_category"].items()
+        ]
+        print(f"  {r['system']} {r['embedding_model'] or ''}: " + " · ".join(cells))
 
 
 def live_retrieval(client: Client, timeout_s: int = 180) -> dict:
@@ -555,9 +688,10 @@ def main() -> None:
     parser.add_argument("--rerank", action="store_true", help="offline only: enable the reranker")
     parser.add_argument(
         "--dataset",
-        choices=["v1", "paraphrase"],
+        choices=["v1", "paraphrase", "retrieval-v2"],
         default="v1",
-        help="compare only: the golden set, or its paraphrase and Hinglish variant",
+        help="compare and --retrieval-only: the golden set, its paraphrase and Hinglish variant, "
+        "or retrieval benchmark v2",
     )
     parser.add_argument(
         "--pace", type=float, default=0.0, help="live only: seconds between answers"
@@ -573,6 +707,16 @@ def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
+    if args.dataset == "retrieval-v2" and (args.compare or args.retrieval_only):
+        report = (
+            benchmark_v2(EMBEDDERS, args.timeout)
+            if args.compare
+            else live_retrieval_v2(HttpClient(args.api), args.timeout)
+        )
+        if not args.no_write:
+            _write(report, "compare-retrieval-v2" if args.compare else "live-retrieval-v2")
+        print_v2(report)
+        return
     if args.compare:
         report = compare(
             EMBEDDERS, args.timeout, dataset=PARAPHRASE if args.dataset == "paraphrase" else DATASET
