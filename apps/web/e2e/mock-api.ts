@@ -53,7 +53,9 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     else if (path.endsWith("/timeline")) fixture = next("timeline", timelineDeadline);
     // Workflow Learning Lite (built with NEXT_PUBLIC_WORKFLOWS_ENABLED=true): none until refreshed.
     else if (path.endsWith("/events")) fixture = eventRecorded;
-    else if (path.endsWith("/workflow-suggestions/refresh")) fixture = next("refresh", workflowsRefresh);
+    else if (path.endsWith("/workflow-suggestions/refresh"))
+      // Nothing to suggest until a question was answered in this page; then the recorded routine.
+      fixture = next("refresh", calls.some((c) => c.endsWith("/answer")) ? workflowsRefresh : workflowsEmpty);
     else if (path.endsWith("/save")) fixture = workflowSaved;
     else if (path.endsWith("/workflow-suggestions"))
       fixture = next("workflows", calls.some((c) => c.endsWith("/save")) ? workflowsAfterSave : workflowsEmpty);

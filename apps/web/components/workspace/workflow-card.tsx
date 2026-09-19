@@ -12,7 +12,7 @@ import {
   UploadSimple,
   type Icon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ErrorNotice } from "@/components/error-notice";
 import { Button } from "@/components/ui/button";
@@ -45,14 +45,13 @@ export function WorkflowCard({ workspaceId, refreshKey }: { workspaceId: string;
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const first = useRef(true);
 
   useEffect(() => {
     let live = true;
-    // First load reads; later ones (after an answer) mine again and name anything new.
-    const request = first.current ? api.workflows(workspaceId) : api.refreshWorkflows(workspaceId);
-    first.current = false;
-    request
+    // Every load mines again and names anything new (once: names are stored), so a routine that
+    // finished after the last answer still shows, with its name.
+    api
+      .refreshWorkflows(workspaceId)
       .then((view) => live && setLoad({ state: "ready", view }))
       .catch((error) => live && setLoad({ state: "error", error: asApiError(error) }));
     return () => {
