@@ -76,7 +76,7 @@ findings shaped it:
 
 **Verify / revisit if:**
 - `test_workflow.py` (the gap boundary, fragments, determinism), `test_workflow_api.py`,
-  `tests/integration/test_workflows.py` and `evals/workflows/run.py` pass.
+  `services/api/tests/integration/test_workflows.py` and `evals/workflows/run.py` pass.
 - Revisit when real usage shows fragments that people do want suggested.
 
 ### ADR-021 · 2026-09-19 · Cost bounds without reserved concurrency; the model-timeout path tested without a second stack

@@ -59,7 +59,7 @@ Verified with `/verify-stage M5`.
 |---|---|---|---|
 | 1 | Scope | PASS | `81ae701..8e2fbef` touch workflow events, the miner, the workflow API and card, the benchmark, tests and docs only |
 | 2 | Determinism, support, duplicates (unit) | PASS | `test_workflow.py` 25 tests (session gap at exactly 30:00 and 30:01, fragments, confidence, byte-identical output); `test_workflow_api.py` 16 tests (retry stored once, flag off 404 everywhere, server-owned types refused, IDs only, quota, scoping, naming once, fallback, versions, dismiss) |
-| 3 | Events, refresh, suggestion, save, dismiss (integration) | PASS | `tests/integration/test_workflows.py` on the deployed stack: support 3, save v1 then v2, dismissal hides it, a retry recorded once, another workspace 404 |
+| 3 | Events, refresh, suggestion, save, dismiss (integration) | PASS | `services/api/tests/integration/test_workflows.py` on the deployed stack: support 3, save v1 then v2, dismissal hides it, a retry recorded once, another workspace 404 |
 | 4 | Card explains its events on the deployed URL (live) | PASS | the real UI driven three times in workspace A. The card shows "Answer Review Workflow" (Groq), 6 steps, "3 times", "Why detected?" in counts. The detail lists the 3 matching occurrences with times |
 | 5 | Golden path with the flag on (live) | PASS | `@critical` golden path against Amplify (flag on); CI e2e builds with the flag on (7 tests) |
 | 6 | Benchmark recorded, false suggestions reviewed | PASS | BENCHMARKS "Workflow Learning Lite, M5": precision 0.4 → 1.0 after the fragment rule, recall 1.0, support 1.0, deterministic; each false suggestion explained |
