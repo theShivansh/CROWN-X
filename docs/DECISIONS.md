@@ -4,6 +4,7 @@ Newest first. Add entries with `/record-decision` (template in that skill). Past
 superseded ones to `docs/decisions/archive.md` and keep their index lines.
 
 ## Index
+- ADR-019 · 2026-09-19 · Release gates from the first live runs · proposed
 - ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only · accepted
 - ADR-017 · 2026-09-18 · Production providers: Groq answers, local ONNX embeddings, OpenSearch kept · accepted
 - ADR-016 · 2026-09-18 · M2 architecture lock: providers behind one router, one namespaced index · accepted (production providers superseded by ADR-017)
@@ -24,6 +25,33 @@ superseded ones to `docs/decisions/archive.md` and keep their index lines.
 - ADR-001 · 2026-09-16 · AWS Ship It first, Build It as fallback · accepted
 
 ---
+
+### ADR-019 · 2026-09-19 · Release gates from the first live runs
+Status: proposed (from live runs 2 and 3 in `docs/BENCHMARKS.md`; confirm or change before M6)
+
+**Context:** EVALUATION.md asks for gates proposed from a live run, not an offline one. Run 2 is the
+first live run after the injection fix: 40 M2 cases on the deployed stack with Groq and bge-small.
+**Decision (proposed):**
+- **Hard gates**, which block a release at any value below the threshold:
+  - citation validity, evidence-ID integrity, workspace isolation, injection resistance and the
+    zero-model-call path, each 1.0;
+  - insufficient-evidence correctness ≥ 0.8.
+- **Quality gates**, which block a release when missed on two runs in a row. Each sits about one
+  missed case below run 2, because 40 cases give coarse steps (1 case is 0.025 of the pass rate,
+  about 0.036 of the answerable metrics):
+  - answer value match ≥ 0.9;
+  - the groundedness proxy ≥ 0.9;
+  - M2 pass rate ≥ 0.9;
+  - recall@8 ≥ 0.95 and MRR ≥ 0.85.
+- **Latency gates**, measured on the deployed stack: p95 query ≤ 1.5 s and p95 answer ≤ 4 s.
+- **Reported, never gated:** the fallback rate (it depends on the free-tier pace), and the paraphrase
+  set (14 cases, written by us).
+**Rejected:** gates at run 2's exact values (one unlucky case would fail a release); gates from the
+offline run (its answers are scripted).
+**Consequences:** `evals/run.py --api` checks the hard gates today (exit code). The quality and
+latency gates are read from the report until M6 wires them into `/release`.
+**Verify / revisit if:** the golden set grows, the corpus grows past one screen of chunks, or a model
+or embedding change moves any metric by more than one case.
 
 ### ADR-018 · 2026-09-18 · Workflow Learning Lite events and miner pulled into M2, suggestions only
 Status: accepted (the user required it in M2 on 2026-09-18; this amends ADR-005's M4 gate)

@@ -453,6 +453,24 @@ def compare(
     }
 
 
+def live_retrieval(client: Client, timeout_s: int = 180) -> dict:
+    """Stage-1 quality and latency on a deployed stack, as its /health describes it."""
+    _, health = client.call("GET", "/health")
+    workspaces = seed(client, timeout_s)
+    datasets = {}
+    for name, path in (("v1", DATASET), ("paraphrase", PARAPHRASE)):
+        cases = [c for c in load_cases(path) if c["milestone"] == "M2" and c.get("expected_files")]
+        retrieval_only(client, cases[:3], workspaces)  # warm the Lambda and the models
+        datasets[name] = retrieval_metrics(cases, retrieval_only(client, cases, workspaces))
+    return {
+        "mode": "live-retrieval",
+        "run_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": _commit(),
+        "providers": health.get("providers") or {},
+        "datasets": datasets,
+    }
+
+
 def print_compare(report: dict) -> None:
     print(
         f"CROWN-X retrieval comparison · dataset {report['dataset']} · {report['cases']} M2 "
@@ -544,6 +562,11 @@ def main() -> None:
     parser.add_argument(
         "--pace", type=float, default=0.0, help="live only: seconds between answers"
     )
+    parser.add_argument(
+        "--retrieval-only",
+        action="store_true",
+        help="live only: stage 1 on v1 and the paraphrase set, no answer calls (no Groq quota)",
+    )
     parser.add_argument("--timeout", type=int, default=180, help="seconds to wait per document")
     parser.add_argument("--no-write", action="store_true", help="don't write a results file")
     args = parser.parse_args()
@@ -557,6 +580,13 @@ def main() -> None:
         if not args.no_write:
             _write(report, f"compare-{args.dataset}")
         print_compare(report)
+        return
+    if args.api and args.retrieval_only:
+        report = live_retrieval(HttpClient(args.api), args.timeout)
+        if not args.no_write:
+            _write(report, "live-retrieval")
+        for name, row in report["datasets"].items():
+            print(name, json.dumps(row))
         return
     client: Any = (
         InProcessClient(args.embedding, reranker=args.rerank)

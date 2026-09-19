@@ -99,12 +99,13 @@ a spec only).
 - [x] Tests fail on any outbound connection (socket guard)
 
 *Live Gate* (replaces the External Bedrock Gate, ADR-017; needs the Groq key in SSM and a deploy):
-- [ ] ONNX embeddings run live; a demo document reaches `ready` on the deployed stack (live)
-- [ ] The golden question answered by Groq with citations that open the right passage (live)
-- [ ] Live eval: groundedness, recall@8, MRR, latency and fallback rate; gates proposed in DECISIONS
-- [ ] Injection case doesn't change the answer format with the real model (live)
-- [ ] Reranker on vs off and gpt-oss-120b vs its fallback, measured on the deployed stack
-- [ ] A PDF from the demo corpus ingested and cited (live)
+- [x] ONNX embeddings run live; all 7 demo documents reach `ready` on the deployed stack (live, 2026-09-19)
+- [x] The golden question answered by Groq with citations to the right passages, over the API (live).
+      In the browser on the deployed URL: waits for Amplify (M1 S6)
+- [x] Live eval: groundedness, recall@8, MRR, latency and fallback rate; gates proposed as ADR-019
+- [x] Injection resistance with the real model: 1.0 after the fix (was 0.0 on the first live run)
+- [x] Reranker on vs off and gpt-oss-120b vs 20b, measured on the deployed stack
+- [x] The demo PDF ingested (`ready`) and cited live (`project-brief-v1.pdf`, Page 1)
 
 **Kill criteria:** hybrid retrieval tuning over 2 hours → ship semantic-only, record it, move on.
 

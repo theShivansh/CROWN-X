@@ -52,16 +52,24 @@ Known and not part of this gate:
 - The retrieval benchmark's corpus is small (17 chunks in workspace A), so recall@8 is saturated by construction.
 - CI's gitleaks job failed on `6ac4715` (B10); later pushes pass. Needs the signed-in job summary.
 
-## M2 Live Gate: NOT TESTED (needs the Groq key in SSM, B11, and a deploy)
+## M2 Live Gate: GREEN at the API level (2026-09-19 09:45 IST); the browser walk waits for Amplify (M1 S6)
 
 | # | Item | Result | Evidence |
 |---|---|---|---|
-| 1 | ONNX embeddings live; demo documents reach `ready` | NOT TESTED | needs the deploy |
-| 2 | Golden question answered by Groq with citations that resolve | NOT TESTED | |
-| 3 | Live eval: groundedness, recall@8, MRR, latency, fallback rate | NOT TESTED | `evals/run.py --api <ApiUrl> --pace 2.5` ready |
-| 4 | Injection with the real model | NOT TESTED | |
-| 5 | Reranker on/off and model comparison on the deployed stack | NOT TESTED | |
-| 6 | Demo PDF ingested and cited live | NOT TESTED | |
+| 1 | ONNX embeddings live; demo documents reach `ready` | PASS | `demo/seed.py` against `https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com`: 7 documents `ready`, including the PDF; `/health` reports `onnx`, `bge-small-en-v1.5-int8` and index `ok` |
+| 2 | Golden question answered by Groq with citations that resolve | PASS (API) | "What is the current submission deadline?": `grounded`, gpt-oss-120b, 22 September cited to the organiser email and the Sync 5 decisions. Browser walk on the deployed URL: NOT TESTED (Amplify, S6) |
+| 3 | Live eval: groundedness, recall@8, MRR, latency, fallback rate | PASS | run 2 (`2026-09-19T035434Z-live.json`): security gate passed, value match 1.0, groundedness 1.0, recall@8 1.0, MRR 0.929, p95 answer 1.9 s |
+| 4 | Injection with the real model | PASS after a fix | run 1: 0.0 (the model repeated the injected value as a source); fixed in `2577551`; run 2: 1.0 |
+| 5 | Reranker on/off and model comparison on the deployed stack | PASS (measured) | the reranker adds about 330 ms at p50 and stays off; 20b alone scores lower than 120b, which stays primary (BENCHMARKS) |
+| 6 | Demo PDF ingested and cited live | PASS | `project-brief-v1.pdf`, Page 1, cited for the faculty coordinator (Prof. Meera Kulkarni) |
+
+Found and fixed during the gate:
+- ingestion tried to read the Groq key (IAM refused);
+- Groq's edge 403s urllib's User-Agent;
+- CloudFormation kept old parameter values;
+- `ensure_index` ran while the stack was still on Titan, which made a 1,024-d index;
+- the model repeated the injected value;
+- two eval measurement bugs.
 
 ## M2 External Bedrock Gate: superseded by the Live Gate (ADR-017)
 

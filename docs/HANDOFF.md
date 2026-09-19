@@ -8,9 +8,10 @@ in `docs/PROGRESS.md`; this file explains how the pieces fit and what to do firs
   `openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b`. It embeds with a local ONNX model,
   `bge-small-en-v1.5` int8, chosen by measurement. OpenSearch stays.
 - **M2 Offline Gate:** GREEN, re-run after ADR-017/018 (`docs/CHECKLIST.md`).
-- **M2 Live Gate:** not run. It needs the Groq key in SSM (B11) and a deploy.
-- **Deployed stack:** `https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com`, stack `crownx`. It
-  still runs the pre-ADR-017 code: Bedrock providers and no answer model. Redeploying switches it.
+- **M2 Live Gate:** GREEN at the API level (2026-09-19). The browser walk on the deployed URL waits
+  for Amplify (S6).
+- **Deployed stack:** `https://7qo4ij10i6.execute-api.ap-south-1.amazonaws.com`, stack `crownx`, on
+  Groq and ONNX (`/health` says so). The live eval workspaces are listed in `evals/results/*-live.json`.
 
 ## First thing next session
 1. **You:** create the key as an SSM SecureString, in your own terminal, so it never passes
@@ -18,7 +19,13 @@ in `docs/PROGRESS.md`; this file explains how the pieces fit and what to do firs
    `aws ssm put-parameter --region ap-south-1 --name /crownx/groq-api-key --type SecureString --value <key>`.
 2. Publish the models and note the sha256 values it prints:
    `python scripts/fetch_models.py --only bge-small-en-v1.5-int8 --only ms-marco-MiniLM-L-6-v2-int8 --publish <DocumentsBucket>`.
-3. Build and deploy (ask first), from `infra/`:
+3. (Done 2026-09-19.) Build and deploy (ask first), from `infra/`. Always pass every provider
+   parameter: CloudFormation keeps an existing parameter's previous value, so a changed template
+   default doesn't apply. The deployed values:
+   `AnswerProvider=groq EmbeddingProvider=onnx EmbeddingVersion=2 SearchIndexName=crownx-chunks-384
+   OnnxModelName=bge-small-en-v1.5-int8 OnnxModelSha256=bf64d05457cb391fa88d045faf5927a15ea36d96228ddf23ea970087afdc1197
+   RerankerModelSha256=a13ec391ca99f49886694e12d3e800521f36d4267d7d448c34421c541a2baf50`.
+   Original steps:
    - Build with `services/api/.venv/Scripts` first on PATH. SAM is at
      `C:\Program Files\Amazon\AWSSAMCLIin\sam.cmd`.
    - `sam build`. Check that the zip stays under 250 MB unzipped: onnxruntime, tokenizers and numpy
