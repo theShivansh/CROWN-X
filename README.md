@@ -49,15 +49,6 @@ Recorded with Playwright on the <a href="https://main.d1jy52bqj8dt1h.amplifyapp.
   </tr>
 </table>
 
-### The 30-second demo
-1. **Upload** Markdown, text or PDF files: a brief, an organiser email, meeting notes. Or open the
-   [demo workspace](https://main.d1jy52bqj8dt1h.amplifyapp.com/app/?ws=ws_KFdHFNj0IPUoOs4pQDcMUQ),
-   which already has six documents indexed.
-2. **Ask.** Press <kbd>Ctrl</kbd>+<kbd>K</kbd> and type *"What is the current submission deadline?"*
-3. **Watch CROWN-X explain.** The answer cites its passages and says the sources disagree (20 Sep
-   against 22 Sep). It also names which value is current and why. Open the inspector and the timeline,
-   then the **Workflows** card, where CROWN-X has learned a routine the team repeats.
-
 ---
 
 ## Why CROWN-X exists
@@ -464,31 +455,6 @@ All of these were captured from the deployed app with Playwright: no mockups. Ho
 | <img src="docs/media/conflict-inspector.png" alt="Conflict inspector"> | <img src="docs/media/error-request-id.png" alt="Error card with request ID"> |
 | The conflict inspector | Every error carries a request ID |
 
-## Video demo
-> **YouTube link: to be added after recording** (3 minutes or less). It will be recorded from
-> [`docs/VIDEO_TAKE_SHEET.md`](docs/VIDEO_TAKE_SHEET.md).
-
-| Time | Segment |
-|---|---|
-| 0:00 | The problem: facts change across document versions |
-| 0:30 | Ask with Ctrl+K; retrieval and the conflict check run before the model writes |
-| 0:50 | The cited answer: "Sources disagree", the current value, and the rule |
-| 1:10 | The conflict inspector, and why the deterministic predicate flagged it |
-| 1:30 | The value timeline |
-| 1:45 | Workflow Learning Lite: the routine, why it was detected, the events behind it |
-| 2:00 | The architecture on AWS |
-| 2:30 | Live diagnosis: a request ID from the UI, found in CloudWatch |
-| 2:45 | Measured results, cost bounds, and what I learned |
-
-## Roadmap
-
-| Status | Item |
-|---|---|
-| ✅ **Shipped** | Cited answers, the deterministic conflict engine, value timelines, Workflow Learning Lite, hybrid retrieval, audit trail, limits and throttles, request-ID tracing, CI with end-to-end tests |
-| 🔜 **Next** | Claim extraction for free-text facts, where a model may extract but still never decides a conflict · Cognito accounts and sharing · weighted fusion tuned on a separate development set · Bedrock as the production answer model once the account is verified |
-| 🔭 **Future** | Human review of conflicts · a read-only MCP server (`search_documents`, `find_conflicts`, `get_timeline`) · durable orchestration (LangGraph) · permissioned workflow execution · external connectors · OpenTelemetry |
-
-LangGraph is on the roadmap only: the shipped pipeline is plain, deterministic Python.
 
 ## Lessons learned
 From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGRESS.md):
@@ -522,26 +488,6 @@ From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGR
 | Request IDs + per-stage latency | LLM observability: finding any failure on screen in the logs in seconds |
 | Quotas before work, throttles per route | Cost engineering for LLM products |
 
-## AI tools disclosure
-- **Claude Code (Claude Opus 5)** planned, implemented, tested, reviewed and verified every
-  milestone. The working method is in `CLAUDE.md` and `.claude/`: skills, hooks, subagents, and plan
-  mode for each milestone.
-- **GitHub Copilot** gave inline completions in the editor.
-- **Groq (`openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b`)** is a runtime service of the
-  product, not a coding tool. It writes answers over retrieved evidence and names detected workflows.
-
-<details>
-<summary><b>How this repository works with Claude Code</b></summary>
-
-| Feature | How this repository uses it | Why |
-|---|---|---|
-| `CLAUDE.md` | Rules that each name what enforces them; the commands; how to work | Loaded every session, so it's kept short |
-| Skills | `/milestone`, `/verify-stage`, `/record-decision`, `/aws-ship`; domain skills loaded by description | Detail loads only when it's used |
-| Subagents | Four read-mostly specialists: reviewer, security, evals, ui-verifier | Isolate context-heavy review; building stays in the main session |
-| Hooks | SessionStart context, PreToolUse guards (secrets, force-push), PostToolUse format, Stop gate | Deterministic enforcement that doesn't rely on memory |
-| Permissions | `.env`, keys and force-push are denied; push, deploy and AWS deletes ask first | Safety without a prompt for every routine command |
-| Plan mode | Each milestone is planned and approved before building | Scope is agreed before code |
-</details>
 
 ## Credits and license
 Models, components, fonts and their licences are listed in [`CREDITS.md`](CREDITS.md):
@@ -557,6 +503,6 @@ Released under the [MIT License](LICENSE).
 
 <div align="center">
 
-<sub>Built with <b>Claude Code (Opus 5)</b>, <b>GitHub Copilot</b>, <b>Groq</b>, and <b>AWS</b> · AWS First Commit 2026 · Mumbai, ap-south-1</sub>
+<sub>Built with <b>AWS</b> · AWS First Commit 2026 · Mumbai, ap-south-1</sub>
 
 </div>
