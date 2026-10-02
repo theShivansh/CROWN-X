@@ -403,7 +403,7 @@ CROWN-X/
 
 ## Local development
 You'll need Node 22 with pnpm 10, and Python 3.12 through [uv](https://docs.astral.sh/uv/). Deploying
-also needs the AWS CLI and the SAM CLI. These are the exact commands from [`CLAUDE.md`](CLAUDE.md):
+also needs the AWS CLI and the SAM CLI. 
 
 ```bash
 cd services/api && uv sync && uv run pytest -q
@@ -489,14 +489,7 @@ From the [ADRs](docs/DECISIONS.md) and the Learning log in [PROGRESS](docs/PROGR
 | Quotas before work, throttles per route | Cost engineering for LLM products |
 
 
-## Credits and license
-Models, components, fonts and their licences are listed in [`CREDITS.md`](CREDITS.md):
-- the models: BAAI `bge-small-en-v1.5` (MIT), `ms-marco-MiniLM-L-6-v2` (Apache-2.0), OpenAI
-  `gpt-oss` (Apache-2.0) served by Groq;
-- shadcn/ui (MIT), Motion (MIT), Geist (OFL), Phosphor Icons (MIT);
-- AWS Lambda Powertools (MIT), opensearch-py (Apache-2.0), onnxruntime (MIT), pypdf (BSD).
 
-The demo documents and every evaluation dataset were written for this project during the event.
 Released under the [MIT License](LICENSE).
 
 ---
